@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../core/widgets/role_switcher_widget.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
 
@@ -25,6 +26,7 @@ class ManagerHomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('لوحة تحكم المدير'),
         actions: [
+          const RoleSwitcherButton(),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.invalidate(managerAnalyticsProvider),
@@ -104,6 +106,11 @@ class ManagerHomeScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Role Switcher Widget
+          const RoleSwitcherWidget(),
+
+          const SizedBox(height: AppDimensions.md),
+
           // User Header
           _buildUserHeader(user),
 

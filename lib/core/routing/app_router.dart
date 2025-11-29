@@ -23,6 +23,8 @@ import '../../features/driver/presentation/screens/driver_active_trip_screen.dar
 import '../../features/dispatcher/presentation/screens/dispatcher_home_screen.dart';
 import '../../features/passenger/presentation/screens/passenger_home_screen.dart';
 import '../../features/manager/presentation/screens/manager_home_screen.dart';
+import '../../features/manager/presentation/screens/manager_analytics_screen.dart';
+import '../../features/manager/presentation/screens/manager_reports_screen.dart';
 
 import 'role_routing.dart';
 import 'route_paths.dart';
@@ -250,24 +252,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'analytics',
             name: RouteNames.managerAnalytics,
-            builder: (context, state) {
-              // TODO: Replace with actual AnalyticsScreen
-              return Scaffold(
-                appBar: AppBar(title: const Text('التحليلات المتقدمة')),
-                body: const Center(child: Text('شاشة التحليلات')),
-              );
-            },
+            builder: (context, state) => const ManagerAnalyticsScreen(),
           ),
           GoRoute(
             path: 'reports',
             name: RouteNames.managerReports,
-            builder: (context, state) {
-              // TODO: Replace with actual ReportsScreen
-              return Scaffold(
-                appBar: AppBar(title: const Text('التقارير')),
-                body: const Center(child: Text('شاشة التقارير')),
-              );
-            },
+            builder: (context, state) => const ManagerReportsScreen(),
           ),
           GoRoute(
             path: 'overview',
