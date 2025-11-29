@@ -159,9 +159,10 @@ class User {
 
   /// Detect role from Odoo response
   static UserRole _detectRoleFromOdoo(Map<String, dynamic> json) {
-    // Check for explicit role field
-    final roleStr =
-        json['shuttlebee_role'] as String? ?? json['role'] as String?;
+    // Check for explicit role field (support multiple field names)
+    final roleStr = json['shuttle_role'] as String? ??
+        json['shuttlebee_role'] as String? ??
+        json['role'] as String?;
     if (roleStr != null) {
       return UserRole.tryFromString(roleStr) ?? UserRole.passenger;
     }

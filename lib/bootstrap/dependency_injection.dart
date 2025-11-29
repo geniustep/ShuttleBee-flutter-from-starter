@@ -1,16 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/bridgecore_integration/client/bridgecore_client.dart';
-import '../core/config/env_config.dart';
 import '../core/network/network_info.dart';
 import '../core/storage/hive_service.dart';
 import '../core/storage/prefs_service.dart';
 import '../core/storage/secure_storage_service.dart';
 
-/// BridgeCore Client Provider
-final bridgecoreClientProvider = Provider<BridgecoreClient>((ref) {
-  return BridgecoreClient(EnvConfig.odooUrl);
-});
+// Note: bridgecoreClientProvider is defined in auth_provider.dart
+// It's a StateProvider that gets set after successful login
 
 /// Network Info Provider
 final networkInfoProvider = Provider<NetworkInfo>((ref) {

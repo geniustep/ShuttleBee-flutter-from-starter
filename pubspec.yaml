@@ -24,9 +24,7 @@ dependencies:
   dio: ^5.9.0
   pretty_dio_logger: ^1.4.0
   bridgecore_flutter:
-    git:
-      url: https://github.com/geniustep/bridgecore_flutter.git
-      ref: 3.0.0
+    path: ../../package/bridgecore_flutter
 
   # Functional Programming
   dartz: ^0.10.1

@@ -15,7 +15,8 @@ final authStateProvider =
 });
 
 /// BridgeCore client provider
-final bridgecoreClientProvider = StateProvider<BridgecoreClient?>((ref) => null);
+final bridgecoreClientProvider =
+    StateProvider<BridgecoreClient?>((ref) => null);
 
 /// Auth state notifier
 class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
@@ -53,6 +54,8 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
     // required String database,
     required String username,
     required String password,
+    required String modelName,
+    required List<String> listFields,
     bool rememberMe = false,
   }) async {
     state = const AsyncValue.loading();
@@ -63,6 +66,7 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
         // database: database,
         username: username,
         password: password,
+        odooFieldsCheck: {"model": modelName, "list_fields": listFields},
       );
 
       final user = User.fromOdoo(result);
@@ -145,6 +149,7 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
     await _prefs.remove(StorageKeys.userDisplayName);
     await _prefs.remove(StorageKeys.companyId);
     await _prefs.remove(StorageKeys.companyName);
+    // await _prefs.remove(StorageKeys.userBox);
   }
 
   /// Get current user

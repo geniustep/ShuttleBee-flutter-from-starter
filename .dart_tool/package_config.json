@@ -81,7 +81,7 @@
     },
     {
       "name": "bridgecore_flutter",
-      "rootUri": "file:///C:/Users/Zakaria/AppData/Local/Pub/Cache/git/bridgecore_flutter-5d43dc48b6f1e47637af49a877e62545c3b86902/",
+      "rootUri": "../../../package/bridgecore_flutter",
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },

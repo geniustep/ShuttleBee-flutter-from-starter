@@ -43,6 +43,7 @@ class BridgecoreClient {
     // required String database,
     required String username,
     required String password,
+    Map<String, dynamic>? odooFieldsCheck, // إضافة معامل اختياري
   }) async {
     try {
       try {
@@ -53,11 +54,28 @@ class BridgecoreClient {
         // تجاهل خطأ logout إذا لم يكن هناك session
       }
 
-      _logger.d('Authenticating user: $username on database: $database');
+      _logger.d('Authenticating user: $username');
+
+      // إنشاء OdooFieldsCheck من JSON إذا تم تمريره
+      OdooFieldsCheck? fieldsCheck;
+      if (odooFieldsCheck != null) {
+        final model = odooFieldsCheck['model'] as String?;
+        final listFields = odooFieldsCheck['list_fields'] as List<dynamic>?;
+
+        if (model != null && listFields != null) {
+          fieldsCheck = OdooFieldsCheck(
+            model: model,
+            listFields: listFields.cast<String>(),
+          );
+          _logger
+              .d('Using odoo_fields_check: model=$model, fields=$listFields');
+        }
+      }
 
       final session = await BridgeCore.instance.auth.login(
         email: username, // Tenant-based API يستخدم email
         password: password,
+        odooFieldsCheck: fieldsCheck, // تمرير OdooFieldsCheck
       );
       await _storage.write(
         key: AppConstants.accessTokenKey,
@@ -83,17 +101,43 @@ class BridgecoreClient {
 
       // Convert TenantSession to Map for compatibility
       final userId = session.user.odooUserId;
-      final response = {
+      final odooFieldsData = session.odooFieldsData?.toJson();
+
+// هذه اللائحة للعرض فقط أو للإرسال
+      final List<Map<String, dynamic>> fieldsList = [];
+
+// هنا نخزن data بالكامل
+      Map<String, dynamic> data = {};
+
+      if (odooFieldsData != null) {
+        // data المجهولة القادمة من Odoo
+        data = Map<String, dynamic>.from(odooFieldsData['data'] ?? {});
+
+        // تحويلها إلى لائحة
+        for (final entry in data.entries) {
+          fieldsList.add({
+            'key': entry.key,
+            'value': entry.value,
+          });
+        }
+      }
+
+      final response = <String, dynamic>{
         'access_token': session.accessToken,
         'refresh_token': session.refreshToken,
         'token_type': 'Bearer',
         'expires_in': session.expiresIn,
         'session_id': session.accessToken,
+
         if (userId != null) 'uid': userId,
         if (userId != null) 'id': userId,
+
         'name': session.user.fullName,
         'username': session.user.email,
         'email': session.user.email,
+
+        // نحط كل فروع data داخل response بدون ما نكتبهم
+        ...data,
       };
 
       return response;
@@ -134,13 +178,14 @@ class BridgecoreClient {
   }
 
   /// ✅ الحصول على معلومات المستخدم الحالي باستخدام /me endpoint (BridgeCore v0.2.0)
-  Future<Map<String, dynamic>> getCurrentUser() async {
+  Future<Map<String, dynamic>> getCurrentUser(
+      {required String modelName, required List<String> listFields}) async {
     try {
       // استخدام BridgeCore مباشرة مع odoo_fields_check
       final meResponse = await BridgeCore.instance.auth.me(
         odooFieldsCheck: OdooFieldsCheck(
-          model: 'res.users',
-          listFields: ['name'],
+          model: modelName,
+          listFields: listFields,
           // listFields: ['shuttle_role'],
         ),
         forceRefresh: true, // للحصول على بيانات محدثة
@@ -654,6 +699,7 @@ class BridgecoreClient {
 
   /// Ensure client is authenticated
   void _ensureAuthenticated() {
+    // Check local flag - SDK handles token management internally
     if (!_isAuthenticated) {
       throw StateError(
         'Client is not authenticated. Call authenticate() first.',

@@ -108,11 +108,9 @@ packages:
   bridgecore_flutter:
     dependency: "direct main"
     description:
-      path: "."
-      ref: "3.0.0"
-      resolved-ref: "5d43dc48b6f1e47637af49a877e62545c3b86902"
-      url: "https://github.com/geniustep/bridgecore_flutter.git"
-    source: git
+      path: "../../package/bridgecore_flutter"
+      relative: true
+    source: path
     version: "3.0.0"
   build:
     dependency: transitive

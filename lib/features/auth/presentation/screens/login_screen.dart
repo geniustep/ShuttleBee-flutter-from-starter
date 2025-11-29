@@ -27,12 +27,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   bool _obscurePassword = true;
   bool _rememberMe = false;
-  bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   void dispose() {
@@ -44,26 +38,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    final success = await ref.read(authStateProvider.notifier).login(
+      serverUrl: EnvConfig.odooUrl,
+      username: _usernameController.text.trim(),
+      password: _passwordController.text,
+      rememberMe: _rememberMe,
+      modelName: "res.users",
+      listFields: ["shuttle_role"],
+    );
 
-    try {
-      final success = await ref.read(authStateProvider.notifier).login(
-            serverUrl: EnvConfig.odooUrl,
-            username: _usernameController.text.trim(),
-            password: _passwordController.text,
-            rememberMe: _rememberMe,
-          );
+    if (!mounted) return;
 
-      if (success && mounted) {
-        // Get user role and navigate to appropriate home
-        final user = ref.read(authStateProvider).asData?.value.user;
-        final homeRoute = getHomeRouteForRole(user?.role);
-        context.go(homeRoute);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    if (success) {
+      // Get user role and navigate to appropriate home
+      final user = ref.read(authStateProvider).asData?.value.user;
+      final homeRoute = getHomeRouteForRole(user?.role);
+      context.go(homeRoute);
     }
   }
 
@@ -71,8 +61,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final authState = ref.watch(authStateProvider);
+    final isLoading = authState.isLoading;
 
-    // Show error if any
+    // Listen for auth errors and show snackbar
     ref.listen<AsyncValue<AuthState>>(authStateProvider, (previous, next) {
       next.whenOrNull(
         error: (error, _) {
@@ -185,10 +176,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                             // Login button
                             ElevatedButton(
-                              onPressed: _isLoading || authState.isLoading
-                                  ? null
-                                  : _handleLogin,
-                              child: _isLoading || authState.isLoading
+                              onPressed: isLoading ? null : _handleLogin,
+                              child: isLoading
                                   ? const SizedBox(
                                       height: 20,
                                       width: 20,
