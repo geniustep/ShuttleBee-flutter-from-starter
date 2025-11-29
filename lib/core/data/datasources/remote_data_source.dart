@@ -34,6 +34,10 @@ class AuthRemoteDataSource extends RemoteDataSource {
       () => BridgeCore.instance.auth.login(
         email: email,
         password: password,
+        odooFieldsCheck: OdooFieldsCheck(
+          model: 'res.users',
+          listFields: ['shuttle_role'],
+        ),
       ),
       errorMessage: 'Failed to login',
     );

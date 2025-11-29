@@ -3,7 +3,7 @@ import 'package:bridgecore_flutter_starter/features/auth/domain/entities/user.da
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/routing/route_paths.dart';
+import '../../../../core/routing/role_routing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/validators.dart';
@@ -55,7 +55,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
 
       if (success && mounted) {
-        context.go(RoutePaths.home);
+        // Get user role and navigate to appropriate home
+        final user = ref.read(authStateProvider).asData?.value.user;
+        final homeRoute = getHomeRouteForRole(user?.role);
+        context.go(homeRoute);
       }
     } finally {
       if (mounted) {

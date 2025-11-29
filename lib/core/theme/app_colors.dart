@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 
-/// Application color palette
+/// Application color palette - ShuttleBee Theme
 class AppColors {
   AppColors._();
 
-  // === Primary Colors (Modern Blue) ===
-  static const Color primary = Color(0xFF2563EB);
-  static const Color primaryLight = Color(0xFF60A5FA);
-  static const Color primaryDark = Color(0xFF1E40AF);
-  static const Color primaryContainer = Color(0xFFDBEAFE);
+  // === Primary Colors (ShuttleBee Blue) ===
+  static const Color primary = Color(0xFF2196F3);
+  static const Color primaryLight = Color(0xFF64B5F6);
+  static const Color primaryDark = Color(0xFF1976D2);
+  static const Color primaryContainer = Color(0xFFBBDEFB);
   static const Color onPrimary = Color(0xFFFFFFFF);
-  static const Color onPrimaryContainer = Color(0xFF1E3A5F);
+  static const Color onPrimaryContainer = Color(0xFF0D47A1);
 
-  // === Secondary Colors (Warm Orange) ===
-  static const Color secondary = Color(0xFFF59E0B);
-  static const Color secondaryLight = Color(0xFFFBBF24);
-  static const Color secondaryDark = Color(0xFFD97706);
-  static const Color secondaryContainer = Color(0xFFFEF3C7);
+  // === Secondary Colors (ShuttleBee Orange) ===
+  static const Color secondary = Color(0xFFFF9800);
+  static const Color secondaryLight = Color(0xFFFFB74D);
+  static const Color secondaryDark = Color(0xFFF57C00);
+  static const Color secondaryContainer = Color(0xFFFFE0B2);
   static const Color onSecondary = Color(0xFFFFFFFF);
-  static const Color onSecondaryContainer = Color(0xFF78350F);
+  static const Color onSecondaryContainer = Color(0xFFE65100);
 
   // === Neutral Colors ===
   static const Color background = Color(0xFFFAFAFA);
@@ -35,22 +35,53 @@ class AppColors {
   static const Color textDisabled = Color(0xFF9CA3AF);
   static const Color textHint = Color(0xFFD1D5DB);
 
-  // === Status Colors ===
-  static const Color success = Color(0xFF10B981);
-  static const Color successLight = Color(0xFFD1FAE5);
+  // === Status Colors (ShuttleBee) ===
+  static const Color success = Color(0xFF4CAF50);
+  static const Color successLight = Color(0xFFC8E6C9);
   static const Color onSuccess = Color(0xFFFFFFFF);
 
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color warningLight = Color(0xFFFEF3C7);
-  static const Color onWarning = Color(0xFFFFFFFF);
+  static const Color warning = Color(0xFFFFC107);
+  static const Color warningLight = Color(0xFFFFF9C4);
+  static const Color onWarning = Color(0xFF000000);
 
-  static const Color error = Color(0xFFEF4444);
-  static const Color errorLight = Color(0xFFFEE2E2);
+  static const Color error = Color(0xFFF44336);
+  static const Color errorLight = Color(0xFFFFCDD2);
   static const Color onError = Color(0xFFFFFFFF);
 
-  static const Color info = Color(0xFF3B82F6);
-  static const Color infoLight = Color(0xFFDBEAFE);
+  static const Color info = Color(0xFF2196F3);
+  static const Color infoLight = Color(0xFFBBDEFB);
   static const Color onInfo = Color(0xFFFFFFFF);
+
+  // === Trip State Colors (ShuttleBee) ===
+  static const Color stateDraft = Color(0xFF9E9E9E);
+  static const Color statePlanned = Color(0xFF2196F3);
+  static const Color stateOngoing = Color(0xFFFF9800);
+  static const Color stateDone = Color(0xFF4CAF50);
+  static const Color stateCancelled = Color(0xFFF44336);
+
+  // === Trip Line Status Colors ===
+  static const Color statusNotStarted = Color(0xFF9E9E9E);
+  static const Color statusAbsent = Color(0xFFF44336);
+  static const Color statusBoarded = Color(0xFF2196F3);
+  static const Color statusDropped = Color(0xFF4CAF50);
+
+  // === Map Colors ===
+  static const Color mapMarkerPickup = Color(0xFF2196F3);
+  static const Color mapMarkerDropoff = Color(0xFF4CAF50);
+  static const Color mapMarkerCurrent = Color(0xFFFF9800);
+  static const Color mapRoute = Color(0xFF2196F3);
+
+  // === Chart Colors ===
+  static const List<Color> chartColors = [
+    Color(0xFF2196F3),
+    Color(0xFFFF9800),
+    Color(0xFF4CAF50),
+    Color(0xFFF44336),
+    Color(0xFF9C27B0),
+    Color(0xFF00BCD4),
+    Color(0xFFFFEB3B),
+    Color(0xFF795548),
+  ];
 
   // === Sync Status Colors ===
   static const Color offline = Color(0xFFEF4444);

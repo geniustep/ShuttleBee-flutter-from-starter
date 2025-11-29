@@ -15,6 +15,14 @@ import '../../features/settings/presentation/screens/offline_settings_screen.dar
 import '../../features/settings/presentation/screens/profile_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
+
+// ShuttleBee Screens
+import '../../features/driver/presentation/screens/driver_home_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_home_screen.dart';
+import '../../features/passenger/presentation/screens/passenger_home_screen.dart';
+import '../../features/manager/presentation/screens/manager_home_screen.dart';
+
+import 'role_routing.dart';
 import 'route_paths.dart';
 
 /// Global navigator key
@@ -30,6 +38,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     debugLogDiagnostics: true,
     redirect: (context, state) {
       final isLoggedIn = authState.asData?.value.isAuthenticated ?? false;
+      final user = authState.asData?.value.user;
       final isLoggingIn = state.matchedLocation == RoutePaths.login;
       final isSplash = state.matchedLocation == RoutePaths.splash;
       final isSelectCompany = state.matchedLocation == RoutePaths.selectCompany;
@@ -45,9 +54,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         return RoutePaths.login;
       }
 
-      // Redirect to home if authenticated and on login page
+      // Redirect to role-based home if authenticated and on login page
       if (isLoggedIn && isLoggingIn) {
-        return RoutePaths.home;
+        return getHomeRouteForRole(user?.role);
       }
 
       return null;
@@ -84,6 +93,199 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.dashboard,
         name: RouteNames.dashboard,
         builder: (context, state) => const DashboardScreen(),
+      ),
+
+      // === ShuttleBee Role-Based Routes ===
+
+      // Driver Home + children
+      GoRoute(
+        path: RoutePaths.driverHome,
+        name: RouteNames.driverHome,
+        builder: (context, state) => const DriverHomeScreen(),
+        routes: [
+          GoRoute(
+            path: 'trip/:tripId',
+            name: RouteNames.driverTripDetail,
+            builder: (context, state) {
+              final tripId = int.parse(state.pathParameters['tripId']!);
+              // TODO: Replace with actual TripDetailScreen
+              return Scaffold(
+                appBar: AppBar(title: const Text('تفاصيل الرحلة')),
+                body: Center(child: Text('تفاصيل الرحلة رقم: $tripId')),
+              );
+            },
+            routes: [
+              GoRoute(
+                path: 'active',
+                name: RouteNames.driverActiveTrip,
+                builder: (context, state) {
+                  final tripId = int.parse(state.pathParameters['tripId']!);
+                  // TODO: Replace with actual ActiveTripScreen
+                  return Scaffold(
+                    appBar: AppBar(title: const Text('الرحلة النشطة')),
+                    body: Center(child: Text('إدارة الرحلة رقم: $tripId')),
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+
+      // Dispatcher Home + children
+      GoRoute(
+        path: RoutePaths.dispatcherHome,
+        name: RouteNames.dispatcherHome,
+        builder: (context, state) => const DispatcherHomeScreen(),
+        routes: [
+          GoRoute(
+            path: 'trips',
+            name: RouteNames.dispatcherTrips,
+            builder: (context, state) {
+              // TODO: Replace with actual TripListScreen
+              return Scaffold(
+                appBar: AppBar(title: const Text('إدارة الرحلات')),
+                body: const Center(child: Text('قائمة الرحلات')),
+              );
+            },
+            routes: [
+              GoRoute(
+                path: 'create',
+                name: RouteNames.dispatcherCreateTrip,
+                builder: (context, state) {
+                  // TODO: Replace with actual CreateTripScreen
+                  return Scaffold(
+                    appBar: AppBar(title: const Text('إنشاء رحلة جديدة')),
+                    body: const Center(child: Text('نموذج إنشاء رحلة')),
+                  );
+                },
+              ),
+              GoRoute(
+                path: ':tripId',
+                name: RouteNames.dispatcherTripDetail,
+                builder: (context, state) {
+                  final tripId = int.parse(state.pathParameters['tripId']!);
+                  // TODO: Replace with actual DispatcherTripDetailScreen
+                  return Scaffold(
+                    appBar: AppBar(title: const Text('تفاصيل الرحلة')),
+                    body: Center(child: Text('تفاصيل الرحلة رقم: $tripId')),
+                  );
+                },
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    name: RouteNames.dispatcherEditTrip,
+                    builder: (context, state) {
+                      final tripId = int.parse(state.pathParameters['tripId']!);
+                      // TODO: Replace with actual EditTripScreen
+                      return Scaffold(
+                        appBar: AppBar(title: const Text('تعديل الرحلة')),
+                        body: Center(child: Text('تعديل الرحلة رقم: $tripId')),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          GoRoute(
+            path: 'monitor',
+            name: RouteNames.dispatcherMonitor,
+            builder: (context, state) {
+              // TODO: Replace with actual RealTimeMonitoringScreen
+              return Scaffold(
+                appBar: AppBar(title: const Text('المراقبة الحية')),
+                body: const Center(child: Text('خريطة المراقبة الحية')),
+              );
+            },
+          ),
+          GoRoute(
+            path: 'vehicles',
+            name: RouteNames.dispatcherVehicles,
+            builder: (context, state) {
+              // TODO: Replace with actual VehicleManagementScreen
+              return Scaffold(
+                appBar: AppBar(title: const Text('إدارة المركبات')),
+                body: const Center(child: Text('قائمة المركبات')),
+              );
+            },
+            routes: [
+              GoRoute(
+                path: 'create',
+                name: RouteNames.dispatcherCreateVehicle,
+                builder: (context, state) {
+                  // TODO: Replace with actual CreateEditVehicleScreen
+                  return Scaffold(
+                    appBar: AppBar(title: const Text('إضافة مركبة')),
+                    body: const Center(child: Text('نموذج إضافة مركبة')),
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+
+      // Passenger Home + children
+      GoRoute(
+        path: RoutePaths.passengerHome,
+        name: RouteNames.passengerHome,
+        builder: (context, state) => const PassengerHomeScreen(),
+        routes: [
+          GoRoute(
+            path: 'track/:tripId',
+            name: RouteNames.passengerTripTracking,
+            builder: (context, state) {
+              final tripId = int.parse(state.pathParameters['tripId']!);
+              // TODO: Replace with actual TripTrackingScreen
+              return Scaffold(
+                appBar: AppBar(title: const Text('تتبع الرحلة')),
+                body: Center(child: Text('تتبع الرحلة رقم: $tripId')),
+              );
+            },
+          ),
+        ],
+      ),
+
+      // Manager Home + children
+      GoRoute(
+        path: RoutePaths.managerHome,
+        name: RouteNames.managerHome,
+        builder: (context, state) => const ManagerHomeScreen(),
+        routes: [
+          GoRoute(
+            path: 'analytics',
+            name: RouteNames.managerAnalytics,
+            builder: (context, state) {
+              // TODO: Replace with actual AnalyticsScreen
+              return Scaffold(
+                appBar: AppBar(title: const Text('التحليلات المتقدمة')),
+                body: const Center(child: Text('شاشة التحليلات')),
+              );
+            },
+          ),
+          GoRoute(
+            path: 'reports',
+            name: RouteNames.managerReports,
+            builder: (context, state) {
+              // TODO: Replace with actual ReportsScreen
+              return Scaffold(
+                appBar: AppBar(title: const Text('التقارير')),
+                body: const Center(child: Text('شاشة التقارير')),
+              );
+            },
+          ),
+          GoRoute(
+            path: 'overview',
+            name: RouteNames.managerOverview,
+            builder: (context, state) {
+              return Scaffold(
+                appBar: AppBar(title: const Text('نظرة عامة')),
+                body: const Center(child: Text('نظرة عامة على الأداء')),
+              );
+            },
+          ),
+        ],
       ),
 
       // Settings

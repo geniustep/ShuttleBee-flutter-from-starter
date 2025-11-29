@@ -1,6 +1,8 @@
 import 'package:bridgecore_flutter/bridgecore_flutter.dart';
 
-/// User entity
+import '../../../../core/enums/user_role.dart';
+
+/// User entity - ShuttleBee
 class User {
   final int id;
   final String name;
@@ -19,6 +21,7 @@ class User {
   final bool isInternalUser;
   final List<String> groups;
   final int? currentCompanyId;
+  final UserRole role; // ShuttleBee role
 
   const User({
     required this.id,
@@ -38,6 +41,7 @@ class User {
     this.isInternalUser = false,
     this.groups = const [],
     this.currentCompanyId,
+    this.role = UserRole.passenger, // Default role
   });
 
   factory User.fromTenantMeResponse(TenantMeResponse me) {
@@ -53,7 +57,28 @@ class User {
       groups: me.groups,
       companyIds: me.companyIds,
       currentCompanyId: me.currentCompanyId,
+      role: _detectRoleFromGroups(me.groups, me.isAdmin),
     );
+  }
+
+  /// Detect user role from Odoo groups
+  static UserRole _detectRoleFromGroups(List<String> groups, bool isAdmin) {
+    // Check groups for ShuttleBee roles
+    final groupsLower = groups.map((g) => g.toLowerCase()).toList();
+
+    if (isAdmin ||
+        groupsLower.any((g) => g.contains('manager') || g.contains('مدير'))) {
+      return UserRole.manager;
+    }
+    if (groupsLower
+        .any((g) => g.contains('dispatcher') || g.contains('مشغل'))) {
+      return UserRole.dispatcher;
+    }
+    if (groupsLower.any((g) => g.contains('driver') || g.contains('سائق'))) {
+      return UserRole.driver;
+    }
+    // Default to passenger
+    return UserRole.passenger;
   }
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -75,6 +100,8 @@ class User {
       isInternalUser: json['isInternalUser'] as bool? ?? false,
       groups: (json['groups'] as List?)?.cast<String>() ?? const [],
       currentCompanyId: json['currentCompanyId'] as int?,
+      role:
+          UserRole.tryFromString(json['role'] as String?) ?? UserRole.passenger,
     );
   }
 
@@ -97,11 +124,15 @@ class User {
       'isInternalUser': isInternalUser,
       'groups': groups,
       'currentCompanyId': currentCompanyId,
+      'role': role.value,
     };
   }
 
   /// Create from Odoo response (legacy support)
   factory User.fromOdoo(Map<String, dynamic> json) {
+    final groups = (json['groups'] as List?)?.cast<String>() ?? [];
+    final isAdmin = json['is_admin'] as bool? ?? false;
+
     return User(
       id: json['uid'] as int? ?? json['id'] as int? ?? 0,
       name: json['name'] as String? ?? json['username'] as String? ?? '',
@@ -110,14 +141,35 @@ class User {
       companyId: json['company_id'] is List
           ? (json['company_id'] as List).firstOrNull as int?
           : json['company_id'] as int?,
-      companyName: json['company_id'] is List &&
-              (json['company_id'] as List).length > 1
-          ? (json['company_id'] as List)[1] as String?
-          : null,
+      companyName:
+          json['company_id'] is List && (json['company_id'] as List).length > 1
+              ? (json['company_id'] as List)[1] as String?
+              : null,
       lang: json['lang'] as String?,
       tz: json['tz'] as String?,
       companyIds: (json['company_ids'] as List?)?.cast<int>(),
+      partnerId: json['partner_id'] is List
+          ? (json['partner_id'] as List).firstOrNull as int?
+          : json['partner_id'] as int?,
+      groups: groups,
+      isAdmin: isAdmin,
+      role: _detectRoleFromOdoo(json),
     );
+  }
+
+  /// Detect role from Odoo response
+  static UserRole _detectRoleFromOdoo(Map<String, dynamic> json) {
+    // Check for explicit role field
+    final roleStr =
+        json['shuttlebee_role'] as String? ?? json['role'] as String?;
+    if (roleStr != null) {
+      return UserRole.tryFromString(roleStr) ?? UserRole.passenger;
+    }
+
+    // Check groups
+    final groups = (json['groups'] as List?)?.cast<String>() ?? [];
+    final isAdmin = json['is_admin'] as bool? ?? false;
+    return _detectRoleFromGroups(groups, isAdmin);
   }
 
   /// Copy with
@@ -139,6 +191,7 @@ class User {
     bool? isInternalUser,
     List<String>? groups,
     int? currentCompanyId,
+    UserRole? role,
   }) {
     return User(
       id: id ?? this.id,
@@ -158,6 +211,7 @@ class User {
       isInternalUser: isInternalUser ?? this.isInternalUser,
       groups: groups ?? this.groups,
       currentCompanyId: currentCompanyId ?? this.currentCompanyId,
+      role: role ?? this.role,
     );
   }
 

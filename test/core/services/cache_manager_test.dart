@@ -1,8 +1,26 @@
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 import 'package:bridgecore_flutter_starter/core/cache/cache_manager.dart';
 
 void main() {
   late CacheManager cacheManager;
+  late Directory tempDir;
+
+  setUpAll(() async {
+    // Initialize Hive with a temporary directory for tests
+    tempDir = await Directory.systemTemp.createTemp('hive_test_');
+    Hive.init(tempDir.path);
+  });
+
+  tearDownAll(() async {
+    // Clean up: close all boxes and delete temp directory
+    await Hive.close();
+    if (await tempDir.exists()) {
+      await tempDir.delete(recursive: true);
+    }
+  });
+
   setUp(() {
     cacheManager = CacheManager();
   });

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/role_routing.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -55,9 +56,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     final authState = ref.read(authStateProvider);
     final isAuthenticated = authState.asData?.value.isAuthenticated ?? false;
+    final user = authState.asData?.value.user;
 
     if (isAuthenticated) {
-      context.go(RoutePaths.home);
+      // Navigate to role-based home screen
+      final homeRoute = getHomeRouteForRole(user?.role);
+      context.go(homeRoute);
     } else {
       context.go(RoutePaths.login);
     }
@@ -106,7 +110,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
                   // App name
                   Text(
-                    'BridgeCore',
+                    'ShuttleBee',
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -117,7 +121,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
                   // Tagline
                   Text(
-                    'Enterprise Flutter Starter',
+                    'نظام النقل المدرسي الذكي',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Colors.white.withValues(alpha: 0.8),
                         ),
