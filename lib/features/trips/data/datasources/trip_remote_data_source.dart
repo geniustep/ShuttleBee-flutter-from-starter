@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 import '../../../../core/bridgecore_integration/client/bridgecore_client.dart';
 import '../../../../core/enums/enums.dart';
 import '../../domain/entities/trip.dart';

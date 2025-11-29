@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../enums/user_role.dart';
 import '../storage/prefs_service.dart';
@@ -72,8 +73,30 @@ final roleSwitcherServiceProvider = Provider<RoleSwitcherService>((ref) {
   return RoleSwitcherService();
 });
 
+/// Active Role Notifier
+class ActiveRoleNotifier extends StateNotifier<UserRole?> {
+  ActiveRoleNotifier(this._service) : super(_service.getActiveRole());
+
+  final RoleSwitcherService _service;
+
+  void setRole(UserRole role) {
+    _service.setActiveRole(role);
+    state = role;
+  }
+
+  void clearRole() {
+    _service.clearActiveRole();
+    state = null;
+  }
+
+  void refresh() {
+    state = _service.getActiveRole();
+  }
+}
+
 /// Provider for active role
-final activeRoleProvider = StateProvider<UserRole?>((ref) {
+final activeRoleProvider =
+    StateNotifierProvider.autoDispose<ActiveRoleNotifier, UserRole?>((ref) {
   final service = ref.watch(roleSwitcherServiceProvider);
-  return service.getActiveRole();
+  return ActiveRoleNotifier(service);
 });

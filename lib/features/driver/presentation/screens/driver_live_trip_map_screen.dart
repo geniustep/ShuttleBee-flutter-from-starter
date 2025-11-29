@@ -46,7 +46,6 @@ class _DriverLiveTripMapScreenState
   double _currentBearing = 0;
 
   // Trip Data
-  Trip? _trip;
   TripLine? _nextStop;
   int _etaMinutes = 0;
   double _distanceKm = 0;
@@ -172,7 +171,6 @@ class _DriverLiveTripMapScreenState
             return const Center(child: Text('لم يتم العثور على الرحلة'));
           }
 
-          _trip = trip;
           _nextStop = _getNextStop(trip);
 
           return Stack(

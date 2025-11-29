@@ -86,13 +86,14 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                     const Expanded(child: TripsListShimmer()),
                   ],
                 ),
-                error: (error, _) => Column(
+                error: (error, stackTrace) => Column(
                   children: [
                     // User Info Card
                     _buildUserInfoCard(userName),
                     // Error state
                     Expanded(
-                      child: _buildErrorState(context, ref, error.toString()),
+                      child: _buildErrorState(
+                          context, ref, _getErrorMessage(error)),
                     ),
                   ],
                 ),
@@ -108,7 +109,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     final isToday = _isToday(_selectedDate);
 
     return Container(
-      color: isToday ? AppColors.primary.withValues(alpha: 0.1) : Colors.grey[200],
+      color:
+          isToday ? AppColors.primary.withValues(alpha: 0.1) : Colors.grey[200],
       padding: const EdgeInsets.symmetric(
         horizontal: AppDimensions.md,
         vertical: AppDimensions.sm,
@@ -122,7 +124,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
               icon: const Icon(Icons.arrow_back_ios, size: 20),
               onPressed: () {
                 setState(() {
-                  _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+                  _selectedDate =
+                      _selectedDate.subtract(const Duration(days: 1));
                 });
               },
             ),
@@ -135,7 +138,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                 child: Text(
                   isToday
                       ? 'اليوم - ${DateFormat('d MMMM yyyy', 'ar').format(_selectedDate)}'
-                      : DateFormat('EEEE، d MMMM yyyy', 'ar').format(_selectedDate),
+                      : DateFormat('EEEE، d MMMM yyyy', 'ar')
+                          .format(_selectedDate),
                   style: AppTypography.h6.copyWith(
                     color: isToday ? AppColors.primary : AppColors.textPrimary,
                   ),
@@ -199,29 +203,89 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     }
   }
 
+  String _getErrorMessage(Object error) {
+    String message;
+
+    if (error is Exception) {
+      message = error.toString();
+    } else {
+      message = error.toString();
+    }
+
+    // Remove "Exception: " prefix if present
+    if (message.startsWith('Exception: ')) {
+      message = message.substring(11);
+    } else if (message.startsWith('Exception')) {
+      message = message.replaceFirst('Exception', '').trim();
+      if (message.isEmpty) {
+        message = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى';
+      }
+    }
+
+    // If message is empty or just "Exception", provide default
+    if (message.isEmpty || message.trim() == 'Exception') {
+      return 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى';
+    }
+
+    return message;
+  }
+
   Widget _buildErrorState(BuildContext context, WidgetRef ref, String error) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 64, color: AppColors.error),
-          const SizedBox(height: AppDimensions.md),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppDimensions.lg),
-            child: Text(
-              error,
-              style: AppTypography.bodyMedium,
-              textAlign: TextAlign.center,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppDimensions.lg),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppDimensions.lg),
+              decoration: BoxDecoration(
+                color: AppColors.errorLight,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline,
+                size: 64,
+                color: AppColors.error,
+              ),
             ),
-          ),
-          const SizedBox(height: AppDimensions.md),
-          ElevatedButton.icon(
-            onPressed: () =>
-                ref.invalidate(driverDailyTripsProvider(_selectedDate)),
-            icon: const Icon(Icons.refresh),
-            label: const Text('إعادة المحاولة'),
-          ),
-        ],
+            const SizedBox(height: AppDimensions.lg),
+            Text(
+              'حدث خطأ',
+              style: AppTypography.h5.copyWith(
+                color: AppColors.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.md),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppDimensions.lg),
+              child: Text(
+                error.isEmpty || error == 'Exception'
+                    ? 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى'
+                    : error,
+                style: AppTypography.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: AppDimensions.lg),
+            ElevatedButton.icon(
+              onPressed: () {
+                ref.invalidate(driverDailyTripsProvider(_selectedDate));
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('إعادة المحاولة'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimensions.lg,
+                  vertical: AppDimensions.md,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -272,7 +336,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                 const SizedBox(height: AppDimensions.xxs),
                 Text(
                   DateFormat('EEEE، d MMMM yyyy', 'ar').format(DateTime.now()),
-                  style: AppTypography.bodySmall.copyWith(color: Colors.white70),
+                  style:
+                      AppTypography.bodySmall.copyWith(color: Colors.white70),
                 ),
               ],
             ),
@@ -285,36 +350,76 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   Widget _buildStatistics(List<Trip> trips) {
     final ongoingCount = trips.where((t) => t.state.isOngoing).length;
     final completedCount = trips.where((t) => t.state.isCompleted).length;
+    final plannedCount = trips.where((t) => t.state.canStart).length;
+    final totalPassengers =
+        trips.fold<int>(0, (sum, t) => sum + t.totalPassengers);
+    final boardedPassengers =
+        trips.fold<int>(0, (sum, t) => sum + t.boardedCount);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppDimensions.md),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: _buildStatCard(
-              'مجموع الرحلات',
-              '${trips.length}',
-              Icons.route,
-              AppColors.primary,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'مجموع الرحلات',
+                  '${trips.length}',
+                  Icons.route,
+                  AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: AppDimensions.sm),
+              Expanded(
+                child: _buildStatCard(
+                  'الرحلات الجارية',
+                  '$ongoingCount',
+                  Icons.directions_bus,
+                  AppColors.warning,
+                ),
+              ),
+              const SizedBox(width: AppDimensions.sm),
+              Expanded(
+                child: _buildStatCard(
+                  'منتهية',
+                  '$completedCount',
+                  Icons.check_circle,
+                  AppColors.success,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: AppDimensions.sm),
-          Expanded(
-            child: _buildStatCard(
-              'الرحلات الجارية',
-              '$ongoingCount',
-              Icons.directions_bus,
-              AppColors.warning,
-            ),
-          ),
-          const SizedBox(width: AppDimensions.sm),
-          Expanded(
-            child: _buildStatCard(
-              'منتهية',
-              '$completedCount',
-              Icons.check_circle,
-              AppColors.success,
-            ),
+          const SizedBox(height: AppDimensions.sm),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'مخططة',
+                  '$plannedCount',
+                  Icons.schedule,
+                  AppColors.info,
+                ),
+              ),
+              const SizedBox(width: AppDimensions.sm),
+              Expanded(
+                child: _buildStatCard(
+                  'إجمالي الركاب',
+                  '$totalPassengers',
+                  Icons.people,
+                  AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: AppDimensions.sm),
+              Expanded(
+                child: _buildStatCard(
+                  'صعدوا',
+                  '$boardedPassengers',
+                  Icons.person_add,
+                  AppColors.success,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -459,7 +564,39 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
               const SizedBox(height: AppDimensions.sm),
 
               // Trip Name
-              Text(trip.name, style: AppTypography.h5),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(trip.name, style: AppTypography.h5),
+                  ),
+                  if (trip.vehicleName != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppDimensions.xxs,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.directions_bus,
+                              size: 14, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            trip.vehicleName!,
+                            style: AppTypography.caption.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
 
               const SizedBox(height: AppDimensions.xxs),
 
@@ -469,10 +606,12 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                   children: [
                     const Icon(Icons.group, size: 16, color: Colors.grey),
                     const SizedBox(width: AppDimensions.xxs),
-                    Text(
-                      trip.groupName!,
-                      style: AppTypography.bodySmall.copyWith(
-                        color: Colors.grey[600],
+                    Expanded(
+                      child: Text(
+                        trip.groupName!,
+                        style: AppTypography.bodySmall.copyWith(
+                          color: Colors.grey[600],
+                        ),
                       ),
                     ),
                   ],
@@ -508,6 +647,23 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                         : '--:--',
                     style: AppTypography.bodySmall,
                   ),
+                  if (trip.plannedDistance != null) ...[
+                    const Spacer(),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.straighten,
+                            size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${trip.plannedDistance!.toStringAsFixed(1)} كم',
+                          style: AppTypography.bodySmall.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
 
@@ -524,45 +680,134 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                   ),
                   if (trip.state.isOngoing) ...[
                     const SizedBox(width: AppDimensions.md),
-                    Text(
-                      'صعد: ${trip.boardedCount}',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.success,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppDimensions.xxs,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle,
+                              size: 12, color: AppColors.success),
+                          const SizedBox(width: 4),
+                          Text(
+                            'صعد: ${trip.boardedCount}',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: AppDimensions.sm),
-                    Text(
-                      'غائب: ${trip.absentCount}',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.error,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppDimensions.xxs,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.cancel, size: 12, color: AppColors.error),
+                          const SizedBox(width: 4),
+                          Text(
+                            'غائب: ${trip.absentCount}',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.error,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    if (trip.droppedCount > 0) ...[
+                      const SizedBox(width: AppDimensions.sm),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppDimensions.xxs,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.info.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.location_off,
+                                size: 12, color: AppColors.info),
+                            const SizedBox(width: 4),
+                            Text(
+                              'نزل: ${trip.droppedCount}',
+                              style: AppTypography.bodySmall.copyWith(
+                                color: AppColors.info,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ],
               ),
 
-              // Action Button
+              // Action Buttons
               if (trip.state.canStart || trip.state.isOngoing) ...[
                 const SizedBox(height: AppDimensions.md),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      context.go('${RoutePaths.driverHome}/trip/${trip.id}');
-                    },
-                    icon: Icon(
-                      trip.state.canStart ? Icons.play_arrow : Icons.edit_location,
-                      size: 18,
+                Row(
+                  children: [
+                    if (trip.state.isOngoing) ...[
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            context.go(
+                                '${RoutePaths.driverHome}/trip/${trip.id}/active');
+                          },
+                          icon: const Icon(Icons.map, size: 18),
+                          label: const Text('الخريطة المباشرة'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.primary),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppDimensions.sm),
+                    ],
+                    Expanded(
+                      flex: trip.state.isOngoing ? 1 : 2,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          context
+                              .go('${RoutePaths.driverHome}/trip/${trip.id}');
+                        },
+                        icon: Icon(
+                          trip.state.canStart
+                              ? Icons.play_arrow
+                              : Icons.edit_location,
+                          size: 18,
+                        ),
+                        label: Text(
+                          trip.state.canStart ? 'بدء الرحلة' : 'إدارة الرحلة',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: trip.state.canStart
+                              ? AppColors.primary
+                              : AppColors.warning,
+                        ),
+                      ),
                     ),
-                    label: Text(
-                      trip.state.canStart ? 'بدء الرحلة' : 'إدارة الرحلة',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: trip.state.canStart
-                          ? AppColors.primary
-                          : AppColors.warning,
-                    ),
-                  ),
+                  ],
                 ),
               ],
             ],

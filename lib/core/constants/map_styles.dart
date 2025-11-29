@@ -193,34 +193,7 @@ class MapMarkers {
 
   /// Pulsing Marker (للموقع الحالي)
   static Widget pulsingMarker() {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.8, end: 1.2),
-      duration: const Duration(seconds: 1),
-      repeat: true,
-      builder: (context, scale, child) {
-        return Transform.scale(
-          scale: scale,
-          child: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: const Color(0xFF2196F3).withOpacity(0.3),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Container(
-                width: 12,
-                height: 12,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF2196F3),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
+    return _PulsingMarkerWidget();
   }
 
   /// ETA Badge (يظهر فوق الخريطة)
@@ -326,6 +299,63 @@ class MapMarkers {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PulsingMarkerWidget extends StatefulWidget {
+  @override
+  State<_PulsingMarkerWidget> createState() => _PulsingMarkerWidgetState();
+}
+
+class _PulsingMarkerWidgetState extends State<_PulsingMarkerWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.8, end: 1.2).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _animation.value,
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: const Color(0xFF2196F3).withOpacity(0.3),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF2196F3),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

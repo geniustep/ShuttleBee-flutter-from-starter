@@ -28,27 +28,44 @@ final tripRepositoryProvider = Provider<TripRepository?>((ref) {
 /// Driver Daily Trips Provider
 final driverDailyTripsProvider =
     FutureProvider.autoDispose.family<List<Trip>, DateTime>((ref, date) async {
-  final repository = ref.watch(tripRepositoryProvider);
-  if (repository == null) {
-    throw Exception(ErrorTranslator.translate('خطأ في الاتصال. يرجى المحاولة لاحقاً'));
+  try {
+    final repository = ref.watch(tripRepositoryProvider);
+    if (repository == null) {
+      throw Exception('خطأ في الاتصال. يرجى التحقق من الاتصال بالخادم');
+    }
+
+    final authState = ref.watch(authStateProvider);
+    final user = authState.asData?.value.user;
+
+    if (user == null) {
+      throw Exception('يجب تسجيل الدخول أولاً');
+    }
+
+    if (user.partnerId == null) {
+      throw Exception('معلومات السائق غير مكتملة. يرجى التواصل مع الإدارة');
+    }
+
+    final result = await repository.getDriverTrips(user.partnerId!, date);
+    return result.fold(
+      (failure) {
+        final errorMessage = ErrorTranslator.translateFailure(failure.message);
+        throw Exception(errorMessage);
+      },
+      (trips) => trips,
+    );
+  } catch (e) {
+    // Re-throw with better error message
+    if (e is Exception) {
+      final message = e.toString();
+      if (message.startsWith('Exception: ')) {
+        throw Exception(message.substring(11));
+      }
+      if (message == 'Exception') {
+        throw Exception('حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى');
+      }
+    }
+    rethrow;
   }
-
-  final authState = ref.watch(authStateProvider);
-  final user = authState.asData?.value.user;
-
-  if (user == null) {
-    throw Exception('يجب تسجيل الدخول أولاً');
-  }
-
-  if (user.partnerId == null) {
-    throw Exception('معلومات السائق غير مكتملة. يرجى التواصل مع الإدارة');
-  }
-
-  final result = await repository.getDriverTrips(user.partnerId!, date);
-  return result.fold(
-    (failure) => throw Exception(ErrorTranslator.translateFailure(failure.message)),
-    (trips) => trips,
-  );
 });
 
 /// Passenger Trips Provider
