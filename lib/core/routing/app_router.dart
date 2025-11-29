@@ -18,6 +18,8 @@ import '../../features/splash/presentation/screens/splash_screen.dart';
 
 // ShuttleBee Screens
 import '../../features/driver/presentation/screens/driver_home_screen.dart';
+import '../../features/driver/presentation/screens/driver_trip_detail_screen.dart';
+import '../../features/driver/presentation/screens/driver_active_trip_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_home_screen.dart';
 import '../../features/passenger/presentation/screens/passenger_home_screen.dart';
 import '../../features/manager/presentation/screens/manager_home_screen.dart';
@@ -108,11 +110,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             name: RouteNames.driverTripDetail,
             builder: (context, state) {
               final tripId = int.parse(state.pathParameters['tripId']!);
-              // TODO: Replace with actual TripDetailScreen
-              return Scaffold(
-                appBar: AppBar(title: const Text('تفاصيل الرحلة')),
-                body: Center(child: Text('تفاصيل الرحلة رقم: $tripId')),
-              );
+              return DriverTripDetailScreen(tripId: tripId);
             },
             routes: [
               GoRoute(
@@ -120,11 +118,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 name: RouteNames.driverActiveTrip,
                 builder: (context, state) {
                   final tripId = int.parse(state.pathParameters['tripId']!);
-                  // TODO: Replace with actual ActiveTripScreen
-                  return Scaffold(
-                    appBar: AppBar(title: const Text('الرحلة النشطة')),
-                    body: Center(child: Text('إدارة الرحلة رقم: $tripId')),
-                  );
+                  return DriverActiveTripScreen(tripId: tripId);
                 },
               ),
             ],

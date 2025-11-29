@@ -20,8 +20,15 @@ class TripRepositoryImpl extends BaseRepository implements TripRepository {
 
   @override
   Future<Either<Failure, List<Trip>>> getDriverTrips(
-      int driverId, DateTime date) async {
-    return execute(() => _remoteDataSource.getDriverTrips(driverId, date));
+    int driverId,
+    DateTime date, {
+    List<TripState>? states,
+  }) async {
+    return execute(() => _remoteDataSource.getDriverTrips(
+          driverId,
+          date,
+          states: states,
+        ));
   }
 
   @override

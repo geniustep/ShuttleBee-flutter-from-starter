@@ -11,16 +11,24 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../trips/domain/entities/trip.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
+import '../widgets/loading_widgets.dart';
 
 /// صفحة السائق الرئيسية - ShuttleBee
-class DriverHomeScreen extends ConsumerWidget {
+class DriverHomeScreen extends ConsumerStatefulWidget {
   const DriverHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DriverHomeScreen> createState() => _DriverHomeScreenState();
+}
+
+class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
+  DateTime _selectedDate = DateTime.now();
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final userName = authState.asData?.value.user?.name ?? 'السائق';
-    final tripsAsync = ref.watch(driverDailyTripsProvider(DateTime.now()));
+    final tripsAsync = ref.watch(driverDailyTripsProvider(_selectedDate));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -28,55 +36,167 @@ class DriverHomeScreen extends ConsumerWidget {
         title: const Text('رحلاتي اليومية'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.calendar_today),
+            onPressed: _selectDate,
+            tooltip: 'اختر التاريخ',
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => _showLogoutDialog(context, ref),
+            tooltip: 'تسجيل الخروج',
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(driverDailyTripsProvider(DateTime.now()));
-        },
-        child: tripsAsync.when(
-          data: (trips) => Column(
-            children: [
-              // User Info Card
-              _buildUserInfoCard(userName),
+      body: Column(
+        children: [
+          // Date Banner
+          _buildDateBanner(),
 
-              // Statistics Summary
-              _buildStatistics(trips),
+          // Content
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(driverDailyTripsProvider(_selectedDate));
+              },
+              child: tripsAsync.when(
+                data: (trips) => Column(
+                  children: [
+                    // User Info Card
+                    _buildUserInfoCard(userName),
 
-              const SizedBox(height: AppDimensions.md),
+                    // Statistics Summary
+                    _buildStatistics(trips),
 
-              // Trips List
-              Expanded(
-                child: _buildTripsList(context, trips),
+                    const SizedBox(height: AppDimensions.md),
+
+                    // Trips List
+                    Expanded(
+                      child: _buildTripsList(context, trips),
+                    ),
+                  ],
+                ),
+                loading: () => Column(
+                  children: [
+                    // User Info Card
+                    _buildUserInfoCard(userName),
+                    // Statistics shimmer
+                    const StatisticsShimmer(),
+                    const SizedBox(height: AppDimensions.md),
+                    // Trips list shimmer
+                    const Expanded(child: TripsListShimmer()),
+                  ],
+                ),
+                error: (error, _) => Column(
+                  children: [
+                    // User Info Card
+                    _buildUserInfoCard(userName),
+                    // Error state
+                    Expanded(
+                      child: _buildErrorState(context, ref, error.toString()),
+                    ),
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
-          loading: () => Column(
-            children: [
-              // User Info Card
-              _buildUserInfoCard(userName),
-              // Loading indicator in the center
-              const Expanded(
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            ],
-          ),
-          error: (error, _) => Column(
-            children: [
-              // User Info Card
-              _buildUserInfoCard(userName),
-              // Error state
-              Expanded(
-                child: _buildErrorState(context, ref, error.toString()),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
+  }
+
+  Widget _buildDateBanner() {
+    final isToday = _isToday(_selectedDate);
+
+    return Container(
+      color: isToday ? AppColors.primary.withValues(alpha: 0.1) : Colors.grey[200],
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.md,
+        vertical: AppDimensions.sm,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Previous day button
+          if (!isToday)
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios, size: 20),
+              onPressed: () {
+                setState(() {
+                  _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+                });
+              },
+            ),
+
+          // Date display
+          Expanded(
+            child: InkWell(
+              onTap: _selectDate,
+              child: Center(
+                child: Text(
+                  isToday
+                      ? 'اليوم - ${DateFormat('d MMMM yyyy', 'ar').format(_selectedDate)}'
+                      : DateFormat('EEEE، d MMMM yyyy', 'ar').format(_selectedDate),
+                  style: AppTypography.h6.copyWith(
+                    color: isToday ? AppColors.primary : AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Next day button
+          if (!_isFuture(_selectedDate))
+            IconButton(
+              icon: const Icon(Icons.arrow_forward_ios, size: 20),
+              onPressed: () {
+                setState(() {
+                  _selectedDate = _selectedDate.add(const Duration(days: 1));
+                });
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
+  }
+
+  bool _isFuture(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final checkDate = DateTime(date.year, date.month, date.day);
+    return checkDate.isAfter(today) || checkDate.isAtSameMomentAs(today);
+  }
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      locale: const Locale('ar'),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
   }
 
   Widget _buildErrorState(BuildContext context, WidgetRef ref, String error) {
@@ -86,13 +206,20 @@ class DriverHomeScreen extends ConsumerWidget {
         children: [
           const Icon(Icons.error_outline, size: 64, color: AppColors.error),
           const SizedBox(height: AppDimensions.md),
-          Text(error,
-              style: AppTypography.bodyMedium, textAlign: TextAlign.center),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppDimensions.lg),
+            child: Text(
+              error,
+              style: AppTypography.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ),
           const SizedBox(height: AppDimensions.md),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: () =>
-                ref.invalidate(driverDailyTripsProvider(DateTime.now())),
-            child: const Text('إعادة المحاولة'),
+                ref.invalidate(driverDailyTripsProvider(_selectedDate)),
+            icon: const Icon(Icons.refresh),
+            label: const Text('إعادة المحاولة'),
           ),
         ],
       ),
@@ -105,20 +232,50 @@ class DriverHomeScreen extends ConsumerWidget {
       margin: const EdgeInsets.all(AppDimensions.md),
       padding: const EdgeInsets.all(AppDimensions.md),
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, Color(0xFF1976D2)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'مرحباً، $userName',
-            style: AppTypography.h4.copyWith(color: Colors.white),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
-          const SizedBox(height: AppDimensions.xxs),
-          Text(
-            DateFormat('EEEE، d MMMM yyyy', 'ar').format(DateTime.now()),
-            style: AppTypography.bodySmall.copyWith(color: Colors.white70),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppDimensions.sm),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.person,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: AppDimensions.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'مرحباً، $userName',
+                  style: AppTypography.h4.copyWith(color: Colors.white),
+                ),
+                const SizedBox(height: AppDimensions.xxs),
+                Text(
+                  DateFormat('EEEE، d MMMM yyyy', 'ar').format(DateTime.now()),
+                  style: AppTypography.bodySmall.copyWith(color: Colors.white70),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -213,12 +370,12 @@ class DriverHomeScreen extends ConsumerWidget {
             Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
             const SizedBox(height: AppDimensions.md),
             Text(
-              'لا توجد رحلات اليوم',
+              'لا توجد رحلات في هذا التاريخ',
               style: AppTypography.h5.copyWith(color: Colors.grey[600]),
             ),
             const SizedBox(height: AppDimensions.sm),
             Text(
-              'ستظهر رحلاتك هنا',
+              'اختر تاريخاً آخر لعرض الرحلات',
               style: AppTypography.bodyMedium.copyWith(color: Colors.grey[500]),
             ),
           ],
@@ -239,6 +396,10 @@ class DriverHomeScreen extends ConsumerWidget {
   Widget _buildTripCard(BuildContext context, Trip trip) {
     return Card(
       margin: const EdgeInsets.only(bottom: AppDimensions.md),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+      ),
       child: InkWell(
         onTap: () {
           context.go('${RoutePaths.driverHome}/trip/${trip.id}');
@@ -385,17 +546,21 @@ class DriverHomeScreen extends ConsumerWidget {
                 const SizedBox(height: AppDimensions.md),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
                     onPressed: () {
                       context.go('${RoutePaths.driverHome}/trip/${trip.id}');
                     },
+                    icon: Icon(
+                      trip.state.canStart ? Icons.play_arrow : Icons.edit_location,
+                      size: 18,
+                    ),
+                    label: Text(
+                      trip.state.canStart ? 'بدء الرحلة' : 'إدارة الرحلة',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: trip.state.canStart
                           ? AppColors.primary
                           : AppColors.warning,
-                    ),
-                    child: Text(
-                      trip.state.canStart ? 'بدء الرحلة' : 'إدارة الرحلة',
                     ),
                   ),
                 ),

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/enums/enums.dart';
+import '../../../../core/utils/error_translator.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/datasources/trip_remote_data_source.dart';
 import '../../data/repositories/trip_repository_impl.dart';
@@ -28,16 +29,24 @@ final tripRepositoryProvider = Provider<TripRepository?>((ref) {
 final driverDailyTripsProvider =
     FutureProvider.autoDispose.family<List<Trip>, DateTime>((ref, date) async {
   final repository = ref.watch(tripRepositoryProvider);
+  if (repository == null) {
+    throw Exception(ErrorTranslator.translate('خطأ في الاتصال. يرجى المحاولة لاحقاً'));
+  }
+
   final authState = ref.watch(authStateProvider);
-
-  if (repository == null) return [];
-
   final user = authState.asData?.value.user;
-  if (user == null || user.partnerId == null) return [];
+
+  if (user == null) {
+    throw Exception('يجب تسجيل الدخول أولاً');
+  }
+
+  if (user.partnerId == null) {
+    throw Exception('معلومات السائق غير مكتملة. يرجى التواصل مع الإدارة');
+  }
 
   final result = await repository.getDriverTrips(user.partnerId!, date);
   return result.fold(
-    (failure) => throw Exception(failure.message),
+    (failure) => throw Exception(ErrorTranslator.translateFailure(failure.message)),
     (trips) => trips,
   );
 });
@@ -247,12 +256,37 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     final repository = _repository;
     if (repository == null) return false;
 
+    // Optimistic update
+    final currentTrip = state.asData?.value;
+    if (currentTrip != null) {
+      final updatedLines = currentTrip.lines.map((line) {
+        if (line.id == tripLineId) {
+          return line.copyWith(status: TripLineStatus.boarded);
+        }
+        return line;
+      }).toList();
+
+      // Update counts optimistically
+      final updatedTrip = currentTrip.copyWith(
+        lines: updatedLines,
+        boardedCount: currentTrip.boardedCount + 1,
+      );
+
+      state = AsyncValue.data(updatedTrip);
+    }
+
+    // Make API call
     final result = await repository.markPassengerBoarded(tripLineId);
     return result.fold(
-      (failure) => false,
+      (failure) {
+        // Revert on failure
+        if (currentTrip != null) {
+          state = AsyncValue.data(currentTrip);
+        }
+        return false;
+      },
       (line) {
-        // Refresh the trip to get updated counts
-        final currentTrip = state.asData?.value;
+        // Confirm with server data
         if (currentTrip != null) {
           loadTrip(currentTrip.id);
         }
@@ -265,11 +299,33 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     final repository = _repository;
     if (repository == null) return false;
 
+    // Optimistic update
+    final currentTrip = state.asData?.value;
+    if (currentTrip != null) {
+      final updatedLines = currentTrip.lines.map((line) {
+        if (line.id == tripLineId) {
+          return line.copyWith(status: TripLineStatus.absent);
+        }
+        return line;
+      }).toList();
+
+      final updatedTrip = currentTrip.copyWith(
+        lines: updatedLines,
+        absentCount: currentTrip.absentCount + 1,
+      );
+
+      state = AsyncValue.data(updatedTrip);
+    }
+
     final result = await repository.markPassengerAbsent(tripLineId);
     return result.fold(
-      (failure) => false,
+      (failure) {
+        if (currentTrip != null) {
+          state = AsyncValue.data(currentTrip);
+        }
+        return false;
+      },
       (line) {
-        final currentTrip = state.asData?.value;
         if (currentTrip != null) {
           loadTrip(currentTrip.id);
         }
@@ -282,11 +338,33 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     final repository = _repository;
     if (repository == null) return false;
 
+    // Optimistic update
+    final currentTrip = state.asData?.value;
+    if (currentTrip != null) {
+      final updatedLines = currentTrip.lines.map((line) {
+        if (line.id == tripLineId) {
+          return line.copyWith(status: TripLineStatus.dropped);
+        }
+        return line;
+      }).toList();
+
+      final updatedTrip = currentTrip.copyWith(
+        lines: updatedLines,
+        droppedCount: currentTrip.droppedCount + 1,
+      );
+
+      state = AsyncValue.data(updatedTrip);
+    }
+
     final result = await repository.markPassengerDropped(tripLineId);
     return result.fold(
-      (failure) => false,
+      (failure) {
+        if (currentTrip != null) {
+          state = AsyncValue.data(currentTrip);
+        }
+        return false;
+      },
       (line) {
-        final currentTrip = state.asData?.value;
         if (currentTrip != null) {
           loadTrip(currentTrip.id);
         }

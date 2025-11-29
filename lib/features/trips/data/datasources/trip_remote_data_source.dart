@@ -42,20 +42,30 @@ class TripRemoteDataSource {
   }
 
   /// Get driver trips for a date
-  Future<List<Trip>> getDriverTrips(int driverId, DateTime date) async {
+  Future<List<Trip>> getDriverTrips(
+    int driverId,
+    DateTime date, {
+    List<TripState>? states,
+  }) async {
     final dateStr = _formatDate(date);
+
+    final domain = <List<dynamic>>[
+      ['driver_id', '=', driverId],
+      ['date', '=', dateStr],
+    ];
+
+    // Add state filter only if specified
+    if (states != null && states.isNotEmpty) {
+      domain.add([
+        'state',
+        'in',
+        states.map((s) => s.value).toList(),
+      ]);
+    }
 
     final result = await _client.searchRead(
       model: _tripModel,
-      domain: [
-        ['driver_id', '=', driverId],
-        ['date', '=', dateStr],
-        [
-          'state',
-          'in',
-          ['planned', 'ongoing']
-        ],
-      ],
+      domain: domain,
       fields: _tripFields,
       order: 'planned_start_time asc',
     );
@@ -451,6 +461,7 @@ class TripRemoteDataSource {
     'actual_arrival_time',
     'driver_id',
     'vehicle_id',
+    'vehicle_plate',
     'group_id',
     'total_passengers',
     'boarded_count',

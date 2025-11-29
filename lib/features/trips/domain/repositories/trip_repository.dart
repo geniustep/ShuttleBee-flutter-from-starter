@@ -11,7 +11,10 @@ abstract class TripRepository {
 
   /// Get trips for driver on a specific date
   Future<Either<Failure, List<Trip>>> getDriverTrips(
-      int driverId, DateTime date);
+    int driverId,
+    DateTime date, {
+    List<TripState>? states,
+  });
 
   /// Get trips for passenger
   Future<Either<Failure, List<Trip>>> getPassengerTrips(int passengerId);
