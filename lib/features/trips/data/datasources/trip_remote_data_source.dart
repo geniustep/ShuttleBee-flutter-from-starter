@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../../core/bridgecore_integration/client/bridgecore_client.dart';
 import '../../../../core/enums/enums.dart';
 import '../../domain/entities/trip.dart';
@@ -7,9 +9,19 @@ import '../../domain/repositories/trip_repository.dart';
 class TripRemoteDataSource {
   final BridgecoreClient _client;
 
-  /// Odoo model name for trips
-  static const String _tripModel = 'shuttlebee.trip';
-  static const String _tripLineModel = 'shuttlebee.trip.line';
+  /// Odoo model names
+  static const String _tripModel = 'shuttle.trip';
+  static const String _tripLineModel = 'shuttle.trip.line';
+  // ignore: unused_field - will be used for vehicle operations
+  static const String _vehicleModel = 'shuttle.vehicle';
+  // ignore: unused_field - will be used for stop operations
+  static const String _stopModel = 'shuttle.stop';
+  // ignore: unused_field - will be used for passenger group operations
+  static const String _passengerGroupModel = 'shuttle.passenger.group';
+  // ignore: unused_field - will be used for notification operations
+  static const String _notificationModel = 'shuttle.notification';
+  // ignore: unused_field - will be used for GPS tracking
+  static const String _gpsPositionModel = 'shuttle.gps.position';
 
   TripRemoteDataSource(this._client);
 
@@ -329,67 +341,78 @@ class TripRemoteDataSource {
   }
 
   /// Get manager analytics
-  Future<ManagerAnalytics> getManagerAnalytics() async {
-    try {
-      final result = await _client.callKw(
-        model: _tripModel,
-        method: 'get_manager_analytics',
-        args: [],
-      );
+  // Future<ManagerAnalytics> getManagerAnalytics() async {
+  //   // Try to get analytics from custom Odoo method first
+  //   try {
+  //     final result = await _client.callKw(
+  //       model: _tripModel,
+  //       method: 'get_manager_analytics',
+  //       args: [],
+  //       kwargs: {},
+  //     );
 
-      if (result is Map<String, dynamic>) {
-        return ManagerAnalytics.fromJson(result);
-      }
-    } catch (_) {
-      // Fallback to manual calculation
-    }
+  //     if (result is Map<String, dynamic>) {
+  //       return ManagerAnalytics.fromJson(result);
+  //     }
+  //   } catch (e) {
+  //     debugPrint('⚠️ get_manager_analytics method not available: $e');
+  //     debugPrint('📊 Calculating analytics from trip data...');
+  //   }
 
-    // Fallback: calculate analytics manually
-    final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month, 1);
-    final endOfMonth = DateTime(now.year, now.month + 1, 0);
+  //   // Fallback: calculate analytics from trip data
+  //   try {
+  //     final now = DateTime.now();
+  //     final startOfMonth = DateTime(now.year, now.month, 1);
+  //     final endOfMonth = DateTime(now.year, now.month + 1, 0);
 
-    final trips = await getTrips(
-      fromDate: startOfMonth,
-      toDate: endOfMonth,
-      limit: 1000,
-    );
+  //     // Get all trips for this month using searchRead directly
+  //     final trips = await _client.searchRead(
+  //       model: _tripModel,
+  //       domain: [
+  //         ['date', '>=', _formatDate(startOfMonth)],
+  //         ['date', '<=', _formatDate(endOfMonth)],
+  //       ],
+  //       fields: ['name', 'state', 'total_passengers', 'planned_distance', 'actual_distance'],
+  //       limit: 1000,
+  //     );
 
-    if (trips.isEmpty) {
-      return const ManagerAnalytics();
-    }
+  //     if (trips.isNotEmpty) {
 
-    final completedTrips =
-        trips.where((t) => t.state == TripState.done).toList();
-    final cancelledTrips =
-        trips.where((t) => t.state == TripState.cancelled).toList();
+  //       final completedTrips = trips.where((t) => t['state'] == 'done').toList();
+  //       final cancelledTrips = trips.where((t) => t['state'] == 'cancelled').toList();
 
-    final totalPassengers =
-        completedTrips.fold(0, (sum, t) => sum + t.totalPassengers);
-    final boardedPassengers =
-        completedTrips.fold(0, (sum, t) => sum + t.boardedCount);
-    final totalDistance =
-        completedTrips.fold(0.0, (sum, t) => sum + (t.actualDistance ?? 0));
+  //       final totalPassengers = trips.fold<int>(
+  //         0, (sum, t) => sum + ((t['total_passengers'] as num?)?.toInt() ?? 0));
+  //       final totalDistance = trips.fold<double>(
+  //         0.0, (sum, t) => sum + ((t['actual_distance'] as num?)?.toDouble() ?? (t['planned_distance'] as num?)?.toDouble() ?? 0.0));
 
-    return ManagerAnalytics(
-      totalTripsThisMonth: trips.length,
-      completedTripsThisMonth: completedTrips.length,
-      completionRate:
-          trips.isNotEmpty ? (completedTrips.length / trips.length) * 100 : 0,
-      cancellationRate:
-          trips.isNotEmpty ? (cancelledTrips.length / trips.length) * 100 : 0,
-      totalPassengersTransported: boardedPassengers,
-      averageOccupancyRate: totalPassengers > 0
-          ? (boardedPassengers / totalPassengers) * 100
-          : 0,
-      onTimePercentage: 85.0, // Placeholder - calculate from actual data
-      averageDelayMinutes: 5.0, // Placeholder
-      totalDistanceKm: totalDistance,
-      averageDistancePerTrip:
-          completedTrips.isNotEmpty ? totalDistance / completedTrips.length : 0,
-      estimatedFuelCost: totalDistance * 2.5, // Estimated cost per km
-    );
-  }
+  //       return ManagerAnalytics(
+  //         totalTripsThisMonth: trips.length,
+  //         completedTripsThisMonth: completedTrips.length,
+  //         completionRate: trips.isNotEmpty
+  //             ? (completedTrips.length / trips.length) * 100
+  //             : 0,
+  //         cancellationRate: trips.isNotEmpty
+  //             ? (cancelledTrips.length / trips.length) * 100
+  //             : 0,
+  //         totalPassengersTransported: totalPassengers,
+  //         averageOccupancyRate: 75.0, // Placeholder
+  //         onTimePercentage: 85.0, // Placeholder
+  //         averageDelayMinutes: 5.0, // Placeholder
+  //         totalDistanceKm: totalDistance,
+  //         averageDistancePerTrip: completedTrips.isNotEmpty
+  //             ? totalDistance / completedTrips.length
+  //             : 0,
+  //         estimatedFuelCost: totalDistance * 2.5,
+  //       );
+  //     }
+  //   } catch (e) {
+  //     debugPrint('⚠️ Failed to calculate analytics: $e');
+  //   }
+
+  //   // Return empty analytics if all else fails
+  //   return const ManagerAnalytics();
+  // }
 
   // === Helper Methods ===
 

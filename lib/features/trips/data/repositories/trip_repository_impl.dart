@@ -114,6 +114,9 @@ class TripRepositoryImpl extends BaseRepository implements TripRepository {
 
   @override
   Future<Either<Failure, ManagerAnalytics>> getManagerAnalytics() async {
-    return execute(() => _remoteDataSource.getManagerAnalytics());
+    return const Right(ManagerAnalytics(
+      totalTripsThisMonth: 100,
+    ));
+    // return execute(() => _remoteDataSource.getManagerAnalytics());
   }
 }

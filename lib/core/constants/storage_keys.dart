@@ -22,6 +22,9 @@ class StorageKeys {
   /// User display name
   static const String userDisplayName = 'user_display_name';
 
+  /// User role
+  static const String userRole = 'user_role';
+
   /// Company ID
   static const String companyId = 'company_id';
 

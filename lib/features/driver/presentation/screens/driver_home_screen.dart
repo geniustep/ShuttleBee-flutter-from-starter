@@ -37,30 +37,43 @@ class DriverHomeScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(driverDailyTripsProvider(DateTime.now()));
         },
-        child: Column(
-          children: [
-            // User Info Card
-            _buildUserInfoCard(userName),
+        child: tripsAsync.when(
+          data: (trips) => Column(
+            children: [
+              // User Info Card
+              _buildUserInfoCard(userName),
 
-            // Statistics Summary
-            tripsAsync.when(
-              data: (trips) => _buildStatistics(trips),
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
+              // Statistics Summary
+              _buildStatistics(trips),
 
-            const SizedBox(height: AppDimensions.md),
+              const SizedBox(height: AppDimensions.md),
 
-            // Trips List
-            Expanded(
-              child: tripsAsync.when(
-                data: (trips) => _buildTripsList(context, trips),
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) =>
-                    _buildErrorState(context, ref, error.toString()),
+              // Trips List
+              Expanded(
+                child: _buildTripsList(context, trips),
               ),
-            ),
-          ],
+            ],
+          ),
+          loading: () => Column(
+            children: [
+              // User Info Card
+              _buildUserInfoCard(userName),
+              // Loading indicator in the center
+              const Expanded(
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ],
+          ),
+          error: (error, _) => Column(
+            children: [
+              // User Info Card
+              _buildUserInfoCard(userName),
+              // Error state
+              Expanded(
+                child: _buildErrorState(context, ref, error.toString()),
+              ),
+            ],
+          ),
         ),
       ),
     );

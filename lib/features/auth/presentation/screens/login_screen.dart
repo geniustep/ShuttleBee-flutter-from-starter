@@ -22,7 +22,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController =
-      TextEditingController(text: "admin@done.bridgecore.internal");
+      TextEditingController(text: "youssef@done.bridgecore.internal");
+  // TextEditingController(text: "admin@done.bridgecore.internal");
   final _passwordController = TextEditingController(text: ",,07Genius");
 
   bool _obscurePassword = true;

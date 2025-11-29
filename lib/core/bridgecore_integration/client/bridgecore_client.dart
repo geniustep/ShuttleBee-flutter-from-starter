@@ -122,6 +122,13 @@ class BridgecoreClient {
         }
       }
 
+      // Extract shuttle_role directly from odooFieldsData if available
+      final shuttleRole = odooFieldsData?['shuttle_role'] ??
+          odooFieldsData?['data']?['shuttle_role'] ??
+          data['shuttle_role'];
+
+      _logger.d('🔍 [authenticate] Shuttle Role from Odoo: $shuttleRole');
+
       final response = <String, dynamic>{
         'access_token': session.accessToken,
         'refresh_token': session.refreshToken,

@@ -4,6 +4,7 @@ import 'package:logger/logger.dart';
 
 import '../../../../core/bridgecore_integration/client/bridgecore_client.dart';
 import '../../../../core/constants/storage_keys.dart';
+import '../../../../core/enums/user_role.dart';
 import '../../../../core/storage/prefs_service.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../domain/entities/user.dart';
@@ -37,7 +38,11 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
 
       if (userId != null && sessionId != null) {
         final userName = _prefs.getString(StorageKeys.userDisplayName) ?? '';
-        final user = User(id: userId, name: userName);
+        final roleStr = _prefs.getString(StorageKeys.userRole);
+        final role = UserRole.tryFromString(roleStr) ?? UserRole.passenger;
+        _logger.d(
+            'Restored user role from storage: ${role.value} for user: $userName');
+        final user = User(id: userId, name: userName, role: role);
         state = AsyncValue.data(AuthState.authenticated(user));
       } else {
         state = const AsyncValue.data(AuthState());
@@ -61,6 +66,9 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
     state = const AsyncValue.loading();
 
     try {
+      // Clear old session data before login to prevent role persistence issues
+      await _clearSession();
+
       final client = BridgecoreClient(serverUrl);
       final result = await client.authenticate(
         // database: database,
@@ -70,6 +78,8 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
       );
 
       final user = User.fromOdoo(result);
+      _logger
+          .i('User role detected: ${user.role.value} for user: ${user.name}');
 
       // Save to storage
       await _saveSession(
@@ -84,7 +94,8 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
       _ref.read(bridgecoreClientProvider.notifier).state = client;
 
       state = AsyncValue.data(AuthState.authenticated(user));
-      _logger.i('Login successful for user: ${user.name}');
+      _logger.i(
+          'Login successful for user: ${user.name} with role: ${user.role.value}');
 
       return true;
     } catch (e, stackTrace) {
@@ -106,7 +117,9 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
     // await _prefs.setString(StorageKeys.database, database);
     await _prefs.setInt(StorageKeys.userId, user.id);
     await _prefs.setString(StorageKeys.userDisplayName, user.name);
+    await _prefs.setString(StorageKeys.userRole, user.role.value);
     await _prefs.setBool(StorageKeys.rememberMe, rememberMe);
+    _logger.d('Saved user role to storage: ${user.role.value}');
 
     if (user.companyId != null) {
       await _prefs.setInt(StorageKeys.companyId, user.companyId!);
@@ -143,13 +156,16 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
 
   /// Clear session from storage
   Future<void> _clearSession() async {
+    _logger.d('Clearing session data including role');
     await _secureStorage.delete(StorageKeys.sessionId);
     await _secureStorage.delete(StorageKeys.accessToken);
     await _prefs.remove(StorageKeys.userId);
     await _prefs.remove(StorageKeys.userDisplayName);
+    await _prefs.remove(StorageKeys.userRole);
     await _prefs.remove(StorageKeys.companyId);
     await _prefs.remove(StorageKeys.companyName);
     // await _prefs.remove(StorageKeys.userBox);
+    _logger.d('Session data cleared successfully');
   }
 
   /// Get current user

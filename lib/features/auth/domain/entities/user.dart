@@ -163,14 +163,25 @@ class User {
     final roleStr = json['shuttle_role'] as String? ??
         json['shuttlebee_role'] as String? ??
         json['role'] as String?;
+    
+    // Debug: Log what we're getting
+    print('🔍 [User.fromOdoo] shuttle_role from json: ${json['shuttle_role']}');
+    print('🔍 [User.fromOdoo] shuttlebee_role from json: ${json['shuttlebee_role']}');
+    print('🔍 [User.fromOdoo] role from json: ${json['role']}');
+    print('🔍 [User.fromOdoo] Final roleStr: $roleStr');
+    
     if (roleStr != null) {
-      return UserRole.tryFromString(roleStr) ?? UserRole.passenger;
+      final detectedRole = UserRole.tryFromString(roleStr) ?? UserRole.passenger;
+      print('✅ [User.fromOdoo] Detected role: ${detectedRole.value}');
+      return detectedRole;
     }
 
     // Check groups
     final groups = (json['groups'] as List?)?.cast<String>() ?? [];
     final isAdmin = json['is_admin'] as bool? ?? false;
-    return _detectRoleFromGroups(groups, isAdmin);
+    final groupBasedRole = _detectRoleFromGroups(groups, isAdmin);
+    print('⚠️ [User.fromOdoo] No explicit role found, using group-based role: ${groupBasedRole.value}');
+    return groupBasedRole;
   }
 
   /// Copy with
