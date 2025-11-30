@@ -22,17 +22,11 @@ class StorageKeys {
   /// User display name
   static const String userDisplayName = 'user_display_name';
 
-  /// User role
-  static const String userRole = 'user_role';
-
   /// Company ID
   static const String companyId = 'company_id';
 
   /// Company name
   static const String companyName = 'company_name';
-
-  /// Partner ID (for driver/passenger)
-  static const String partnerId = 'partner_id';
 
   /// Selected database
   static const String database = 'database';
@@ -60,6 +54,9 @@ class StorageKeys {
 
   /// Last sync timestamp
   static const String lastSyncTimestamp = 'last_sync_timestamp';
+
+  /// Partner ID (Odoo res.partner)
+  static const String partnerId = 'partner_id';
 
   /// Offline mode enabled
   static const String offlineModeEnabled = 'offline_mode_enabled';

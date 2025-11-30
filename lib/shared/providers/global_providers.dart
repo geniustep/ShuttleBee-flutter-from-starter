@@ -99,8 +99,17 @@ final connectivityProvider = StreamProvider<bool>((ref) {
   return networkInfo.onConnectionChanged;
 });
 
-/// Is online provider (StateProvider for real-time updates)
-final isOnlineProvider = StateProvider<bool>((ref) => true);
+/// Is online provider (Future-based, for initial check)
+final isOnlineProvider = FutureProvider<bool>((ref) async {
+  final networkInfo = NetworkInfo();
+  return await networkInfo.isConnected;
+});
+
+/// Is online state provider (State-based, for reactive updates)
+/// 
+/// هذا الـ Provider يُستخدم للتحديث المباشر لحالة الشبكة
+/// يُحدّث من auth_provider عند تغير حالة الاتصال
+final isOnlineStateProvider = StateProvider<bool>((ref) => true);
 
 /// Loading state provider
 final isLoadingProvider = StateProvider<bool>((ref) => false);

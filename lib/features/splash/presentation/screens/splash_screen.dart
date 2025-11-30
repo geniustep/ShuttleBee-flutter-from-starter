@@ -1,16 +1,21 @@
-import 'package:bridgecore_flutter_starter/shared/providers/global_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/routing/role_routing.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/providers/global_providers.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../widgets/animated_logo.dart';
 
 /// Splash screen with smart auth handling
+/// 
+/// هذه الشاشة تتعامل بذكاء مع حالات التوكن المختلفة:
+/// - authenticated: دخول مباشر للـ Home
+/// - needsRefresh: محاولة تجديد التوكن أو الدخول أوفلاين
+/// - expired: توجيه لصفحة تسجيل الدخول
+/// - none: توجيه لصفحة تسجيل الدخول
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -61,11 +66,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // Check network status
     final networkInfo = ref.read(networkInfoProvider);
     final isOnline = await networkInfo.isConnected;
-    ref.read(isOnlineProvider.notifier).state = isOnline;
+    ref.read(isOnlineStateProvider.notifier).state = isOnline;
 
     // Wait for auth state to be ready
     final authState = ref.read(authStateProvider);
-
+    
     if (authState.isLoading) {
       // Wait a bit more for auth check to complete
       await Future.delayed(const Duration(milliseconds: 500));
@@ -85,10 +90,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // Handle different auth states
     switch (auth.tokenState) {
       case TokenState.valid:
-        // Fully authenticated - go to role-based home
+        // Fully authenticated - go to home
         _updateStatus('مرحباً ${auth.user?.name ?? ""}');
         await Future.delayed(const Duration(milliseconds: 300));
-        _navigateToHome(auth.user);
+        _navigateToHome();
         break;
 
       case TokenState.needsRefresh:
@@ -97,11 +102,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           _updateStatus('جاري تحديث الجلسة...');
           final authNotifier = ref.read(authStateProvider.notifier);
           final refreshed = await authNotifier.refreshToken();
-
+          
           if (refreshed) {
             _updateStatus('مرحباً ${auth.user?.name ?? ""}');
             await Future.delayed(const Duration(milliseconds: 300));
-            _navigateToHome(auth.user);
+            _navigateToHome();
           } else {
             // Refresh failed - go to login
             _updateStatus('انتهت صلاحية الجلسة');
@@ -110,9 +115,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           }
         } else {
           // Offline - allow access with cached data
+          // هذا مهم لـ ShuttleBee: السائق يمكنه العمل أوفلاين
           _updateStatus('وضع بدون اتصال');
           await Future.delayed(const Duration(milliseconds: 500));
-          _navigateToHome(auth.user, offlineMode: true);
+          _navigateToHome(offlineMode: true);
         }
         break;
 
@@ -128,7 +134,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         if (auth.canWorkOffline && !isOnline) {
           _updateStatus('وضع بدون اتصال');
           await Future.delayed(const Duration(milliseconds: 500));
-          _navigateToHome(auth.user, offlineMode: true);
+          _navigateToHome(offlineMode: true);
         } else {
           _navigateToLogin();
         }
@@ -144,9 +150,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     }
   }
 
-  void _navigateToHome(User? user, {bool offlineMode = false}) {
+  void _navigateToHome({bool offlineMode = false}) {
     if (!mounted) return;
-
+    
     if (offlineMode) {
       // Show offline indicator before navigating
       ScaffoldMessenger.of(context).showSnackBar(
@@ -157,10 +163,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         ),
       );
     }
-
-    // Navigate to role-based home screen
-    final homeRoute = getHomeRouteForRole(user?.role);
-    context.go(homeRoute);
+    
+    context.go(RoutePaths.home);
   }
 
   void _navigateToLogin() {
@@ -177,7 +181,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     // Listen to network changes
-    ref.listen<bool>(isOnlineProvider, (previous, next) {
+    ref.listen<bool>(isOnlineStateProvider, (previous, next) {
       if (previous == false && next == true) {
         // Back online - might want to refresh
         print('🌐 Network restored');
@@ -230,7 +234,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
                   // Tagline
                   Text(
-                    'نظام النقل المدرسي الذكي',
+                    'خدمة النقل الذكية',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Colors.white.withValues(alpha: 0.8),
                         ),

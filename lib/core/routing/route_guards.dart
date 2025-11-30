@@ -1,14 +1,18 @@
-import 'package:bridgecore_flutter_starter/shared/providers/global_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/domain/entities/user.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
-import 'role_routing.dart';
+import '../../shared/providers/global_providers.dart';
 import 'route_paths.dart';
 
 /// Route guard for authentication with offline support
+/// 
+/// هذا الـ Guard يتعامل مع:
+/// - المستخدم المصادق عليه بالكامل
+/// - المستخدم الذي يحتاج تجديد التوكن
+/// - المستخدم الأوفلاين مع بيانات محلية
 class AuthGuard {
   final Ref ref;
 
@@ -18,8 +22,8 @@ class AuthGuard {
   String? redirect(BuildContext context, GoRouterState state) {
     final authState = ref.read(authStateProvider);
     final auth = authState.asData?.value;
-    final isOnline = ref.read(isOnlineProvider);
-    
+    final isOnline = ref.read(isOnlineStateProvider);
+
     final isLoggedIn = auth?.isAuthenticated ?? false;
     final canWorkOffline = auth?.canWorkOffline ?? false;
     final isLoggingIn = state.matchedLocation == RoutePaths.login;
@@ -35,10 +39,9 @@ class AuthGuard {
       return RoutePaths.login;
     }
 
-    // If logged in (or can work offline) and on login page, redirect to role-based home
+    // If logged in (or can work offline) and on login page, redirect to home
     if ((isLoggedIn || canWorkOffline) && isLoggingIn) {
-      final user = auth?.user;
-      return getHomeRouteForRole(user?.role);
+      return RoutePaths.home;
     }
 
     // Allow offline access if user has cached data
@@ -52,6 +55,9 @@ class AuthGuard {
 }
 
 /// Route guard for routes that require online access
+/// 
+/// يُستخدم للصفحات التي تحتاج اتصال بالإنترنت حتماً
+/// مثل: صفحات الدفع، إنشاء رحلات جديدة، إلخ
 class OnlineGuard {
   final Ref ref;
 
@@ -59,8 +65,8 @@ class OnlineGuard {
 
   /// Check if user is online for routes that require network
   String? redirect(BuildContext context, GoRouterState state) {
-    final isOnline = ref.read(isOnlineProvider);
-    
+    final isOnline = ref.read(isOnlineStateProvider);
+
     if (!isOnline) {
       // Show offline message and redirect to home
       ScaffoldMessenger.of(context).showSnackBar(
@@ -69,16 +75,17 @@ class OnlineGuard {
           backgroundColor: Colors.orange,
         ),
       );
-      final authState = ref.read(authStateProvider);
-      final user = authState.asData?.value.user;
-      return getHomeRouteForRole(user?.role);
+      return RoutePaths.home;
     }
-    
+
     return null;
   }
 }
 
 /// Route guard for routes that require valid token (not just offline cache)
+/// 
+/// يُستخدم للصفحات الحساسة التي تحتاج توكن صالح فعلاً
+/// مثل: إدارة الحساب، تغيير كلمة المرور، إلخ
 class ValidTokenGuard {
   final Ref ref;
 
@@ -88,14 +95,14 @@ class ValidTokenGuard {
   String? redirect(BuildContext context, GoRouterState state) {
     final authState = ref.read(authStateProvider);
     final auth = authState.asData?.value;
-    
+
     if (auth?.tokenState != TokenState.valid) {
       // Token is not valid - need to refresh or login
       if (auth?.needsTokenRefresh ?? false) {
         // Try to refresh in background
         ref.read(authStateProvider.notifier).refreshToken();
       }
-      
+
       // For now, allow access but show warning
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -104,7 +111,7 @@ class ValidTokenGuard {
         ),
       );
     }
-    
+
     return null;
   }
 }
@@ -122,6 +129,11 @@ class OnboardingGuard {
 }
 
 /// Combined guard that checks auth and token validity
+/// 
+/// هذا الـ Guard الذكي يجمع كل المنطق:
+/// - التحقق من حالة التوكن (valid/needsRefresh/expired/none)
+/// - التعامل مع الأوفلاين
+/// - تجديد التوكن في الخلفية عند الحاجة
 class SmartAuthGuard {
   final Ref ref;
 
@@ -131,10 +143,10 @@ class SmartAuthGuard {
   String? redirect(BuildContext context, GoRouterState state) {
     final authState = ref.read(authStateProvider);
     final auth = authState.asData?.value;
-    final isOnline = ref.read(isOnlineProvider);
-    
+    final isOnline = ref.read(isOnlineStateProvider);
+
     final currentPath = state.matchedLocation;
-    
+
     // Allow splash to handle initialization
     if (currentPath == RoutePaths.splash) {
       return null;
@@ -150,7 +162,7 @@ class SmartAuthGuard {
       case TokenState.valid:
         // Fully authenticated - allow access, redirect from login
         if (currentPath == RoutePaths.login) {
-          return getHomeRouteForRole(auth.user?.role);
+          return RoutePaths.home;
         }
         return null;
 
@@ -161,7 +173,7 @@ class SmartAuthGuard {
         }
         // Allow access (offline mode or refresh in progress)
         if (currentPath == RoutePaths.login) {
-          return getHomeRouteForRole(auth.user?.role);
+          return RoutePaths.home;
         }
         return null;
 
@@ -177,7 +189,7 @@ class SmartAuthGuard {
         if (auth.canWorkOffline && !isOnline) {
           // Offline with cached data - allow limited access
           if (currentPath == RoutePaths.login) {
-            return getHomeRouteForRole(auth.user?.role);
+            return RoutePaths.home;
           }
           return null;
         }
@@ -187,5 +199,48 @@ class SmartAuthGuard {
         }
         return null;
     }
+  }
+}
+
+/// Route guard for sensitive operations that require both online AND valid token
+/// 
+/// يُستخدم للعمليات الحساسة جداً مثل:
+/// - عمليات الدفع
+/// - تعديل بيانات حساسة
+/// - حذف البيانات
+class SensitiveOperationGuard {
+  final Ref ref;
+
+  SensitiveOperationGuard(this.ref);
+
+  /// Check if user has valid token AND is online
+  String? redirect(BuildContext context, GoRouterState state) {
+    final authState = ref.read(authStateProvider);
+    final auth = authState.asData?.value;
+    final isOnline = ref.read(isOnlineStateProvider);
+
+    // Must be online
+    if (!isOnline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('هذه العملية تتطلب اتصال بالإنترنت'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return RoutePaths.home;
+    }
+
+    // Must have valid token
+    if (auth?.tokenState != TokenState.valid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى تسجيل الدخول مجدداً لإتمام هذه العملية'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return RoutePaths.login;
+    }
+
+    return null;
   }
 }

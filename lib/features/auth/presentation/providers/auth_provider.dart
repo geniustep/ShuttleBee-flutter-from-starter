@@ -5,7 +5,6 @@ import 'package:logger/logger.dart';
 
 import '../../../../core/bridgecore_integration/client/bridgecore_client.dart';
 import '../../../../core/constants/storage_keys.dart';
-import '../../../../core/enums/user_role.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/storage/prefs_service.dart';
 import '../../../../core/storage/secure_storage_service.dart';
@@ -26,6 +25,11 @@ final bridgecoreClientProvider =
 final networkInfoProvider = Provider<NetworkInfo>((ref) => NetworkInfo());
 
 /// Auth state notifier with smart token management
+/// 
+/// هذا الـ Notifier يدير:
+/// - التحقق الذكي من حالة التوكن عند بدء التطبيق
+/// - التعامل مع الأوفلاين (السماح بالعمل مع بيانات محلية)
+/// - تجديد التوكن تلقائياً عند الحاجة
 class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
   final Ref _ref;
   final Logger _logger = Logger();
@@ -38,20 +42,26 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
   }
 
   /// Check if user is already authenticated with smart token handling
+  /// 
+  /// هذه الدالة تتحقق من:
+  /// 1. حالة الشبكة (أونلاين/أوفلاين)
+  /// 2. حالة التوكن من BridgeCore (authenticated/needsRefresh/expired/unauthenticated)
+  /// 3. صلاحية التوكن (هل هو tenant token صالح)
+  /// 4. البيانات المحلية المخزنة
   Future<void> _checkAuthStatus() async {
     try {
       print('🔍 [_checkAuthStatus] Starting smart auth check...');
       
       // Check network connectivity
       final isOnline = await _networkInfo.isConnected;
-      _ref.read(isOnlineProvider.notifier).state = isOnline;
+      _ref.read(isOnlineStateProvider.notifier).state = isOnline;
       print('🌐 [_checkAuthStatus] Network status: ${isOnline ? "online" : "offline"}');
 
       // Get BridgeCore token state
       final bridgeCoreAuthState = await BridgeCore.instance.auth.authState;
       print('🔐 [_checkAuthStatus] BridgeCore auth state: $bridgeCoreAuthState');
 
-      // Map BridgeCore TokenAuthState to our TokenState
+      // Map BridgeCore AuthState to our TokenState
       final tokenState = _mapBridgeCoreAuthState(bridgeCoreAuthState);
       
       // Get stored user data
@@ -63,10 +73,11 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
 
       // Validate that token is a proper tenant token
       if (tokenState == TokenState.valid || tokenState == TokenState.needsRefresh) {
-        final isValidTenantToken = await BridgeCore.instance.auth.hasValidTenantToken();
+        final tokenValidation = await BridgeCore.instance.auth.validateToken();
+        final isValidTenantToken = tokenValidation['isValid'] == true;
         if (!isValidTenantToken) {
           print('⚠️ [_checkAuthStatus] Token is NOT a valid tenant token!');
-          final tokenInfo = await BridgeCore.instance.auth.getDetailedTokenInfo();
+          final tokenInfo = await BridgeCore.instance.auth.getTokenInfo();
           print('📋 [_checkAuthStatus] Token details: $tokenInfo');
           print('🔄 [_checkAuthStatus] Clearing invalid token and requiring re-login...');
           await _clearSession();
@@ -118,6 +129,7 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
             }
           } else {
             // Offline - allow access with expired token if we have user data
+            // هذا مهم لـ ShuttleBee: السائق يمكنه العمل أوفلاين
             if (userId != null) {
               print('📴 [_checkAuthStatus] Offline mode with stored user data');
               await _restoreAuthenticatedSession(
@@ -191,19 +203,16 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
     }
 
     final userName = _prefs.getString(StorageKeys.userDisplayName) ?? '';
-    final roleStr = _prefs.getString(StorageKeys.userRole);
-    final role = UserRole.tryFromString(roleStr) ?? UserRole.passenger;
     final partnerId = _prefs.getInt(StorageKeys.partnerId);
     final companyId = _prefs.getInt(StorageKeys.companyId);
     final companyName = _prefs.getString(StorageKeys.companyName);
 
-    print('🔍 [_restoreSession] userName: $userName, role: ${role.value}, tokenState: $tokenState');
-    _logger.d('Restoring session for user: $userName, role: ${role.value}, partnerId: $partnerId');
+    print('🔍 [_restoreSession] userName: $userName, partnerId: $partnerId, tokenState: $tokenState');
+    _logger.d('Restoring session for user: $userName, partnerId: $partnerId');
 
-    // Create BridgecoreClient and restore session
+    // Create BridgecoreClient
     if (sessionId != null) {
       final client = BridgecoreClient(serverUrl);
-      client.restoreSession(sessionId: sessionId, userId: userId);
       _ref.read(bridgecoreClientProvider.notifier).state = client;
       print('✅ [_restoreSession] BridgecoreClient created and set in provider');
     }
@@ -211,7 +220,6 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
     final user = User(
       id: userId,
       name: userName,
-      role: role,
       partnerId: partnerId,
       companyId: companyId,
       companyName: companyName,
@@ -231,29 +239,20 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
     required String serverUrl,
     required String username,
     required String password,
-    required String modelName,
-    required List<String> listFields,
     bool rememberMe = false,
   }) async {
     state = const AsyncValue.loading();
 
     try {
-      // Clear old session data before login to prevent role persistence issues
-      await _clearSession();
-
       final client = BridgecoreClient(serverUrl);
       final result = await client.authenticate(
         username: username,
         password: password,
-        odooFieldsCheck: {"model": modelName, "list_fields": listFields},
       );
 
       // Get complete user info including partnerId
       print('🔍 [login] Getting current user info for partnerId...');
-      final meResponse = await client.getCurrentUser(
-        modelName: modelName,
-        listFields: listFields,
-      );
+      final meResponse = await client.getCurrentUser();
 
       // Merge partnerId from /me endpoint into the result
       final partnerId = meResponse['partner_id'] as int?;
@@ -265,7 +264,7 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
       };
 
       final user = User.fromOdoo(mergedResult);
-      _logger.i('User role detected: ${user.role.value} for user: ${user.name}, partnerId: ${user.partnerId}');
+      _logger.i('User logged in: ${user.name}, partnerId: ${user.partnerId}');
 
       // Save to storage
       await _saveSession(
@@ -279,7 +278,7 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
       _ref.read(bridgecoreClientProvider.notifier).state = client;
 
       state = AsyncValue.data(AuthState.authenticated(user, tokenState: TokenState.valid));
-      _logger.i('Login successful for user: ${user.name} with role: ${user.role.value}');
+      _logger.i('Login successful for user: ${user.name}');
 
       return true;
     } catch (e, stackTrace) {
@@ -290,6 +289,9 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
   }
 
   /// Refresh token manually
+  /// 
+  /// يمكن استدعاء هذه الدالة من Splash Screen أو Guards
+  /// لتجديد التوكن قبل الدخول للتطبيق
   Future<bool> refreshToken() async {
     try {
       print('🔄 [refreshToken] Attempting manual token refresh...');
@@ -313,8 +315,10 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
   }
 
   /// Update network status and handle token refresh if needed
+  /// 
+  /// يُستدعى عند تغير حالة الشبكة لتجديد التوكن إذا عاد الاتصال
   Future<void> updateNetworkStatus(bool isOnline) async {
-    _ref.read(isOnlineProvider.notifier).state = isOnline;
+    _ref.read(isOnlineStateProvider.notifier).state = isOnline;
     
     final currentState = state.asData?.value;
     if (currentState == null) return;
@@ -348,9 +352,7 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
     await _prefs.setString(StorageKeys.serverUrl, serverUrl);
     await _prefs.setInt(StorageKeys.userId, user.id);
     await _prefs.setString(StorageKeys.userDisplayName, user.name);
-    await _prefs.setString(StorageKeys.userRole, user.role.value);
     await _prefs.setBool(StorageKeys.rememberMe, rememberMe);
-    _logger.d('Saved user role to storage: ${user.role.value}');
 
     if (user.partnerId != null) {
       await _prefs.setInt(StorageKeys.partnerId, user.partnerId!);
@@ -394,12 +396,11 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
 
   /// Clear session from storage
   Future<void> _clearSession() async {
-    _logger.d('Clearing session data including role');
+    _logger.d('Clearing session data');
     await _secureStorage.delete(StorageKeys.sessionId);
     await _secureStorage.delete(StorageKeys.accessToken);
     await _prefs.remove(StorageKeys.userId);
     await _prefs.remove(StorageKeys.userDisplayName);
-    await _prefs.remove(StorageKeys.userRole);
     await _prefs.remove(StorageKeys.partnerId);
     await _prefs.remove(StorageKeys.companyId);
     await _prefs.remove(StorageKeys.companyName);
