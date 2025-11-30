@@ -1,3 +1,4 @@
+import 'package:bridgecore_flutter/bridgecore_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/enums/enums.dart';
@@ -29,31 +30,55 @@ final tripRepositoryProvider = Provider<TripRepository?>((ref) {
 final driverDailyTripsProvider =
     FutureProvider.autoDispose.family<List<Trip>, DateTime>((ref, date) async {
   try {
+    print('🚗 [driverDailyTripsProvider] Fetching trips for date: $date');
+    
+    final client = ref.watch(bridgecoreClientProvider);
+    print('🚗 [driverDailyTripsProvider] BridgecoreClient: ${client != null ? "exists" : "NULL"}');
+    
     final repository = ref.watch(tripRepositoryProvider);
+    print('🚗 [driverDailyTripsProvider] Repository: ${repository != null ? "exists" : "NULL"}');
+    
     if (repository == null) {
+      print('❌ [driverDailyTripsProvider] Repository is null - client might not be ready');
       throw Exception('خطأ في الاتصال. يرجى التحقق من الاتصال بالخادم');
     }
 
     final authState = ref.watch(authStateProvider);
     final user = authState.asData?.value.user;
+    
+    // Note: driver_id in Odoo shuttle.trip is linked to res.users (user.id), not res.partner (user.partnerId)
+    print('🚗 [driverDailyTripsProvider] User: ${user?.name ?? "NULL"}, userId: ${user?.id}, partnerId: ${user?.partnerId}');
 
     if (user == null) {
       throw Exception('يجب تسجيل الدخول أولاً');
     }
 
-    if (user.partnerId == null) {
+    // Use user.id (res.users ID) instead of partnerId for driver_id lookup
+    final driverId = user.id;
+    if (driverId == 0) {
+      print('❌ [driverDailyTripsProvider] userId is 0');
       throw Exception('معلومات السائق غير مكتملة. يرجى التواصل مع الإدارة');
     }
 
-    final result = await repository.getDriverTrips(user.partnerId!, date);
+    print('🚗 [driverDailyTripsProvider] Calling getDriverTrips with driverId (user.id): $driverId');
+    final result = await repository.getDriverTrips(driverId, date);
     return result.fold(
       (failure) {
+        print('❌ [driverDailyTripsProvider] API Error: ${failure.message}');
         final errorMessage = ErrorTranslator.translateFailure(failure.message);
         throw Exception(errorMessage);
       },
-      (trips) => trips,
+      (trips) {
+        print('✅ [driverDailyTripsProvider] Got ${trips.length} trips');
+        return trips;
+      },
     );
+  } on MissingOdooCredentialsException catch (e) {
+    // Token doesn't have tenant info - user needs to re-login
+    print('❌ [driverDailyTripsProvider] MissingOdooCredentialsException: $e');
+    throw Exception('انتهت صلاحية الجلسة. يرجى تسجيل الخروج وإعادة تسجيل الدخول');
   } catch (e) {
+    print('❌ [driverDailyTripsProvider] Exception: $e');
     // Re-throw with better error message
     if (e is Exception) {
       final message = e.toString();
@@ -213,6 +238,17 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
   AsyncValue<Trip?> build() => const AsyncValue.data(null);
 
   TripRepository? get _repository => ref.read(tripRepositoryProvider);
+  
+  /// Check if provider is still mounted (safe to update state)
+  bool get _isMounted {
+    try {
+      // Accessing ref will throw if disposed
+      ref.read(tripRepositoryProvider);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   Future<void> loadTrip(int tripId) async {
     final repository = _repository;
@@ -221,6 +257,10 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     state = const AsyncValue.loading();
 
     final result = await repository.getTripById(tripId);
+    
+    // Check if still mounted after async operation
+    if (!_isMounted) return;
+    
     state = result.fold(
       (failure) => AsyncValue.error(failure, StackTrace.current),
       (trip) => AsyncValue.data(trip),
@@ -232,6 +272,10 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     if (repository == null) return false;
 
     final result = await repository.startTrip(tripId);
+    
+    // Check if still mounted after async operation
+    if (!_isMounted) return false;
+    
     return result.fold(
       (failure) => false,
       (trip) {
@@ -246,6 +290,10 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     if (repository == null) return false;
 
     final result = await repository.completeTrip(tripId);
+    
+    // Check if still mounted after async operation
+    if (!_isMounted) return false;
+    
     return result.fold(
       (failure) => false,
       (trip) {
@@ -260,6 +308,10 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     if (repository == null) return false;
 
     final result = await repository.cancelTrip(tripId);
+    
+    // Check if still mounted after async operation
+    if (!_isMounted) return false;
+    
     return result.fold(
       (failure) => false,
       (_) {
@@ -294,6 +346,10 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
 
     // Make API call
     final result = await repository.markPassengerBoarded(tripLineId);
+    
+    // Check if still mounted after async operation
+    if (!_isMounted) return false;
+    
     return result.fold(
       (failure) {
         // Revert on failure
@@ -335,6 +391,10 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     }
 
     final result = await repository.markPassengerAbsent(tripLineId);
+    
+    // Check if still mounted after async operation
+    if (!_isMounted) return false;
+    
     return result.fold(
       (failure) {
         if (currentTrip != null) {
@@ -374,6 +434,10 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     }
 
     final result = await repository.markPassengerDropped(tripLineId);
+    
+    // Check if still mounted after async operation
+    if (!_isMounted) return false;
+    
     return result.fold(
       (failure) {
         if (currentTrip != null) {

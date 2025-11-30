@@ -31,6 +31,9 @@ class StorageKeys {
   /// Company name
   static const String companyName = 'company_name';
 
+  /// Partner ID (for driver/passenger)
+  static const String partnerId = 'partner_id';
+
   /// Selected database
   static const String database = 'database';
 

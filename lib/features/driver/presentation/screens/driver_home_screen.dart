@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../core/utils/error_translator.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../trips/domain/entities/trip.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
@@ -27,6 +28,18 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
+
+    // Wait for auth state to be ready before loading trips
+    if (authState.isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('رحلاتي اليومية')),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     final userName = authState.asData?.value.user?.name ?? 'السائق';
     final tripsAsync = ref.watch(driverDailyTripsProvider(_selectedDate));
 
@@ -231,6 +244,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   }
 
   Widget _buildErrorState(BuildContext context, WidgetRef ref, String error) {
+    // Check if error requires re-login (session expired, invalid token, etc.)
+    final requiresReLogin = ErrorTranslator.requiresReLoginFromMessage(error);
+
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(AppDimensions.lg),
@@ -240,20 +256,22 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
             Container(
               padding: const EdgeInsets.all(AppDimensions.lg),
               decoration: BoxDecoration(
-                color: AppColors.errorLight,
+                color: requiresReLogin
+                    ? AppColors.warning.withValues(alpha: 0.2)
+                    : AppColors.errorLight,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.error_outline,
+              child: Icon(
+                requiresReLogin ? Icons.lock_outline : Icons.error_outline,
                 size: 64,
-                color: AppColors.error,
+                color: requiresReLogin ? AppColors.warning : AppColors.error,
               ),
             ),
             const SizedBox(height: AppDimensions.lg),
             Text(
-              'حدث خطأ',
+              requiresReLogin ? 'انتهت الجلسة' : 'حدث خطأ',
               style: AppTypography.h5.copyWith(
-                color: AppColors.error,
+                color: requiresReLogin ? AppColors.warning : AppColors.error,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -269,21 +287,45 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
               ),
             ),
             const SizedBox(height: AppDimensions.lg),
-            ElevatedButton.icon(
-              onPressed: () {
-                ref.invalidate(driverDailyTripsProvider(_selectedDate));
-              },
-              icon: const Icon(Icons.refresh),
-              label: const Text('إعادة المحاولة'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimensions.lg,
-                  vertical: AppDimensions.md,
+            if (requiresReLogin) ...[
+              // Session expired - show login button
+              ElevatedButton.icon(
+                onPressed: () async {
+                  // Logout and redirect to login
+                  await ref.read(authStateProvider.notifier).logout();
+                  if (context.mounted) {
+                    context.go(RoutePaths.login);
+                  }
+                },
+                icon: const Icon(Icons.login),
+                label: const Text('تسجيل الدخول'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimensions.xl,
+                    vertical: AppDimensions.md,
+                  ),
                 ),
               ),
-            ),
+            ] else ...[
+              // Normal error - show retry button
+              ElevatedButton.icon(
+                onPressed: () {
+                  ref.invalidate(driverDailyTripsProvider(_selectedDate));
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('إعادة المحاولة'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimensions.lg,
+                    vertical: AppDimensions.md,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

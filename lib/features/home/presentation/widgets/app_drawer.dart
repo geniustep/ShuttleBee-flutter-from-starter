@@ -19,7 +19,7 @@ class AppDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final authState = ref.watch(authStateProvider);
-    final isOnline = ref.watch(isOnlineProvider).asData?.value ?? true;
+    final isOnline = ref.watch(isOnlineProvider);
 
     final user = authState.asData?.value.user;
 

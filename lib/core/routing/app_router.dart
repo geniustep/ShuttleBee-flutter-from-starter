@@ -20,6 +20,7 @@ import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../../features/driver/presentation/screens/driver_home_screen.dart';
 import '../../features/driver/presentation/screens/driver_trip_detail_screen.dart';
 import '../../features/driver/presentation/screens/driver_active_trip_screen.dart';
+import '../../features/driver/presentation/screens/driver_live_trip_map_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_home_screen.dart';
 import '../../features/passenger/presentation/screens/passenger_home_screen.dart';
 import '../../features/manager/presentation/screens/manager_home_screen.dart';
@@ -121,6 +122,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) {
                   final tripId = int.parse(state.pathParameters['tripId']!);
                   return DriverActiveTripScreen(tripId: tripId);
+                },
+              ),
+              GoRoute(
+                path: 'live-map',
+                name: RouteNames.driverLiveTripMap,
+                builder: (context, state) {
+                  final tripId = int.parse(state.pathParameters['tripId']!);
+                  return DriverLiveTripMapScreen(tripId: tripId);
                 },
               ),
             ],

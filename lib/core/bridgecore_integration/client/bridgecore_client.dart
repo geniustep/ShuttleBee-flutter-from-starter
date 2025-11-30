@@ -38,6 +38,15 @@ class BridgecoreClient {
     _logger.d('BridgecoreClient initialized with URL: $baseUrl');
   }
 
+  /// Restore session from stored credentials
+  /// This method is called when the app restarts and needs to restore a previous session
+  void restoreSession({required String sessionId, required int userId}) {
+    _sessionId = sessionId;
+    _userId = userId;
+    _isAuthenticated = true;
+    _logger.d('Session restored for userId: $userId');
+  }
+
   /// Authenticate with Odoo server
   Future<Map<String, dynamic>> authenticate({
     // required String database,

@@ -8,10 +8,10 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/constants/map_styles.dart';
 import '../../../../core/services/map_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../trips/domain/entities/trip.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
+import '../widgets/trip_map_widget.dart';
 
 /// Driver Live Trip Map Screen - خريطة الرحلة المباشرة - ShuttleBee
 ///
@@ -175,8 +175,16 @@ class _DriverLiveTripMapScreenState
 
           return Stack(
             children: [
-              // Map View (placeholder - replace with actual map widget)
-              _buildMapPlaceholder(),
+              // Map View
+              TripMapWidget(
+                trip: trip,
+                currentPosition: _currentPosition,
+                currentBearing: _currentBearing,
+                showRoute: true,
+                showPassengerMarkers: true,
+                showDriverMarker: true,
+                autoFitBounds: _currentPosition == null,
+              ),
 
               // Top Info Card
               Positioned(
@@ -230,58 +238,6 @@ class _DriverLiveTripMapScreenState
     );
   }
 
-  /// Map Placeholder (replace with actual Mapbox widget)
-  Widget _buildMapPlaceholder() {
-    return Container(
-      color: Colors.grey[300],
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.map, size: 100, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              '🗺️ خريطة الرحلة المباشرة',
-              style: AppTypography.h4.copyWith(color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'سيتم عرض الموقع الحالي والمسار هنا',
-              style: AppTypography.bodyMedium.copyWith(color: Colors.grey[500]),
-            ),
-            const SizedBox(height: 24),
-            if (_currentPosition != null) ...[
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    Text('الموقع الحالي:', style: AppTypography.h6),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Lat: ${_currentPosition!.latitude.toStringAsFixed(6)}',
-                      style: AppTypography.bodySmall,
-                    ),
-                    Text(
-                      'Lng: ${_currentPosition!.longitude.toStringAsFixed(6)}',
-                      style: AppTypography.bodySmall,
-                    ),
-                    Text(
-                      'الاتجاه: ${_mapService.getBearingDirection(_currentBearing)}',
-                      style: AppTypography.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildTopInfoCard(Trip trip) {
     final completedStops = trip.lines

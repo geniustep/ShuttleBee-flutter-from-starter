@@ -73,6 +73,13 @@ class ErrorHandler {
       );
     }
 
+    if (exception is MissingOdooCredentialsException) {
+      return const AuthFailure(
+        message: 'انتهت صلاحية الجلسة. يرجى تسجيل الخروج وإعادة تسجيل الدخول',
+        code: 'MISSING_ODOO_CREDENTIALS',
+      );
+    }
+
     if (exception is ServerException) {
       return ServerFailure(
         message: exception.message,
@@ -140,6 +147,15 @@ class ErrorHandler {
 
     switch (statusCode) {
       case 400:
+        // Check for Missing Odoo Credentials error
+        if (message.contains('Missing Odoo credentials') ||
+            message.contains('tenant JWT token')) {
+          return const AuthFailure(
+            message:
+                'انتهت صلاحية الجلسة. يرجى تسجيل الخروج وإعادة تسجيل الدخول',
+            code: 'MISSING_ODOO_CREDENTIALS',
+          );
+        }
         return ServerFailure(
           message: message,
           code: 'BAD_REQUEST',

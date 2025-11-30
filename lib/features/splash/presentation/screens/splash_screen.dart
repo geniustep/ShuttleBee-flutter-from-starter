@@ -1,3 +1,4 @@
+import 'package:bridgecore_flutter_starter/shared/providers/global_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,10 +6,11 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/routing/role_routing.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../widgets/animated_logo.dart';
 
-/// Splash screen with animations
+/// Splash screen with smart auth handling
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -21,6 +23,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  String _statusMessage = 'جاري التحميل...';
 
   @override
   void initState() {
@@ -46,25 +49,123 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
 
     _controller.forward();
-    _navigateAfterDelay();
+    _handleNavigation();
   }
 
-  Future<void> _navigateAfterDelay() async {
+  Future<void> _handleNavigation() async {
+    // Wait for animation to complete
     await Future.delayed(const Duration(seconds: 2));
 
     if (!mounted) return;
 
-    final authState = ref.read(authStateProvider);
-    final isAuthenticated = authState.asData?.value.isAuthenticated ?? false;
-    final user = authState.asData?.value.user;
+    // Check network status
+    final networkInfo = ref.read(networkInfoProvider);
+    final isOnline = await networkInfo.isConnected;
+    ref.read(isOnlineProvider.notifier).state = isOnline;
 
-    if (isAuthenticated) {
-      // Navigate to role-based home screen
-      final homeRoute = getHomeRouteForRole(user?.role);
-      context.go(homeRoute);
-    } else {
-      context.go(RoutePaths.login);
+    // Wait for auth state to be ready
+    final authState = ref.read(authStateProvider);
+
+    if (authState.isLoading) {
+      // Wait a bit more for auth check to complete
+      await Future.delayed(const Duration(milliseconds: 500));
     }
+
+    if (!mounted) return;
+
+    final currentAuthState = ref.read(authStateProvider);
+    final auth = currentAuthState.asData?.value;
+
+    if (auth == null) {
+      // Auth state not ready, go to login
+      _navigateToLogin();
+      return;
+    }
+
+    // Handle different auth states
+    switch (auth.tokenState) {
+      case TokenState.valid:
+        // Fully authenticated - go to role-based home
+        _updateStatus('مرحباً ${auth.user?.name ?? ""}');
+        await Future.delayed(const Duration(milliseconds: 300));
+        _navigateToHome(auth.user);
+        break;
+
+      case TokenState.needsRefresh:
+        if (isOnline) {
+          // Online - try to refresh token
+          _updateStatus('جاري تحديث الجلسة...');
+          final authNotifier = ref.read(authStateProvider.notifier);
+          final refreshed = await authNotifier.refreshToken();
+
+          if (refreshed) {
+            _updateStatus('مرحباً ${auth.user?.name ?? ""}');
+            await Future.delayed(const Duration(milliseconds: 300));
+            _navigateToHome(auth.user);
+          } else {
+            // Refresh failed - go to login
+            _updateStatus('انتهت صلاحية الجلسة');
+            await Future.delayed(const Duration(milliseconds: 500));
+            _navigateToLogin();
+          }
+        } else {
+          // Offline - allow access with cached data
+          _updateStatus('وضع بدون اتصال');
+          await Future.delayed(const Duration(milliseconds: 500));
+          _navigateToHome(auth.user, offlineMode: true);
+        }
+        break;
+
+      case TokenState.expired:
+        // Session completely expired
+        _updateStatus('انتهت صلاحية الجلسة');
+        await Future.delayed(const Duration(milliseconds: 500));
+        _navigateToLogin();
+        break;
+
+      case TokenState.none:
+        // No tokens - check if we have user data for offline
+        if (auth.canWorkOffline && !isOnline) {
+          _updateStatus('وضع بدون اتصال');
+          await Future.delayed(const Duration(milliseconds: 500));
+          _navigateToHome(auth.user, offlineMode: true);
+        } else {
+          _navigateToLogin();
+        }
+        break;
+    }
+  }
+
+  void _updateStatus(String message) {
+    if (mounted) {
+      setState(() {
+        _statusMessage = message;
+      });
+    }
+  }
+
+  void _navigateToHome(User? user, {bool offlineMode = false}) {
+    if (!mounted) return;
+
+    if (offlineMode) {
+      // Show offline indicator before navigating
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('أنت في وضع بدون اتصال. بعض الميزات قد لا تعمل.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+
+    // Navigate to role-based home screen
+    final homeRoute = getHomeRouteForRole(user?.role);
+    context.go(homeRoute);
+  }
+
+  void _navigateToLogin() {
+    if (!mounted) return;
+    context.go(RoutePaths.login);
   }
 
   @override
@@ -75,6 +176,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Listen to network changes
+    ref.listen<bool>(isOnlineProvider, (previous, next) {
+      if (previous == false && next == true) {
+        // Back online - might want to refresh
+        print('🌐 Network restored');
+      }
+    });
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -136,6 +245,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Status message
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: Text(
+                      _statusMessage,
+                      key: ValueKey(_statusMessage),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.7),
+                          ),
                     ),
                   ),
                 ],

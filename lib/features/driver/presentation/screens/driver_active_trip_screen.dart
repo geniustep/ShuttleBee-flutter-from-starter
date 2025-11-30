@@ -60,6 +60,13 @@ class _DriverActiveTripScreenState
         title: const Text('إدارة الرحلة'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.map),
+            onPressed: () {
+              context.go('${RoutePaths.driverHome}/trip/${widget.tripId}/live-map');
+            },
+            tooltip: 'الخريطة المباشرة',
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
               ref.read(activeTripProvider.notifier).loadTrip(widget.tripId);

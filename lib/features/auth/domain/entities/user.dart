@@ -234,18 +234,34 @@ class User {
   String toString() => 'User(id: $id, name: $name, email: $email)';
 }
 
-/// Authentication state
+/// Token state for offline-aware authentication
+enum TokenState {
+  /// Valid access token - fully authenticated
+  valid,
+  /// Access token expired but can be refreshed
+  needsRefresh,
+  /// All tokens expired - must login again
+  expired,
+  /// No tokens stored
+  none,
+}
+
+/// Authentication state with offline support
 class AuthState {
   final User? user;
   final bool isAuthenticated;
   final bool isLoading;
   final String? error;
+  final TokenState tokenState;
+  final bool isOffline;
 
   const AuthState({
     this.user,
     this.isAuthenticated = false,
     this.isLoading = false,
     this.error,
+    this.tokenState = TokenState.none,
+    this.isOffline = false,
   });
 
   /// Initial state
@@ -254,14 +270,44 @@ class AuthState {
   /// Loading state
   factory AuthState.loading() => const AuthState(isLoading: true);
 
-  /// Authenticated state
-  factory AuthState.authenticated(User user) => AuthState(
+  /// Authenticated state with valid token
+  factory AuthState.authenticated(User user, {TokenState tokenState = TokenState.valid}) => AuthState(
         user: user,
         isAuthenticated: true,
+        tokenState: tokenState,
+      );
+
+  /// Authenticated but needs token refresh (offline mode)
+  factory AuthState.needsRefresh(User user, {bool isOffline = false}) => AuthState(
+        user: user,
+        isAuthenticated: true,
+        tokenState: TokenState.needsRefresh,
+        isOffline: isOffline,
+      );
+
+  /// Session expired - must login again
+  factory AuthState.sessionExpired() => const AuthState(
+        tokenState: TokenState.expired,
+      );
+
+  /// Invalid token - token exists but is not a valid tenant token
+  /// User must logout and login again to get a proper token
+  factory AuthState.invalidToken() => const AuthState(
+        tokenState: TokenState.expired,
+        error: 'انتهت صلاحية الجلسة. يرجى تسجيل الخروج وإعادة تسجيل الدخول',
       );
 
   /// Error state
   factory AuthState.error(String message) => AuthState(error: message);
+
+  /// Check if can work offline (has user data even if token expired)
+  bool get canWorkOffline => user != null && tokenState != TokenState.none;
+
+  /// Check if token needs refresh before API calls
+  bool get needsTokenRefresh => tokenState == TokenState.needsRefresh;
+
+  /// Check if session is completely expired
+  bool get isSessionExpired => tokenState == TokenState.expired;
 
   /// Copy with
   AuthState copyWith({
@@ -269,12 +315,16 @@ class AuthState {
     bool? isAuthenticated,
     bool? isLoading,
     String? error,
+    TokenState? tokenState,
+    bool? isOffline,
   }) {
     return AuthState(
       user: user ?? this.user,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       isLoading: isLoading ?? this.isLoading,
       error: error,
+      tokenState: tokenState ?? this.tokenState,
+      isOffline: isOffline ?? this.isOffline,
     );
   }
 }

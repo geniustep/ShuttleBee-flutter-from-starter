@@ -223,3 +223,23 @@ class OdooMissingException extends OdooException {
     super.context,
   });
 }
+
+/// Missing Odoo Credentials Exception
+///
+/// يُلقى عندما لا يحتوي الـ JWT Token على معلومات Tenant المطلوبة
+/// للاتصال بـ Odoo. هذا يحدث عادةً عند:
+/// - استخدام token قديم لا يحتوي على معلومات tenant
+/// - الـ token تالف أو غير مكتمل
+/// - انتهاء صلاحية الجلسة بشكل غير طبيعي
+///
+/// الحل الموصى به: تسجيل الخروج وإعادة تسجيل الدخول
+class MissingOdooCredentialsException extends OdooException {
+  const MissingOdooCredentialsException({
+    super.message = 'Missing Odoo credentials. Please logout and login again.',
+    super.code = 'MISSING_ODOO_CREDENTIALS',
+    super.odooErrorType = 'CredentialsError',
+    super.statusCode = 400,
+    super.originalError,
+    super.context,
+  });
+}

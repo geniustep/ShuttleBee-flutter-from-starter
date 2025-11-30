@@ -1,7 +1,6 @@
 /// Error Translator - ShuttleBee
 ///
 /// يترجم رسائل الأخطاء التقنية إلى رسائل مفهومة للمستخدم
-
 class ErrorTranslator {
   /// ترجمة رسالة الخطأ إلى العربية
   static String translate(String errorMessage) {
@@ -28,6 +27,12 @@ class ErrorTranslator {
       return 'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى';
     }
 
+    // Missing Odoo Credentials (token doesn't have tenant info)
+    if (lowerError.contains('missing odoo credentials') ||
+        lowerError.contains('tenant jwt token')) {
+      return 'انتهت صلاحية الجلسة. يرجى تسجيل الخروج وإعادة تسجيل الدخول';
+    }
+
     // Permission errors
     if (lowerError.contains('forbidden') ||
         lowerError.contains('403') ||
@@ -51,8 +56,7 @@ class ErrorTranslator {
     }
 
     // Validation errors
-    if (lowerError.contains('invalid') ||
-        lowerError.contains('validation')) {
+    if (lowerError.contains('invalid') || lowerError.contains('validation')) {
       return 'البيانات المدخلة غير صحيحة';
     }
 
@@ -76,8 +80,7 @@ class ErrorTranslator {
     }
 
     // File errors
-    if (lowerError.contains('file') ||
-        lowerError.contains('storage')) {
+    if (lowerError.contains('file') || lowerError.contains('storage')) {
       return 'خطأ في الوصول إلى الملفات';
     }
 
@@ -135,8 +138,44 @@ class ErrorTranslator {
         return 'لا يوجد ركاب';
       case 'no_vehicles':
         return 'لا توجد مركبات';
+      case 'session_expired':
+        return 'انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى';
+      case 'credentials_error':
+        return 'انتهت صلاحية الجلسة. يرجى تسجيل الخروج وإعادة تسجيل الدخول';
       default:
         return 'لا توجد بيانات';
     }
+  }
+
+  /// التحقق مما إذا كان الخطأ يتطلب إعادة تسجيل الدخول (من رسالة الخطأ الأصلية)
+  static bool requiresReLogin(String errorMessage) {
+    final lowerError = errorMessage.toLowerCase();
+    return lowerError.contains('missing odoo credentials') ||
+        lowerError.contains('tenant jwt token') ||
+        lowerError.contains('session expired') ||
+        lowerError.contains('unauthorized') ||
+        lowerError.contains('401');
+  }
+
+  /// التحقق مما إذا كان الخطأ يتطلب إعادة تسجيل الدخول (من رسالة الخطأ المترجمة)
+  /// يتحقق من الرسائل العربية والإنجليزية
+  static bool requiresReLoginFromMessage(String message) {
+    final lowerMessage = message.toLowerCase();
+
+    // Check Arabic messages
+    if (message.contains('انتهت صلاحية الجلسة') ||
+        message.contains('انتهت الجلسة') ||
+        message.contains('تسجيل الخروج وإعادة تسجيل الدخول') ||
+        message.contains('تسجيل الدخول مرة أخرى')) {
+      return true;
+    }
+
+    // Check English messages
+    return lowerMessage.contains('missing odoo credentials') ||
+        lowerMessage.contains('tenant jwt token') ||
+        lowerMessage.contains('session expired') ||
+        lowerMessage.contains('unauthorized') ||
+        lowerMessage.contains('please login') ||
+        lowerMessage.contains('401');
   }
 }

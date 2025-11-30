@@ -106,10 +106,12 @@ class TripRemoteDataSource {
 
   /// Get trip by ID with lines
   Future<Trip> getTripById(int tripId) async {
-    final result = await _client.read(
+    // Use searchRead instead of read to avoid SDK null casting issues
+    final result = await _client.searchRead(
       model: _tripModel,
-      ids: [tripId],
+      domain: [['id', '=', tripId]],
       fields: _tripFields,
+      limit: 1,
     );
 
     if (result.isEmpty) {
@@ -253,13 +255,7 @@ class TripRemoteDataSource {
       values: {'status': status.value},
     );
 
-    final result = await _client.read(
-      model: _tripLineModel,
-      ids: [tripLineId],
-      fields: _tripLineFields,
-    );
-
-    return TripLine.fromOdoo(result.first);
+    return _getTripLineById(tripLineId);
   }
 
   /// Mark passenger as boarded
@@ -272,13 +268,7 @@ class TripRemoteDataSource {
       ],
     );
 
-    final result = await _client.read(
-      model: _tripLineModel,
-      ids: [tripLineId],
-      fields: _tripLineFields,
-    );
-
-    return TripLine.fromOdoo(result.first);
+    return _getTripLineById(tripLineId);
   }
 
   /// Mark passenger as absent
@@ -291,13 +281,7 @@ class TripRemoteDataSource {
       ],
     );
 
-    final result = await _client.read(
-      model: _tripLineModel,
-      ids: [tripLineId],
-      fields: _tripLineFields,
-    );
-
-    return TripLine.fromOdoo(result.first);
+    return _getTripLineById(tripLineId);
   }
 
   /// Mark passenger as dropped
@@ -310,11 +294,21 @@ class TripRemoteDataSource {
       ],
     );
 
-    final result = await _client.read(
+    return _getTripLineById(tripLineId);
+  }
+
+  /// Helper to get a single trip line by ID using searchRead (avoids SDK read issues)
+  Future<TripLine> _getTripLineById(int tripLineId) async {
+    final result = await _client.searchRead(
       model: _tripLineModel,
-      ids: [tripLineId],
+      domain: [['id', '=', tripLineId]],
       fields: _tripLineFields,
+      limit: 1,
     );
+
+    if (result.isEmpty) {
+      throw Exception('Trip line not found');
+    }
 
     return TripLine.fromOdoo(result.first);
   }
@@ -446,6 +440,8 @@ class TripRemoteDataSource {
   }
 
   // Fields to fetch for trips
+  // Note: Some fields removed as they don't exist on the server
+  // - vehicle_plate, dropped_count, planned_distance, actual_distance
   static const List<String> _tripFields = [
     'id',
     'name',
@@ -459,14 +455,10 @@ class TripRemoteDataSource {
     'actual_arrival_time',
     'driver_id',
     'vehicle_id',
-    'vehicle_plate',
     'group_id',
     'total_passengers',
     'boarded_count',
     'absent_count',
-    'dropped_count',
-    'planned_distance',
-    'actual_distance',
     'notes',
   ];
 

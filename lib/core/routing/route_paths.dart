@@ -20,6 +20,7 @@ class RoutePaths {
   // === Driver Routes ===
   static const String driverTripDetail = '/driver/trip/:tripId';
   static const String driverActiveTrip = '/driver/trip/:tripId/active';
+  static const String driverLiveTripMap = '/driver/trip/:tripId/live-map';
 
   // === Dispatcher Routes ===
   static const String dispatcherTrips = '/dispatcher/trips';
@@ -73,6 +74,7 @@ class RouteNames {
   // Driver
   static const String driverTripDetail = 'driverTripDetail';
   static const String driverActiveTrip = 'driverActiveTrip';
+  static const String driverLiveTripMap = 'driverLiveTripMap';
 
   // Dispatcher
   static const String dispatcherTrips = 'dispatcherTrips';

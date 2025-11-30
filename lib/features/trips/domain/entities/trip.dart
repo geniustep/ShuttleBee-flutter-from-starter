@@ -58,10 +58,10 @@ class Trip {
   factory Trip.fromOdoo(Map<String, dynamic> json) {
     return Trip(
       id: json['id'] as int? ?? 0,
-      name: json['name'] as String? ?? json['display_name'] as String? ?? '',
+      name: _extractString(json['name']) ?? _extractString(json['display_name']) ?? '',
       state:
-          TripState.tryFromString(json['state'] as String?) ?? TripState.draft,
-      tripType: TripType.tryFromString(json['trip_type'] as String?) ??
+          TripState.tryFromString(_extractString(json['state'])) ?? TripState.draft,
+      tripType: TripType.tryFromString(_extractString(json['trip_type'])) ??
           TripType.pickup,
       date: parseDate(json['date'] ?? json['scheduled_date']),
       plannedStartTime:
@@ -74,7 +74,7 @@ class Trip {
       driverName: extractName(json['driver_id']),
       vehicleId: extractId(json['vehicle_id']),
       vehicleName: extractName(json['vehicle_id']),
-      vehiclePlateNumber: json['vehicle_plate'] as String?,
+      vehiclePlateNumber: _extractString(json['vehicle_plate']),
       groupId: extractId(json['group_id']),
       groupName: extractName(json['group_id']),
       totalPassengers: json['total_passengers'] as int? ??
@@ -83,14 +83,28 @@ class Trip {
       boardedCount: json['boarded_count'] as int? ?? 0,
       absentCount: json['absent_count'] as int? ?? 0,
       droppedCount: json['dropped_count'] as int? ?? 0,
-      plannedDistance: (json['planned_distance'] as num?)?.toDouble(),
-      actualDistance: (json['actual_distance'] as num?)?.toDouble(),
-      notes: json['notes'] as String?,
+      plannedDistance: _extractDouble(json['planned_distance']),
+      actualDistance: _extractDouble(json['actual_distance']),
+      notes: _extractString(json['notes']),
       lines: (json['line_ids'] as List?)
               ?.map((e) => TripLine.fromOdoo(e as Map<String, dynamic>))
               .toList() ??
           [],
     );
+  }
+
+  /// Helper to safely extract String from Odoo (handles false values)
+  static String? _extractString(dynamic value) {
+    if (value == null || value == false) return null;
+    if (value is String) return value;
+    return value.toString();
+  }
+
+  /// Helper to safely extract double from Odoo (handles false values)
+  static double? _extractDouble(dynamic value) {
+    if (value == null || value == false) return null;
+    if (value is num) return value.toDouble();
+    return null;
   }
 
   /// Create from JSON
@@ -336,21 +350,21 @@ class TripLine {
       passengerId: Trip.extractId(json['passenger_id'] ?? json['partner_id']),
       passengerName:
           Trip.extractName(json['passenger_id'] ?? json['partner_id']) ??
-              json['passenger_name'] as String?,
+              Trip._extractString(json['passenger_name']),
       passengerPhone:
-          json['passenger_phone'] as String? ?? json['phone'] as String?,
+          Trip._extractString(json['passenger_phone']) ?? Trip._extractString(json['phone']),
       status: TripLineStatus.tryFromString(
-              json['status'] as String? ?? json['state'] as String?) ??
+              Trip._extractString(json['status']) ?? Trip._extractString(json['state'])) ??
           TripLineStatus.notStarted,
       sequence: json['sequence'] as int? ?? 0,
-      latitude: (json['latitude'] as num?)?.toDouble() ??
-          (json['lat'] as num?)?.toDouble(),
-      longitude: (json['longitude'] as num?)?.toDouble() ??
-          (json['lng'] as num?)?.toDouble(),
-      address: json['address'] as String? ?? json['location'] as String?,
+      latitude: Trip._extractDouble(json['latitude']) ??
+          Trip._extractDouble(json['lat']),
+      longitude: Trip._extractDouble(json['longitude']) ??
+          Trip._extractDouble(json['lng']),
+      address: Trip._extractString(json['address']) ?? Trip._extractString(json['location']),
       boardingTime: Trip.parseDateTime(json['boarding_time']),
       dropTime: Trip.parseDateTime(json['drop_time']),
-      notes: json['notes'] as String?,
+      notes: Trip._extractString(json['notes']),
     );
   }
 

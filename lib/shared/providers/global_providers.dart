@@ -99,11 +99,8 @@ final connectivityProvider = StreamProvider<bool>((ref) {
   return networkInfo.onConnectionChanged;
 });
 
-/// Is online provider
-final isOnlineProvider = FutureProvider<bool>((ref) async {
-  final networkInfo = NetworkInfo();
-  return await networkInfo.isConnected;
-});
+/// Is online provider (StateProvider for real-time updates)
+final isOnlineProvider = StateProvider<bool>((ref) => true);
 
 /// Loading state provider
 final isLoadingProvider = StateProvider<bool>((ref) => false);

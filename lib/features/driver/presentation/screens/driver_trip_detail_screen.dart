@@ -10,6 +10,7 @@ import '../../../trips/presentation/providers/trip_providers.dart';
 import '../widgets/loading_widgets.dart';
 import '../widgets/passenger_list_item.dart';
 import '../widgets/trip_info_card.dart';
+import '../widgets/trip_map_widget.dart';
 
 /// Driver Trip Detail Screen - صفحة تفاصيل الرحلة للسائق
 class DriverTripDetailScreen extends ConsumerWidget {
@@ -58,6 +59,11 @@ class DriverTripDetailScreen extends ConsumerWidget {
 
                   // Route Info Card
                   _buildRouteInfoCard(trip),
+
+                  const SizedBox(height: AppDimensions.md),
+
+                  // Route Map Preview
+                  _buildRouteMapPreview(context, trip),
 
                   const SizedBox(height: AppDimensions.md),
 
@@ -192,7 +198,8 @@ class DriverTripDetailScreen extends ConsumerWidget {
           const SizedBox(height: AppDimensions.sm),
           Row(
             children: [
-              const Icon(Icons.directions_bus, size: 20, color: AppColors.primary),
+              const Icon(Icons.directions_bus,
+                  size: 20, color: AppColors.primary),
               const SizedBox(width: AppDimensions.sm),
               Expanded(
                 child: Text(
@@ -206,7 +213,8 @@ class DriverTripDetailScreen extends ConsumerWidget {
             const SizedBox(height: AppDimensions.xs),
             Row(
               children: [
-                const Icon(Icons.confirmation_number, size: 20, color: AppColors.textSecondary),
+                const Icon(Icons.confirmation_number,
+                    size: 20, color: AppColors.textSecondary),
                 const SizedBox(width: AppDimensions.sm),
                 Text(
                   trip.vehiclePlateNumber!,
@@ -255,7 +263,8 @@ class DriverTripDetailScreen extends ConsumerWidget {
             const SizedBox(height: AppDimensions.xs),
             Row(
               children: [
-                const Icon(Icons.straighten, size: 20, color: AppColors.textSecondary),
+                const Icon(Icons.straighten,
+                    size: 20, color: AppColors.textSecondary),
                 const SizedBox(width: AppDimensions.sm),
                 Text(
                   'المسافة المتوقعة: ${trip.plannedDistance!.toStringAsFixed(1)} كم',
@@ -264,6 +273,66 @@ class DriverTripDetailScreen extends ConsumerWidget {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRouteMapPreview(BuildContext context, trip) {
+    // Capture context for use in callbacks
+    final navigatorContext = context;
+
+    return Container(
+      height: 250,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(AppDimensions.md),
+            child: Row(
+              children: [
+                const Icon(Icons.map, size: 20, color: AppColors.primary),
+                const SizedBox(width: AppDimensions.sm),
+                Text(
+                  'خريطة المسار',
+                  style: AppTypography.h6,
+                ),
+                const Spacer(),
+                if (trip.state.isOngoing)
+                  TextButton.icon(
+                    onPressed: () {
+                      navigatorContext.go(
+                          '${RoutePaths.driverHome}/trip/${trip.id}/live-map');
+                    },
+                    icon: const Icon(Icons.open_in_full, size: 18),
+                    label: const Text('فتح الخريطة المباشرة'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: TripMapWidget(
+              trip: trip,
+              showRoute: true,
+              showPassengerMarkers: true,
+              showDriverMarker: false,
+              autoFitBounds: true,
+            ),
+          ),
         ],
       ),
     );
