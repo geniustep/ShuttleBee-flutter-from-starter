@@ -42,9 +42,14 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
     super.dispose();
   }
 
+  TripFilters get _tripFilters => TripFilters(
+        fromDate: DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day),
+        toDate: DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 23, 59, 59),
+      );
+
   @override
   Widget build(BuildContext context) {
-    final tripsAsync = ref.watch(allTripsProvider(_selectedDate));
+    final tripsAsync = ref.watch(allTripsProvider(_tripFilters));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -63,7 +68,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
           ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => ref.invalidate(allTripsProvider(_selectedDate)),
+            onPressed: () => ref.invalidate(allTripsProvider(_tripFilters)),
             tooltip: 'تحديث',
           ),
         ],
@@ -163,7 +168,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                     _selectedDate =
                         _selectedDate.subtract(const Duration(days: 1));
                   });
-                  ref.invalidate(allTripsProvider(_selectedDate));
+                  ref.invalidate(allTripsProvider(_tripFilters));
                 },
               ),
               IconButton(
@@ -172,7 +177,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                   setState(() {
                     _selectedDate = _selectedDate.add(const Duration(days: 1));
                   });
-                  ref.invalidate(allTripsProvider(_selectedDate));
+                  ref.invalidate(allTripsProvider(_tripFilters));
                 },
               ),
             ],
@@ -185,7 +190,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
   Widget _buildTripsTab(AsyncValue<List<Trip>> tripsAsync, TripState? filter) {
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(allTripsProvider(_selectedDate));
+        ref.invalidate(allTripsProvider(_tripFilters));
       },
       child: tripsAsync.when(
         data: (trips) {
@@ -407,7 +412,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: () => ref.invalidate(allTripsProvider(_selectedDate)),
+            onPressed: () => ref.invalidate(allTripsProvider(_tripFilters)),
             icon: const Icon(Icons.refresh_rounded),
             label: const Text('إعادة المحاولة'),
           ),
@@ -428,7 +433,8 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
       setState(() {
         _selectedDate = picked;
       });
-      ref.invalidate(allTripsProvider(_selectedDate));
+      // Note: _tripFilters getter uses _selectedDate, so it will have the new value after setState
+      ref.invalidate(allTripsProvider(_tripFilters));
     }
   }
 }
