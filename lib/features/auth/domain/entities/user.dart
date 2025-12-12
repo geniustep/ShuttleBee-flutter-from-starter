@@ -1,4 +1,5 @@
 import 'package:bridgecore_flutter/bridgecore_flutter.dart';
+import '../../../../core/enums/user_role.dart';
 
 /// User entity
 class User {
@@ -19,6 +20,7 @@ class User {
   final bool isInternalUser;
   final List<String> groups;
   final int? currentCompanyId;
+  final UserRole? role;
 
   const User({
     required this.id,
@@ -38,6 +40,7 @@ class User {
     this.isInternalUser = false,
     this.groups = const [],
     this.currentCompanyId,
+    this.role,
   });
 
   factory User.fromTenantMeResponse(TenantMeResponse me) {
@@ -75,6 +78,9 @@ class User {
       isInternalUser: json['isInternalUser'] as bool? ?? false,
       groups: (json['groups'] as List?)?.cast<String>() ?? const [],
       currentCompanyId: json['currentCompanyId'] as int?,
+      role: json['role'] != null
+          ? UserRole.tryFromString(json['role'] as String)
+          : null,
     );
   }
 
@@ -97,11 +103,16 @@ class User {
       'isInternalUser': isInternalUser,
       'groups': groups,
       'currentCompanyId': currentCompanyId,
+      'role': role?.value,
     };
   }
 
   /// Create from Odoo response (legacy support)
   factory User.fromOdoo(Map<String, dynamic> json) {
+    // Extract role from shuttle_role field
+    final roleStr = json['shuttle_role'] as String?;
+    final role = roleStr != null ? UserRole.tryFromString(roleStr) : null;
+
     return User(
       id: json['uid'] as int? ?? json['id'] as int? ?? 0,
       name: json['name'] as String? ?? json['username'] as String? ?? '',
@@ -110,13 +121,14 @@ class User {
       companyId: json['company_id'] is List
           ? (json['company_id'] as List).firstOrNull as int?
           : json['company_id'] as int?,
-      companyName: json['company_id'] is List &&
-              (json['company_id'] as List).length > 1
-          ? (json['company_id'] as List)[1] as String?
-          : null,
+      companyName:
+          json['company_id'] is List && (json['company_id'] as List).length > 1
+              ? (json['company_id'] as List)[1] as String?
+              : null,
       lang: json['lang'] as String?,
       tz: json['tz'] as String?,
       companyIds: (json['company_ids'] as List?)?.cast<int>(),
+      role: role,
     );
   }
 
@@ -139,6 +151,7 @@ class User {
     bool? isInternalUser,
     List<String>? groups,
     int? currentCompanyId,
+    UserRole? role,
   }) {
     return User(
       id: id ?? this.id,
@@ -158,6 +171,7 @@ class User {
       isInternalUser: isInternalUser ?? this.isInternalUser,
       groups: groups ?? this.groups,
       currentCompanyId: currentCompanyId ?? this.currentCompanyId,
+      role: role ?? this.role,
     );
   }
 
@@ -169,7 +183,7 @@ class User {
 }
 
 /// Token state for offline-aware authentication
-/// 
+///
 /// هذه الحالات تمثل "آلة الحالة" للجلسة:
 /// - valid: التوكن صالح - يمكن العمل بشكل طبيعي
 /// - needsRefresh: التوكن منتهي لكن يمكن تجديده - يمكن العمل أوفلاين
@@ -178,16 +192,19 @@ class User {
 enum TokenState {
   /// Valid access token - fully authenticated
   valid,
+
   /// Access token expired but can be refreshed
   needsRefresh,
+
   /// All tokens expired - must login again
   expired,
+
   /// No tokens stored
   none,
 }
 
 /// Authentication state with offline support
-/// 
+///
 /// هذا الكلاس يدعم:
 /// - حالات التوكن المتعددة (valid, needsRefresh, expired, none)
 /// - العمل أوفلاين مع بيانات مخزنة محلياً
@@ -216,14 +233,17 @@ class AuthState {
   factory AuthState.loading() => const AuthState(isLoading: true);
 
   /// Authenticated state with valid token
-  factory AuthState.authenticated(User user, {TokenState tokenState = TokenState.valid}) => AuthState(
+  factory AuthState.authenticated(User user,
+          {TokenState tokenState = TokenState.valid}) =>
+      AuthState(
         user: user,
         isAuthenticated: true,
         tokenState: tokenState,
       );
 
   /// Authenticated but needs token refresh (offline mode)
-  factory AuthState.needsRefresh(User user, {bool isOffline = false}) => AuthState(
+  factory AuthState.needsRefresh(User user, {bool isOffline = false}) =>
+      AuthState(
         user: user,
         isAuthenticated: true,
         tokenState: TokenState.needsRefresh,
@@ -246,7 +266,7 @@ class AuthState {
   factory AuthState.error(String message) => AuthState(error: message);
 
   /// Check if can work offline (has user data even if token expired)
-  /// 
+  ///
   /// هذا مهم لـ ShuttleBee: السماح للسائق بالعمل أوفلاين
   /// حتى لو التوكن منتهي، طالما لديه بيانات محلية
   bool get canWorkOffline => user != null && tokenState != TokenState.none;

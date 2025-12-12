@@ -62,7 +62,8 @@ class _DriverActiveTripScreenState
           IconButton(
             icon: const Icon(Icons.map),
             onPressed: () {
-              context.go('${RoutePaths.driverHome}/trip/${widget.tripId}/live-map');
+              context.go(
+                  '${RoutePaths.driverHome}/trip/${widget.tripId}/live-map');
             },
             tooltip: 'الخريطة المباشرة',
           ),

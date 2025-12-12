@@ -3,6 +3,9 @@ import 'route_paths.dart';
 
 /// Helper to get home route based on user role
 /// Used across the app for role-based navigation
+/// 
+/// إذا لم يكن للمستخدم دور محدد، يتم توجيهه لصفحة الراكب كافتراضي
+/// لأن ShuttleBee لا يحتاج صفحة home عامة
 String getHomeRouteForRole(UserRole? role) {
   switch (role) {
     case UserRole.driver:
@@ -13,8 +16,10 @@ String getHomeRouteForRole(UserRole? role) {
       return RoutePaths.passengerHome;
     case UserRole.manager:
       return RoutePaths.managerHome;
-    default:
-      return RoutePaths.home; // Default starter home
+    case null:
+      // إذا لم يكن هناك دور، نوجه للراكب كافتراضي
+      // يمكن تغيير هذا لصفحة "اختر دورك" إذا لزم الأمر
+      return RoutePaths.passengerHome;
   }
 }
 

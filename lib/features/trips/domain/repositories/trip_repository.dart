@@ -40,7 +40,10 @@ abstract class TripRepository {
   /// Update trip
   Future<Either<Failure, Trip>> updateTrip(Trip trip);
 
-  /// Start trip
+  /// Confirm trip (draft → planned)
+  Future<Either<Failure, Trip>> confirmTrip(int tripId);
+
+  /// Start trip (planned → ongoing)
   Future<Either<Failure, Trip>> startTrip(int tripId);
 
   /// Complete trip
@@ -63,6 +66,9 @@ abstract class TripRepository {
 
   /// Mark passenger as dropped
   Future<Either<Failure, TripLine>> markPassengerDropped(int tripLineId);
+
+  /// Reset passenger status to planned (undo action for mistakes)
+  Future<Either<Failure, TripLine>> resetPassengerToPlanned(int tripLineId);
 
   /// Get dashboard statistics
   Future<Either<Failure, TripDashboardStats>> getDashboardStats(DateTime date);

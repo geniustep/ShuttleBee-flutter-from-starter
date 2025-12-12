@@ -49,6 +49,8 @@ class BridgecoreClient {
 
   /// Authenticate with Odoo server
   Future<Map<String, dynamic>> authenticate({
+    required String modelName,
+    required List<String> listFields,
     // required String database,
     required String username,
     required String password,
@@ -286,21 +288,14 @@ class BridgecoreClient {
     try {
       _ensureAuthenticated();
 
-      final params = <String, dynamic>{
-        'model': model,
-        if (domain != null) 'domain': domain,
-        if (fields != null) 'fields': fields,
-        if (limit != null) 'limit': limit,
-        if (offset != null) 'offset': offset,
-        if (order != null) 'order': order,
-      };
-
-      final result = await Function.apply(
-        BridgeCore.instance.odoo.searchRead,
-        [],
-        params.map((key, value) => MapEntry(Symbol(key), value)),
+      final result = await BridgeCore.instance.odoo.searchRead(
+        model: model,
+        domain: domain ?? [],
+        fields: fields,
+        limit: limit ?? 80,
+        offset: offset ?? 0,
+        order: order,
       );
-
       _logger.d('searchRead returned ${result.length} records');
       return result;
     } catch (e, stackTrace) {

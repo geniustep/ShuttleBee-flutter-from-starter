@@ -75,6 +75,11 @@ class TripRepositoryImpl extends BaseRepository implements TripRepository {
   }
 
   @override
+  Future<Either<Failure, Trip>> confirmTrip(int tripId) async {
+    return execute(() => _remoteDataSource.confirmTrip(tripId));
+  }
+
+  @override
   Future<Either<Failure, Trip>> startTrip(int tripId) async {
     return execute(() => _remoteDataSource.startTrip(tripId));
   }
@@ -111,6 +116,12 @@ class TripRepositoryImpl extends BaseRepository implements TripRepository {
   @override
   Future<Either<Failure, TripLine>> markPassengerDropped(int tripLineId) async {
     return execute(() => _remoteDataSource.markPassengerDropped(tripLineId));
+  }
+
+  @override
+  Future<Either<Failure, TripLine>> resetPassengerToPlanned(
+      int tripLineId) async {
+    return execute(() => _remoteDataSource.resetPassengerToPlanned(tripLineId));
   }
 
   @override

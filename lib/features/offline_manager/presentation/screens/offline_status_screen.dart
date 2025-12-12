@@ -15,7 +15,7 @@ class OfflineStatusScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final isOnline = ref.watch(isOnlineProvider);
+    final isOnline = ref.watch(isOnlineStateProvider);
 
     return Scaffold(
       appBar: AppBar(

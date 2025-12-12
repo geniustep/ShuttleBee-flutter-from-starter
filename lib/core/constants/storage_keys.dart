@@ -58,6 +58,9 @@ class StorageKeys {
   /// Partner ID (Odoo res.partner)
   static const String partnerId = 'partner_id';
 
+  /// User Role (driver, dispatcher, passenger, manager)
+  static const String userRole = 'user_role';
+
   /// Offline mode enabled
   static const String offlineModeEnabled = 'offline_mode_enabled';
 

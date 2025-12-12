@@ -239,7 +239,7 @@ class RoleSwitcherWidget extends ConsumerWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تم العودة إلى عرض ${user.role.arabicLabel}'),
+          content: Text('تم العودة إلى عرض ${user.role!.arabicLabel}'),
           backgroundColor: AppColors.primary,
           duration: const Duration(seconds: 2),
         ),
@@ -294,7 +294,7 @@ class RoleSwitcherButton extends ConsumerWidget {
             ),
         ],
       ),
-      tooltip: 'تبديل الدور (${currentRole.arabicLabel})',
+      tooltip: 'تبديل الدور (${currentRole!.arabicLabel})',
       onPressed: () {
         showModalBottomSheet(
           context: context,

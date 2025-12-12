@@ -154,6 +154,75 @@ class Validators {
     return null;
   }
 
+  /// Validate latitude (GPS coordinate)
+  /// Latitude must be between -90 and 90
+  static String? latitude(String? value, {String? fieldName}) {
+    if (value == null || value.isEmpty) {
+      return null; // Latitude is optional
+    }
+    final lat = double.tryParse(value);
+    if (lat == null) {
+      final field = fieldName ?? 'Latitude';
+      return '$field must be a valid number';
+    }
+    if (lat < -90 || lat > 90) {
+      final field = fieldName ?? 'Latitude';
+      return '$field must be between -90 and 90';
+    }
+    return null;
+  }
+
+  /// Validate longitude (GPS coordinate)
+  /// Longitude must be between -180 and 180
+  static String? longitude(String? value, {String? fieldName}) {
+    if (value == null || value.isEmpty) {
+      return null; // Longitude is optional
+    }
+    final lng = double.tryParse(value);
+    if (lng == null) {
+      final field = fieldName ?? 'Longitude';
+      return '$field must be a valid number';
+    }
+    if (lng < -180 || lng > 180) {
+      final field = fieldName ?? 'Longitude';
+      return '$field must be between -180 and 180';
+    }
+    return null;
+  }
+
+  /// Validate GPS coordinates (latitude and longitude together)
+  static String? gpsCoordinates(
+    String? latitudeValue,
+    String? longitudeValue, {
+    String? fieldName,
+  }) {
+    // If both are empty, that's fine (optional)
+    if ((latitudeValue == null || latitudeValue.isEmpty) &&
+        (longitudeValue == null || longitudeValue.isEmpty)) {
+      return null;
+    }
+
+    // If one is provided, both should be provided
+    final hasLat = latitudeValue != null && latitudeValue.isNotEmpty;
+    final hasLng = longitudeValue != null && longitudeValue.isNotEmpty;
+
+    if (hasLat && !hasLng) {
+      return 'Longitude is required when latitude is provided';
+    }
+    if (hasLng && !hasLat) {
+      return 'Latitude is required when longitude is provided';
+    }
+
+    // Validate both
+    final latError = latitude(latitudeValue, fieldName: 'Latitude');
+    if (latError != null) return latError;
+
+    final lngError = longitude(longitudeValue, fieldName: 'Longitude');
+    if (lngError != null) return lngError;
+
+    return null;
+  }
+
   /// Combine multiple validators
   static String? combine(String? value, List<String? Function(String?)> validators) {
     for (final validator in validators) {

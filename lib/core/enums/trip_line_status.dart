@@ -71,7 +71,9 @@ enum TripLineStatus {
 
   /// هل يمكن وضع علامة غائب
   bool get canMarkAbsent =>
-      this == TripLineStatus.notStarted || this == TripLineStatus.pending;
+      this == TripLineStatus.notStarted ||
+      this == TripLineStatus.pending ||
+      this == TripLineStatus.boarded;
 
   /// هل يمكن وضع علامة نزل
   bool get canMarkDropped => this == TripLineStatus.boarded;

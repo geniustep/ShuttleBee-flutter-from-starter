@@ -28,7 +28,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final authState = ref.watch(authStateProvider);
-    final isOnline = ref.watch(isOnlineProvider);
+    final isOnline = ref.watch(isOnlineStateProvider);
 
     final userName = authState.asData?.value.user?.name ?? 'User';
 

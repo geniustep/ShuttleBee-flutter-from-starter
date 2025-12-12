@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/role_routing.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/providers/global_providers.dart';
@@ -164,7 +165,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       );
     }
     
-    context.go(RoutePaths.home);
+    // Navigate to role-based home screen
+    final auth = ref.read(authStateProvider).asData?.value;
+    final role = auth?.user?.role;
+    final homeRoute = getHomeRouteForRole(role);
+    
+    print('🚀 [SplashScreen] Navigating to: $homeRoute (role: ${role?.value ?? "null"})');
+    context.go(homeRoute);
   }
 
   void _navigateToLogin() {

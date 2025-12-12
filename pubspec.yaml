@@ -103,10 +103,6 @@ dependencies:
   web_socket_channel: ^3.0.1
   socket_io_client: ^3.0.2
 
-  # Background Tasks
-  workmanager:
-    path: packages/workmanager
-
   # Onboarding
   introduction_screen: ^3.1.14
   tutorial_coach_mark: ^1.2.11
@@ -126,6 +122,11 @@ dependencies:
   # QR & Barcode
   qr_flutter: ^4.1.0
   mobile_scanner: ^5.2.3
+
+  # Maps
+  google_maps_flutter: ^2.11.1
+  geolocator: ^13.0.4
+  geocoding: ^3.0.0
 
   # Camera
   camera: ^0.11.0+2

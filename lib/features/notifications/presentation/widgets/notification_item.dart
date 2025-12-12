@@ -3,9 +3,9 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
-import '../screens/notifications_screen.dart';
+import '../../domain/entities/shuttle_notification.dart';
 
-/// Notification list item
+/// Notification list item - عنصر قائمة الإشعارات
 class NotificationItem extends StatelessWidget {
   final String title;
   final String message;
@@ -39,7 +39,9 @@ class NotificationItem extends StatelessWidget {
       ),
       onDismissed: (_) => onDismiss?.call(),
       child: Material(
-        color: isRead ? Colors.transparent : AppColors.primaryContainer.withValues(alpha: 0.3),
+        color: isRead
+            ? Colors.transparent
+            : AppColors.primaryContainer.withValues(alpha: 0.3),
         child: InkWell(
           onTap: onTap,
           child: Padding(
@@ -76,15 +78,22 @@ class NotificationItem extends StatelessWidget {
                           Expanded(
                             child: Text(
                               title,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontWeight:
-                                        isRead ? FontWeight.normal : FontWeight.w600,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    fontWeight: isRead
+                                        ? FontWeight.normal
+                                        : FontWeight.w600,
                                   ),
                             ),
                           ),
                           Text(
                             timeago.format(time),
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
                                   color: AppColors.textSecondary,
                                 ),
                           ),
@@ -125,27 +134,39 @@ class NotificationItem extends StatelessWidget {
 
   IconData _getTypeIcon(NotificationType type) {
     switch (type) {
-      case NotificationType.order:
-        return Icons.shopping_cart;
-      case NotificationType.payment:
-        return Icons.payment;
-      case NotificationType.alert:
-        return Icons.warning;
-      case NotificationType.system:
-        return Icons.info;
+      case NotificationType.approaching:
+        return Icons.directions_bus_rounded;
+      case NotificationType.arrived:
+        return Icons.location_on_rounded;
+      case NotificationType.tripStarted:
+        return Icons.play_circle_rounded;
+      case NotificationType.tripEnded:
+        return Icons.check_circle_rounded;
+      case NotificationType.cancelled:
+        return Icons.cancel_rounded;
+      case NotificationType.reminder:
+        return Icons.alarm_rounded;
+      case NotificationType.custom:
+        return Icons.notifications_rounded;
     }
   }
 
   Color _getTypeColor(NotificationType type) {
     switch (type) {
-      case NotificationType.order:
-        return AppColors.primary;
-      case NotificationType.payment:
+      case NotificationType.approaching:
+        return Colors.blue;
+      case NotificationType.arrived:
         return AppColors.success;
-      case NotificationType.alert:
+      case NotificationType.tripStarted:
+        return Colors.purple;
+      case NotificationType.tripEnded:
+        return Colors.grey;
+      case NotificationType.cancelled:
+        return AppColors.error;
+      case NotificationType.reminder:
         return AppColors.warning;
-      case NotificationType.system:
-        return AppColors.info;
+      case NotificationType.custom:
+        return AppColors.primary;
     }
   }
 }

@@ -62,12 +62,16 @@ class AuthenticatedClient {
     required String database,
     required String username,
     required String password,
+    required String modelName,
+    required List<String> listFields,
     bool rememberMe = false,
   }) async {
     _client = BridgecoreClient(serverUrl);
 
     final result = await _client!.authenticate(
       // database: database,
+      modelName: modelName,
+      listFields: listFields,
       username: username,
       password: password,
     );

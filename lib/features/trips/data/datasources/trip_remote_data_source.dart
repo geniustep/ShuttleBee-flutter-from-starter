@@ -106,19 +106,50 @@ class TripRemoteDataSource {
 
   /// Get trip by ID with lines
   Future<Trip> getTripById(int tripId) async {
+    print('🚗 [getTripById] Fetching trip $tripId...');
+
     // Use searchRead instead of read to avoid SDK null casting issues
-    final result = await _client.searchRead(
-      model: _tripModel,
-      domain: [['id', '=', tripId]],
-      fields: _tripFields,
-      limit: 1,
-    );
+    List<Map<String, dynamic>> result;
+    try {
+      result = await _client.searchRead(
+        model: _tripModel,
+        domain: [
+          ['id', '=', tripId]
+        ],
+        fields: _tripFields,
+        limit: 1,
+      );
+      print('✅ [getTripById] Got trip data');
+    } catch (e) {
+      print('❌ [getTripById] FAILED to fetch $_tripModel: $e');
+      rethrow;
+    }
 
     if (result.isEmpty) {
       throw Exception('Trip not found');
     }
 
-    final trip = Trip.fromOdoo(result.first);
+    final tripJson = result.first;
+    var trip = Trip.fromOdoo(tripJson);
+
+    // جلب بيانات الشركة (إحداثيات الوجهة النهائية) إذا لم تكن موجودة
+    if (trip.companyId != null &&
+        (trip.companyLatitude == null || trip.companyLongitude == null)) {
+      print('🏢 [getTripById] Fetching company location...');
+      try {
+        final companyData = await _getCompanyLocation(trip.companyId!);
+        if (companyData != null) {
+          trip = trip.copyWith(
+            companyLatitude: companyData['latitude'] as double?,
+            companyLongitude: companyData['longitude'] as double?,
+          );
+          print('✅ [getTripById] Got company location');
+        }
+      } catch (e) {
+        print('❌ [getTripById] FAILED to fetch company: $e');
+        // Continue without company location
+      }
+    }
 
     // Load trip lines
     final lines = await getTripLines(tripId);
@@ -126,18 +157,201 @@ class TripRemoteDataSource {
     return trip.copyWith(lines: lines);
   }
 
-  /// Get trip lines
-  Future<List<TripLine>> getTripLines(int tripId) async {
-    final result = await _client.searchRead(
-      model: _tripLineModel,
-      domain: [
-        ['trip_id', '=', tripId],
-      ],
-      fields: _tripLineFields,
-      order: 'sequence asc',
-    );
+  /// جلب إحداثيات الشركة
+  Future<Map<String, dynamic>?> _getCompanyLocation(int companyId) async {
+    try {
+      final result = await _client.searchRead(
+        model: 'res.company',
+        domain: [
+          ['id', '=', companyId]
+        ],
+        fields: ['id', 'name', 'shuttle_latitude', 'shuttle_longitude'],
+        limit: 1,
+      );
 
-    return result.map((json) => TripLine.fromOdoo(json)).toList();
+      if (result.isEmpty) return null;
+
+      final company = result.first;
+      final lat = company['shuttle_latitude'];
+      final lng = company['shuttle_longitude'];
+
+      // التحقق من أن الإحداثيات صالحة
+      if (lat == null || lat == false || lng == null || lng == false) {
+        return null;
+      }
+
+      return {
+        'latitude': (lat is num) ? lat.toDouble() : null,
+        'longitude': (lng is num) ? lng.toDouble() : null,
+      };
+    } catch (e) {
+      // في حالة الخطأ، نرجع null بدلاً من إيقاف العملية
+      return null;
+    }
+  }
+
+  /// Get trip lines with passenger location data
+  Future<List<TripLine>> getTripLines(int tripId) async {
+    print('📋 [getTripLines] Fetching lines for trip $tripId...');
+
+    List<Map<String, dynamic>> result;
+    try {
+      result = await _client.searchRead(
+        model: _tripLineModel,
+        domain: [
+          ['trip_id', '=', tripId],
+        ],
+        fields: _tripLineFields,
+        order: 'sequence asc',
+      );
+      print('✅ [getTripLines] Got ${result.length} trip lines');
+    } catch (e) {
+      print('❌ [getTripLines] FAILED to fetch $_tripLineModel: $e');
+      rethrow;
+    }
+
+    if (result.isEmpty) return [];
+
+    // جلب معرفات الركاب
+    final passengerIds = result
+        .map((json) => Trip.extractId(json['passenger_id']))
+        .whereType<int>()
+        .toSet()
+        .toList();
+
+    // جلب بيانات الركاب (الإحداثيات والمحطات)
+    Map<int, Map<String, dynamic>> passengersData = {};
+    if (passengerIds.isNotEmpty) {
+      print('👥 [getTripLines] Fetching ${passengerIds.length} passengers...');
+      try {
+        final passengers = await _client.searchRead(
+          model: 'res.partner',
+          domain: [
+            ['id', 'in', passengerIds]
+          ],
+          fields: _passengerLocationFields,
+        );
+        print('✅ [getTripLines] Got ${passengers.length} passengers');
+        for (final p in passengers) {
+          final id = p['id'] as int?;
+          if (id != null) {
+            passengersData[id] = p;
+          }
+        }
+      } catch (e) {
+        print('❌ [getTripLines] FAILED to fetch res.partner: $e');
+        // Continue without passenger data instead of failing completely
+        print('⚠️ [getTripLines] Continuing without passenger location data');
+      }
+    }
+
+    // جلب بيانات المحطات إذا لزم الأمر
+    final stopIds = <int>{};
+    for (final p in passengersData.values) {
+      final pickupStopId = Trip.extractId(p['default_pickup_stop_id']);
+      final dropoffStopId = Trip.extractId(p['default_dropoff_stop_id']);
+      if (pickupStopId != null) stopIds.add(pickupStopId);
+      if (dropoffStopId != null) stopIds.add(dropoffStopId);
+    }
+    // أيضاً من trip_line نفسها
+    for (final json in result) {
+      final pickupStopId = Trip.extractId(json['pickup_stop_id']);
+      final dropoffStopId = Trip.extractId(json['dropoff_stop_id']);
+      if (pickupStopId != null) stopIds.add(pickupStopId);
+      if (dropoffStopId != null) stopIds.add(dropoffStopId);
+    }
+
+    Map<int, Map<String, dynamic>> stopsData = {};
+    if (stopIds.isNotEmpty) {
+      print('📍 [getTripLines] Fetching ${stopIds.length} stops...');
+      try {
+        final stops = await _client.searchRead(
+          model: _stopModel,
+          domain: [
+            ['id', 'in', stopIds.toList()]
+          ],
+          fields: ['id', 'name', 'latitude', 'longitude'],
+        );
+        print('✅ [getTripLines] Got ${stops.length} stops');
+        for (final s in stops) {
+          final id = s['id'] as int?;
+          if (id != null) {
+            stopsData[id] = s;
+          }
+        }
+      } catch (e) {
+        print('❌ [getTripLines] FAILED to fetch $_stopModel: $e');
+        // Continue without stop data instead of failing completely
+        print('⚠️ [getTripLines] Continuing without stop location data');
+      }
+    }
+
+    // تحويل البيانات مع إضافة معلومات الموقع
+    return result.map((json) {
+      final passengerId = Trip.extractId(json['passenger_id']);
+      final passengerData =
+          passengerId != null ? passengersData[passengerId] : null;
+
+      // دمج بيانات الموقع
+      final enrichedJson = Map<String, dynamic>.from(json);
+
+      if (passengerData != null) {
+        // إحداثيات الراكب الشخصية
+        enrichedJson['passenger_latitude'] = passengerData['shuttle_latitude'];
+        enrichedJson['passenger_longitude'] =
+            passengerData['shuttle_longitude'];
+        enrichedJson['use_gps_for_pickup'] =
+            passengerData['use_gps_for_pickup'];
+        enrichedJson['use_gps_for_dropoff'] =
+            passengerData['use_gps_for_dropoff'];
+        enrichedJson['passenger_phone'] =
+            passengerData['phone'] ?? passengerData['mobile'];
+
+        // محطة الصعود الافتراضية من الراكب
+        final defaultPickupStopId =
+            Trip.extractId(passengerData['default_pickup_stop_id']);
+        if (defaultPickupStopId != null &&
+            stopsData.containsKey(defaultPickupStopId)) {
+          final stop = stopsData[defaultPickupStopId]!;
+          enrichedJson['default_pickup_stop_id'] = defaultPickupStopId;
+          enrichedJson['default_pickup_stop_name'] = stop['name'];
+          enrichedJson['default_pickup_stop_latitude'] = stop['latitude'];
+          enrichedJson['default_pickup_stop_longitude'] = stop['longitude'];
+        }
+
+        // محطة النزول الافتراضية من الراكب
+        final defaultDropoffStopId =
+            Trip.extractId(passengerData['default_dropoff_stop_id']);
+        if (defaultDropoffStopId != null &&
+            stopsData.containsKey(defaultDropoffStopId)) {
+          final stop = stopsData[defaultDropoffStopId]!;
+          enrichedJson['default_dropoff_stop_id'] = defaultDropoffStopId;
+          enrichedJson['default_dropoff_stop_name'] = stop['name'];
+          enrichedJson['default_dropoff_stop_latitude'] = stop['latitude'];
+          enrichedJson['default_dropoff_stop_longitude'] = stop['longitude'];
+        }
+      }
+
+      // محطة الصعود من trip_line (إذا موجودة)
+      final pickupStopId = Trip.extractId(json['pickup_stop_id']);
+      if (pickupStopId != null && stopsData.containsKey(pickupStopId)) {
+        final stop = stopsData[pickupStopId]!;
+        enrichedJson['pickup_stop_name'] = stop['name'];
+        enrichedJson['pickup_stop_latitude'] = stop['latitude'];
+        enrichedJson['pickup_stop_longitude'] = stop['longitude'];
+      }
+
+      // محطة النزول من trip_line (إذا موجودة)
+      final dropoffStopId = Trip.extractId(json['dropoff_stop_id']);
+      if (dropoffStopId != null && stopsData.containsKey(dropoffStopId)) {
+        final stop = stopsData[dropoffStopId]!;
+        enrichedJson['dropoff_stop_name'] = stop['name'];
+        enrichedJson['dropoff_stop_latitude'] = stop['latitude'];
+        enrichedJson['dropoff_stop_longitude'] = stop['longitude'];
+      }
+
+      return TripLine.fromOdoo(enrichedJson);
+    }).toList();
   }
 
   /// Get trips with filters
@@ -209,9 +423,38 @@ class TripRemoteDataSource {
     return getTripById(trip.id);
   }
 
-  /// Start trip
-  Future<Trip> startTrip(int tripId) async {
+  /// Confirm trip (draft → planned)
+  /// Returns minimal trip data to avoid multiple API calls
+  Future<Trip> confirmTrip(int tripId) async {
     await _client.callKw(
+      model: _tripModel,
+      method: 'action_confirm',
+      args: [
+        [tripId]
+      ],
+    );
+
+    // Get minimal trip data (without all related data to avoid rate limiting)
+    final tripResult = await _client.searchRead(
+      model: _tripModel,
+      domain: [
+        ['id', '=', tripId]
+      ],
+      fields: _tripFields,
+      limit: 1,
+    );
+
+    if (tripResult.isEmpty) {
+      throw Exception('Trip not found after confirming');
+    }
+
+    return Trip.fromOdoo(tripResult.first);
+  }
+
+  /// Start trip (planned → ongoing)
+  /// Returns minimal trip data to avoid multiple API calls
+  Future<Trip> startTrip(int tripId) async {
+    final result = await _client.callKw(
       model: _tripModel,
       method: 'action_start',
       args: [
@@ -219,10 +462,42 @@ class TripRemoteDataSource {
       ],
     );
 
-    return getTripById(tripId);
+    // action_start returns trip data, use it directly if available
+    if (result is Map<String, dynamic> && result.containsKey('trip_id')) {
+      // Get just the trip record without all the related data
+      final tripResult = await _client.searchRead(
+        model: _tripModel,
+        domain: [
+          ['id', '=', tripId]
+        ],
+        fields: _tripFields,
+        limit: 1,
+      );
+
+      if (tripResult.isNotEmpty) {
+        return Trip.fromOdoo(tripResult.first);
+      }
+    }
+
+    // Fallback: get minimal trip data
+    final tripResult = await _client.searchRead(
+      model: _tripModel,
+      domain: [
+        ['id', '=', tripId]
+      ],
+      fields: _tripFields,
+      limit: 1,
+    );
+
+    if (tripResult.isEmpty) {
+      throw Exception('Trip not found after starting');
+    }
+
+    return Trip.fromOdoo(tripResult.first);
   }
 
   /// Complete trip
+  /// Returns minimal trip data to avoid multiple API calls
   Future<Trip> completeTrip(int tripId) async {
     await _client.callKw(
       model: _tripModel,
@@ -232,7 +507,21 @@ class TripRemoteDataSource {
       ],
     );
 
-    return getTripById(tripId);
+    // Get minimal trip data (without all related data to avoid rate limiting)
+    final tripResult = await _client.searchRead(
+      model: _tripModel,
+      domain: [
+        ['id', '=', tripId]
+      ],
+      fields: _tripFields,
+      limit: 1,
+    );
+
+    if (tripResult.isEmpty) {
+      throw Exception('Trip not found after completing');
+    }
+
+    return Trip.fromOdoo(tripResult.first);
   }
 
   /// Cancel trip
@@ -262,7 +551,7 @@ class TripRemoteDataSource {
   Future<TripLine> markPassengerBoarded(int tripLineId) async {
     await _client.callKw(
       model: _tripLineModel,
-      method: 'action_board',
+      method: 'action_mark_boarded',
       args: [
         [tripLineId]
       ],
@@ -275,7 +564,7 @@ class TripRemoteDataSource {
   Future<TripLine> markPassengerAbsent(int tripLineId) async {
     await _client.callKw(
       model: _tripLineModel,
-      method: 'action_absent',
+      method: 'action_mark_absent',
       args: [
         [tripLineId]
       ],
@@ -288,7 +577,20 @@ class TripRemoteDataSource {
   Future<TripLine> markPassengerDropped(int tripLineId) async {
     await _client.callKw(
       model: _tripLineModel,
-      method: 'action_drop',
+      method: 'action_mark_dropped',
+      args: [
+        [tripLineId]
+      ],
+    );
+
+    return _getTripLineById(tripLineId);
+  }
+
+  /// Reset passenger status to planned (undo action for mistakes)
+  Future<TripLine> resetPassengerToPlanned(int tripLineId) async {
+    await _client.callKw(
+      model: _tripLineModel,
+      method: 'action_reset_to_planned',
       args: [
         [tripLineId]
       ],
@@ -301,7 +603,9 @@ class TripRemoteDataSource {
   Future<TripLine> _getTripLineById(int tripLineId) async {
     final result = await _client.searchRead(
       model: _tripLineModel,
-      domain: [['id', '=', tripLineId]],
+      domain: [
+        ['id', '=', tripLineId]
+      ],
       fields: _tripLineFields,
       limit: 1,
     );
@@ -439,13 +743,14 @@ class TripRemoteDataSource {
     };
   }
 
-  // Fields to fetch for trips
-  // Note: Some fields removed as they don't exist on the server
-  // - vehicle_plate, dropped_count, planned_distance, actual_distance
+  // Fields to fetch for trips - MINIMAL SET
+  // Reduced to avoid 500 errors from BridgeCore backend
+  // Note: Some fields removed as they don't exist on the server or cause issues
+  // - vehicle_plate, planned_distance, actual_distance, display_name
+  // Company data is fetched separately in _getCompanyLocation()
   static const List<String> _tripFields = [
     'id',
     'name',
-    'display_name',
     'state',
     'trip_type',
     'date',
@@ -459,23 +764,45 @@ class TripRemoteDataSource {
     'total_passengers',
     'boarded_count',
     'absent_count',
+    'dropped_count',
     'notes',
+    'company_id',
   ];
 
-  // Fields to fetch for trip lines
+  // Fields to fetch for trip lines - MINIMAL SET
+  // Reduced to avoid 500 errors from BridgeCore backend
   static const List<String> _tripLineFields = [
     'id',
     'trip_id',
     'passenger_id',
-    'passenger_name',
-    'passenger_phone',
     'status',
     'sequence',
-    'latitude',
-    'longitude',
-    'address',
+    'seat_count',
+    // Pickup/Dropoff Stops
+    'pickup_stop_id',
+    'dropoff_stop_id',
+    // Pickup/Dropoff Coordinates (GPS)
+    'pickup_latitude',
+    'pickup_longitude',
+    'dropoff_latitude',
+    'dropoff_longitude',
+    // Timestamps
     'boarding_time',
-    'drop_time',
+    // Notes
     'notes',
+  ];
+
+  // حقول الراكب للحصول على بيانات الموقع
+  static const List<String> _passengerLocationFields = [
+    'id',
+    'name',
+    'phone',
+    'mobile',
+    'shuttle_latitude',
+    'shuttle_longitude',
+    'use_gps_for_pickup',
+    'use_gps_for_dropoff',
+    'default_pickup_stop_id',
+    'default_dropoff_stop_id',
   ];
 }

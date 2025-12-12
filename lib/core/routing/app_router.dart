@@ -47,6 +47,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoggingIn = state.matchedLocation == RoutePaths.login;
       final isSplash = state.matchedLocation == RoutePaths.splash;
       final isSelectCompany = state.matchedLocation == RoutePaths.selectCompany;
+      final isOldHome = state.matchedLocation == RoutePaths.home;
 
       // Allow splash screen
       if (isSplash) return null;
@@ -61,6 +62,12 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Redirect to role-based home if authenticated and on login page
       if (isLoggedIn && isLoggingIn) {
+        return getHomeRouteForRole(user?.role);
+      }
+
+      // Redirect from old /home to role-based home
+      // هذا يمنع الوصول لصفحة home القديمة
+      if (isLoggedIn && isOldHome) {
         return getHomeRouteForRole(user?.role);
       }
 
@@ -113,7 +120,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             name: RouteNames.driverTripDetail,
             builder: (context, state) {
               final tripId = int.parse(state.pathParameters['tripId']!);
-              return DriverTripDetailScreen(tripId: tripId);
+              return DriverTripDetailScreen(
+                key: ValueKey('driver_trip_detail_$tripId'),
+                tripId: tripId,
+              );
             },
             routes: [
               GoRoute(
@@ -129,7 +139,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                 name: RouteNames.driverLiveTripMap,
                 builder: (context, state) {
                   final tripId = int.parse(state.pathParameters['tripId']!);
-                  return DriverLiveTripMapScreen(tripId: tripId);
+                  return DriverLiveTripMapScreen(
+                    key: ValueKey('driver_live_map_$tripId'),
+                    tripId: tripId,
+                  );
                 },
               ),
             ],

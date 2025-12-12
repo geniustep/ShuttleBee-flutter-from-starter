@@ -2,17 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart' as geo;
-import 'package:latlong2/latlong.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-import '../../../../core/constants/map_styles.dart';
 import '../../../../core/services/map_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../trips/domain/entities/trip.dart';
 
 /// Trip Map Widget - ويدجت خريطة الرحلة القابل لإعادة الاستخدام
-/// 
+///
 /// يعرض خريطة تفاعلية مع:
 /// - موقع السائق الحالي (إذا كان متاحاً)
 /// - مواقع الركاب
@@ -47,8 +45,10 @@ class TripMapWidget extends StatefulWidget {
 
 class _TripMapWidgetState extends State<TripMapWidget> {
   final MapService _mapService = MapService();
-  MapboxMap? _mapboxMap;
+  GoogleMapController? _googleMapController;
   bool _isMapReady = false;
+  Set<Marker> _markers = {};
+  Set<Polyline> _polylines = {};
 
   @override
   void initState() {
@@ -61,22 +61,27 @@ class _TripMapWidgetState extends State<TripMapWidget> {
   Future<void> _initializeMap() async {
     // Wait a bit for the map to be ready
     await Future.delayed(const Duration(milliseconds: 500));
-    if (mounted && _mapboxMap != null) {
+    if (mounted && _googleMapController != null) {
       _updateMap();
     }
   }
 
-  void _onMapCreated(MapboxMap mapboxMap) {
-    _mapboxMap = mapboxMap;
+  void _onMapCreated(GoogleMapController controller) {
+    _googleMapController = controller;
     _isMapReady = true;
     _updateMap();
     widget.onMapReady?.call();
   }
 
   Future<void> _updateMap() async {
-    if (!_isMapReady || _mapboxMap == null) return;
+    if (!_isMapReady || _googleMapController == null) return;
 
     try {
+      await _updateMarkers();
+      if (widget.showRoute) {
+        await _updatePolylines();
+      }
+
       // Auto-fit bounds or center on driver
       if (widget.autoFitBounds) {
         await _fitBounds();
@@ -88,27 +93,137 @@ class _TripMapWidgetState extends State<TripMapWidget> {
     }
   }
 
-  Future<void> _centerOnDriver() async {
-    if (_mapboxMap == null || widget.currentPosition == null) return;
+  Future<void> _updateMarkers() async {
+    final markers = <Marker>{};
 
-    try {
-      final latLng = LatLng(
+    // Add driver marker
+    if (widget.showDriverMarker && widget.currentPosition != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('driver'),
+          position: LatLng(
+            widget.currentPosition!.latitude,
+            widget.currentPosition!.longitude,
+          ),
+          icon:
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          rotation: widget.currentBearing ?? 0,
+          infoWindow: const InfoWindow(
+            title: 'موقعك',
+            snippet: 'السائق',
+          ),
+        ),
+      );
+    }
+
+    // Add passenger markers
+    if (widget.showPassengerMarkers) {
+      for (final line in widget.trip.lines) {
+        // استخدام الإحداثيات الفعلية (محطة أو شخصية)
+        final lat = line.effectivePickupLatitude;
+        final lng = line.effectivePickupLongitude;
+
+        if (lat != null && lng != null) {
+          final hue = _getMarkerHue(line.status.value);
+          markers.add(
+            Marker(
+              markerId: MarkerId('passenger_${line.id}'),
+              position: LatLng(lat, lng),
+              icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+              infoWindow: InfoWindow(
+                title: line.passengerName ?? 'راكب',
+                snippet:
+                    '${line.pickupLocationName}\n${_getStatusText(line.status.value)}',
+              ),
+            ),
+          );
+        }
+      }
+    }
+
+    setState(() {
+      _markers = markers;
+    });
+  }
+
+  Future<void> _updatePolylines() async {
+    final polylines = <Polyline>{};
+    final points = <LatLng>[];
+
+    // Add driver position
+    if (widget.currentPosition != null) {
+      points.add(LatLng(
         widget.currentPosition!.latitude,
         widget.currentPosition!.longitude,
-      );
+      ));
+    }
 
-      await _mapboxMap!.flyTo(
-        CameraOptions(
-          center: Point(
-            coordinates: Position(
-              latLng.longitude,
-              latLng.latitude,
-            ),
-          ),
-          zoom: 15.0,
-          bearing: widget.currentBearing,
+    // Add passenger locations (استخدام الإحداثيات الفعلية)
+    for (final line in widget.trip.lines) {
+      final lat = line.effectivePickupLatitude;
+      final lng = line.effectivePickupLongitude;
+      if (lat != null && lng != null) {
+        points.add(LatLng(lat, lng));
+      }
+    }
+
+    if (points.length >= 2) {
+      polylines.add(
+        Polyline(
+          polylineId: const PolylineId('route'),
+          points: points,
+          color: AppColors.primary,
+          width: 4,
+          patterns: [PatternItem.dash(20), PatternItem.gap(10)],
         ),
-        MapAnimationOptions(duration: 1000),
+      );
+    }
+
+    setState(() {
+      _polylines = polylines;
+    });
+  }
+
+  double _getMarkerHue(String status) {
+    switch (status) {
+      case 'boarded':
+      case 'dropped':
+        return BitmapDescriptor.hueGreen;
+      case 'absent':
+        return BitmapDescriptor.hueRed;
+      default:
+        return BitmapDescriptor.hueOrange;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'boarded':
+        return '✓ ركب';
+      case 'dropped':
+        return '✓ نزل';
+      case 'absent':
+        return '✗ غائب';
+      default:
+        return '⏱ قيد الانتظار';
+    }
+  }
+
+  Future<void> _centerOnDriver() async {
+    if (_googleMapController == null || widget.currentPosition == null) return;
+
+    try {
+      await _googleMapController!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(
+              widget.currentPosition!.latitude,
+              widget.currentPosition!.longitude,
+            ),
+            zoom: 15.0,
+            bearing: widget.currentBearing ?? 0,
+          ),
+        ),
       );
     } catch (e) {
       debugPrint('Error centering on driver: $e');
@@ -116,7 +231,7 @@ class _TripMapWidgetState extends State<TripMapWidget> {
   }
 
   Future<void> _fitBounds() async {
-    if (_mapboxMap == null) return;
+    if (_googleMapController == null) return;
 
     try {
       final points = <LatLng>[];
@@ -129,41 +244,55 @@ class _TripMapWidgetState extends State<TripMapWidget> {
         ));
       }
 
-      // Add passenger locations
+      // Add passenger locations (استخدام الإحداثيات الفعلية)
       for (final line in widget.trip.lines) {
-        if (line.latitude != null && line.longitude != null) {
-          points.add(LatLng(line.latitude!, line.longitude!));
+        final lat = line.effectivePickupLatitude;
+        final lng = line.effectivePickupLongitude;
+        if (lat != null && lng != null) {
+          points.add(LatLng(lat, lng));
         }
       }
 
       if (points.isEmpty) {
-        // Default to Baghdad if no points
-        await _mapboxMap!.flyTo(
-          CameraOptions(
-            center: Point(
-              coordinates: Position(44.3661, 33.3152),
+        // If driver position available, center on it
+        if (widget.currentPosition != null) {
+          await _googleMapController!.animateCamera(
+            CameraUpdate.newLatLngZoom(
+              LatLng(
+                widget.currentPosition!.latitude,
+                widget.currentPosition!.longitude,
+              ),
+              15.0,
             ),
-            zoom: 12.0,
-          ),
-          MapAnimationOptions(duration: 1000),
+          );
+        } else {
+          // Default to a fallback location only if no driver position
+          await _googleMapController!.animateCamera(
+            CameraUpdate.newLatLngZoom(
+              const LatLng(33.3152, 44.3661),
+              12.0,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (points.length == 1) {
+        await _googleMapController!.animateCamera(
+          CameraUpdate.newLatLngZoom(points.first, 15.0),
         );
         return;
       }
 
       final bounds = _mapService.calculateBounds(points);
-      final center = bounds.center;
-
-      await _mapboxMap!.flyTo(
-        CameraOptions(
-          center: Point(
-            coordinates: Position(
-              center.longitude,
-              center.latitude,
-            ),
+      await _googleMapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
+            southwest: bounds.southwest,
+            northeast: bounds.northeast,
           ),
-          zoom: 13.0,
+          100, // padding
         ),
-        MapAnimationOptions(duration: 1000),
       );
     } catch (e) {
       debugPrint('Error fitting bounds: $e');
@@ -197,19 +326,27 @@ class _TripMapWidgetState extends State<TripMapWidget> {
         child: Stack(
           children: [
             // Map Widget
-            MapWidget(
-              key: const ValueKey('trip_map'),
-              cameraOptions: CameraOptions(
-                center: Point(
-                  coordinates: Position(44.3661, 33.3152), // Default: Baghdad
-                ),
-                zoom: 12.0,
-              ),
-              styleUri: MapStyles.shuttlebeeStreets,
-              textureView: true,
+            GoogleMap(
               onMapCreated: _onMapCreated,
+              initialCameraPosition: CameraPosition(
+                // Use driver's position if available, otherwise default location
+                target: widget.currentPosition != null
+                    ? LatLng(
+                        widget.currentPosition!.latitude,
+                        widget.currentPosition!.longitude,
+                      )
+                    : const LatLng(33.3152, 44.3661),
+                zoom: 15.0,
+              ),
+              markers: _markers,
+              polylines: _polylines,
+              myLocationEnabled: false,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
+              onTap: widget.onMapTap,
             ),
-            
+
             // Overlay with trip info (optional)
             if (widget.showPassengerMarkers || widget.showDriverMarker)
               Positioned(
@@ -227,7 +364,8 @@ class _TripMapWidgetState extends State<TripMapWidget> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (widget.showDriverMarker && widget.currentPosition != null)
+                      if (widget.showDriverMarker &&
+                          widget.currentPosition != null)
                         Container(
                           width: 12,
                           height: 12,
@@ -236,9 +374,11 @@ class _TripMapWidgetState extends State<TripMapWidget> {
                             shape: BoxShape.circle,
                           ),
                         ),
-                      if (widget.showDriverMarker && widget.currentPosition != null)
+                      if (widget.showDriverMarker &&
+                          widget.currentPosition != null)
                         const SizedBox(width: 4),
-                      if (widget.showDriverMarker && widget.currentPosition != null)
+                      if (widget.showDriverMarker &&
+                          widget.currentPosition != null)
                         const Text(
                           'موقعك',
                           style: TextStyle(fontSize: 12),
@@ -274,6 +414,7 @@ class _TripMapWidgetState extends State<TripMapWidget> {
 
   @override
   void dispose() {
+    _googleMapController?.dispose();
     super.dispose();
   }
 }

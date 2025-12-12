@@ -12,6 +12,28 @@ import '../../domain/repositories/trip_repository.dart';
 export '../../domain/repositories/trip_repository.dart'
     show TripDashboardStats, ManagerAnalytics;
 
+/// Key for fetching driver trips (prevents cross-driver cache/state bleed)
+class DriverTripsQuery {
+  final int driverId;
+  final DateTime date; // normalized to yyyy-mm-dd
+
+  DriverTripsQuery({
+    required this.driverId,
+    required DateTime date,
+  }) : date = DateTime(date.year, date.month, date.day);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DriverTripsQuery &&
+          runtimeType == other.runtimeType &&
+          driverId == other.driverId &&
+          date == other.date;
+
+  @override
+  int get hashCode => Object.hash(driverId, date);
+}
+
 /// Trip Remote Data Source Provider
 final tripRemoteDataSourceProvider = Provider<TripRemoteDataSource?>((ref) {
   final client = ref.watch(bridgecoreClientProvider);
@@ -28,39 +50,35 @@ final tripRepositoryProvider = Provider<TripRepository?>((ref) {
 
 /// Driver Daily Trips Provider
 final driverDailyTripsProvider =
-    FutureProvider.autoDispose.family<List<Trip>, DateTime>((ref, date) async {
+    FutureProvider.autoDispose.family<List<Trip>, DriverTripsQuery>(
+        (ref, query) async {
   try {
-    print('🚗 [driverDailyTripsProvider] Fetching trips for date: $date');
-    
+    final date = query.date;
+    final driverId = query.driverId;
+    print(
+        '🚗 [driverDailyTripsProvider] Fetching trips for driverId: $driverId, date: $date');
+
     final client = ref.watch(bridgecoreClientProvider);
-    print('🚗 [driverDailyTripsProvider] BridgecoreClient: ${client != null ? "exists" : "NULL"}');
-    
+    print(
+        '🚗 [driverDailyTripsProvider] BridgecoreClient: ${client != null ? "exists" : "NULL"}');
+
     final repository = ref.watch(tripRepositoryProvider);
-    print('🚗 [driverDailyTripsProvider] Repository: ${repository != null ? "exists" : "NULL"}');
-    
+    print(
+        '🚗 [driverDailyTripsProvider] Repository: ${repository != null ? "exists" : "NULL"}');
+
     if (repository == null) {
-      print('❌ [driverDailyTripsProvider] Repository is null - client might not be ready');
+      print(
+          '❌ [driverDailyTripsProvider] Repository is null - client might not be ready');
       throw Exception('خطأ في الاتصال. يرجى التحقق من الاتصال بالخادم');
     }
 
-    final authState = ref.watch(authStateProvider);
-    final user = authState.asData?.value.user;
-    
-    // Note: driver_id in Odoo shuttle.trip is linked to res.users (user.id), not res.partner (user.partnerId)
-    print('🚗 [driverDailyTripsProvider] User: ${user?.name ?? "NULL"}, userId: ${user?.id}, partnerId: ${user?.partnerId}');
-
-    if (user == null) {
-      throw Exception('يجب تسجيل الدخول أولاً');
-    }
-
-    // Use user.id (res.users ID) instead of partnerId for driver_id lookup
-    final driverId = user.id;
     if (driverId == 0) {
       print('❌ [driverDailyTripsProvider] userId is 0');
       throw Exception('معلومات السائق غير مكتملة. يرجى التواصل مع الإدارة');
     }
 
-    print('🚗 [driverDailyTripsProvider] Calling getDriverTrips with driverId (user.id): $driverId');
+    print(
+        '🚗 [driverDailyTripsProvider] Calling getDriverTrips with driverId (user.id): $driverId');
     final result = await repository.getDriverTrips(driverId, date);
     return result.fold(
       (failure) {
@@ -76,7 +94,8 @@ final driverDailyTripsProvider =
   } on MissingOdooCredentialsException catch (e) {
     // Token doesn't have tenant info - user needs to re-login
     print('❌ [driverDailyTripsProvider] MissingOdooCredentialsException: $e');
-    throw Exception('انتهت صلاحية الجلسة. يرجى تسجيل الخروج وإعادة تسجيل الدخول');
+    throw Exception(
+        'انتهت صلاحية الجلسة. يرجى تسجيل الخروج وإعادة تسجيل الدخول');
   } catch (e) {
     print('❌ [driverDailyTripsProvider] Exception: $e');
     // Re-throw with better error message
@@ -238,15 +257,65 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
   AsyncValue<Trip?> build() => const AsyncValue.data(null);
 
   TripRepository? get _repository => ref.read(tripRepositoryProvider);
-  
+
   /// Check if provider is still mounted (safe to update state)
+  /// Note: For autoDispose providers, this check might fail after async operations
   bool get _isMounted {
     try {
       // Accessing ref will throw if disposed
       ref.read(tripRepositoryProvider);
       return true;
-    } catch (_) {
+    } catch (e) {
+      print('⚠️ [_isMounted] Provider check failed: $e');
       return false;
+    }
+  }
+
+  /// Invalidate driver daily trips provider to refresh the list
+  /// This ensures state synchronization across all screens
+  void _invalidateDriverTripsList() {
+    if (!_isMounted) return;
+
+    try {
+      // Get the current trip to find its date
+      final currentTrip = state.asData?.value;
+      if (currentTrip?.plannedStartTime != null) {
+        final tripDate = DateTime(
+          currentTrip!.plannedStartTime!.year,
+          currentTrip.plannedStartTime!.month,
+          currentTrip.plannedStartTime!.day,
+        );
+        // Invalidate the provider for that specific (driverId + date)
+        final authUserId = ref.read(authStateProvider).asData?.value.user?.id;
+        final driverId = currentTrip.driverId ?? authUserId ?? 0;
+        if (driverId != 0) {
+          ref.invalidate(
+            driverDailyTripsProvider(
+              DriverTripsQuery(driverId: driverId, date: tripDate),
+            ),
+          );
+        }
+        print(
+            '🔄 [State Sync] Invalidated driverDailyTripsProvider for date: $tripDate');
+      } else {
+        // If we don't have the trip date, try to invalidate today's date as fallback
+        final today = DateTime.now();
+        final todayDate = DateTime(today.year, today.month, today.day);
+        final authUserId = ref.read(authStateProvider).asData?.value.user?.id;
+        final driverId = authUserId ?? 0;
+        if (driverId != 0) {
+          ref.invalidate(
+            driverDailyTripsProvider(
+              DriverTripsQuery(driverId: driverId, date: todayDate),
+            ),
+          );
+        }
+        print(
+            '🔄 [State Sync] Invalidated driverDailyTripsProvider for today: $todayDate');
+      }
+    } catch (e) {
+      print(
+          '⚠️ [State Sync] Failed to invalidate driverDailyTripsProvider: $e');
     }
   }
 
@@ -257,13 +326,44 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     state = const AsyncValue.loading();
 
     final result = await repository.getTripById(tripId);
-    
+
     // Check if still mounted after async operation
     if (!_isMounted) return;
-    
+
     state = result.fold(
       (failure) => AsyncValue.error(failure, StackTrace.current),
       (trip) => AsyncValue.data(trip),
+    );
+  }
+
+  Future<bool> confirmTrip(int tripId) async {
+    final repository = _repository;
+    if (repository == null) {
+      print('❌ [confirmTrip] Repository is null');
+      return false;
+    }
+
+    print('🔄 [confirmTrip] Calling repository.confirmTrip($tripId)');
+    final result = await repository.confirmTrip(tripId);
+
+    // Check if still mounted after async operation
+    if (!_isMounted) {
+      print('⚠️ [confirmTrip] Provider disposed after async operation');
+      // Still return true if the operation succeeded on the server
+      return result.isRight();
+    }
+
+    return result.fold(
+      (failure) {
+        print('❌ [confirmTrip] Failed: ${failure.message}');
+        return false;
+      },
+      (trip) {
+        print('✅ [confirmTrip] Success! Trip state: ${trip.state.value}');
+        state = AsyncValue.data(trip);
+        _invalidateDriverTripsList();
+        return true;
+      },
     );
   }
 
@@ -272,14 +372,15 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     if (repository == null) return false;
 
     final result = await repository.startTrip(tripId);
-    
+
     // Check if still mounted after async operation
     if (!_isMounted) return false;
-    
+
     return result.fold(
       (failure) => false,
       (trip) {
         state = AsyncValue.data(trip);
+        _invalidateDriverTripsList();
         return true;
       },
     );
@@ -290,14 +391,15 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     if (repository == null) return false;
 
     final result = await repository.completeTrip(tripId);
-    
+
     // Check if still mounted after async operation
     if (!_isMounted) return false;
-    
+
     return result.fold(
       (failure) => false,
       (trip) {
         state = AsyncValue.data(trip);
+        _invalidateDriverTripsList();
         return true;
       },
     );
@@ -308,10 +410,10 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     if (repository == null) return false;
 
     final result = await repository.cancelTrip(tripId);
-    
+
     // Check if still mounted after async operation
     if (!_isMounted) return false;
-    
+
     return result.fold(
       (failure) => false,
       (_) {
@@ -346,22 +448,26 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
 
     // Make API call
     final result = await repository.markPassengerBoarded(tripLineId);
-    
+
     // Check if still mounted after async operation
-    if (!_isMounted) return false;
-    
+    if (!_isMounted) {
+      // Still return true if the operation succeeded on the server
+      return result.isRight();
+    }
+
     return result.fold(
       (failure) {
         // Revert on failure
-        if (currentTrip != null) {
+        if (currentTrip != null && _isMounted) {
           state = AsyncValue.data(currentTrip);
         }
         return false;
       },
       (line) {
         // Confirm with server data
-        if (currentTrip != null) {
+        if (currentTrip != null && _isMounted) {
           loadTrip(currentTrip.id);
+          _invalidateDriverTripsList();
         }
         return true;
       },
@@ -391,20 +497,24 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     }
 
     final result = await repository.markPassengerAbsent(tripLineId);
-    
+
     // Check if still mounted after async operation
-    if (!_isMounted) return false;
-    
+    if (!_isMounted) {
+      // Still return true if the operation succeeded on the server
+      return result.isRight();
+    }
+
     return result.fold(
       (failure) {
-        if (currentTrip != null) {
+        if (currentTrip != null && _isMounted) {
           state = AsyncValue.data(currentTrip);
         }
         return false;
       },
       (line) {
-        if (currentTrip != null) {
+        if (currentTrip != null && _isMounted) {
           loadTrip(currentTrip.id);
+          _invalidateDriverTripsList();
         }
         return true;
       },
@@ -434,20 +544,70 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
     }
 
     final result = await repository.markPassengerDropped(tripLineId);
-    
+
     // Check if still mounted after async operation
-    if (!_isMounted) return false;
-    
+    if (!_isMounted) {
+      // Still return true if the operation succeeded on the server
+      return result.isRight();
+    }
+
     return result.fold(
       (failure) {
-        if (currentTrip != null) {
+        if (currentTrip != null && _isMounted) {
           state = AsyncValue.data(currentTrip);
         }
         return false;
       },
       (line) {
-        if (currentTrip != null) {
+        if (currentTrip != null && _isMounted) {
           loadTrip(currentTrip.id);
+          _invalidateDriverTripsList();
+        }
+        return true;
+      },
+    );
+  }
+
+  Future<bool> resetPassengerToPlanned(int tripLineId) async {
+    final repository = _repository;
+    if (repository == null) return false;
+
+    // Optimistic update
+    final currentTrip = state.asData?.value;
+    if (currentTrip != null) {
+      final updatedLines = currentTrip.lines.map((line) {
+        if (line.id == tripLineId) {
+          return line.copyWith(status: TripLineStatus.notStarted);
+        }
+        return line;
+      }).toList();
+
+      final updatedTrip = currentTrip.copyWith(
+        lines: updatedLines,
+      );
+
+      state = AsyncValue.data(updatedTrip);
+    }
+
+    final result = await repository.resetPassengerToPlanned(tripLineId);
+
+    // Check if still mounted after async operation
+    if (!_isMounted) {
+      // Still return true if the operation succeeded on the server
+      return result.isRight();
+    }
+
+    return result.fold(
+      (failure) {
+        if (currentTrip != null && _isMounted) {
+          state = AsyncValue.data(currentTrip);
+        }
+        return false;
+      },
+      (line) {
+        if (currentTrip != null && _isMounted) {
+          loadTrip(currentTrip.id);
+          _invalidateDriverTripsList();
         }
         return true;
       },

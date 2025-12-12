@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 /// Map Service - خدمة الخرائط المتقدمة - ShuttleBee
 class MapService {
@@ -192,7 +192,8 @@ class MapService {
     LatLng center,
     double radiusMeters,
   ) {
-    final distance = calculateDistance(currentLocation, center) * 1000; // to meters
+    final distance =
+        calculateDistance(currentLocation, center) * 1000; // to meters
     return distance <= radiusMeters;
   }
 
@@ -204,20 +205,24 @@ class MapService {
   ) {
     bool wasInside = false;
 
-    return positionStream.map((position) {
-      final currentLocation = LatLng(position.latitude, position.longitude);
-      final isInside = isWithinGeofence(currentLocation, center, radiusMeters);
+    return positionStream
+        .map((position) {
+          final currentLocation = LatLng(position.latitude, position.longitude);
+          final isInside =
+              isWithinGeofence(currentLocation, center, radiusMeters);
 
-      GeofenceEvent? event;
-      if (isInside && !wasInside) {
-        event = GeofenceEvent.enter(currentLocation);
-      } else if (!isInside && wasInside) {
-        event = GeofenceEvent.exit(currentLocation);
-      }
+          GeofenceEvent? event;
+          if (isInside && !wasInside) {
+            event = GeofenceEvent.enter(currentLocation);
+          } else if (!isInside && wasInside) {
+            event = GeofenceEvent.exit(currentLocation);
+          }
 
-      wasInside = isInside;
-      return event;
-    }).where((event) => event != null).cast<GeofenceEvent>();
+          wasInside = isInside;
+          return event;
+        })
+        .where((event) => event != null)
+        .cast<GeofenceEvent>();
   }
 
   // === Bearing & Direction ===

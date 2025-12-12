@@ -64,7 +64,7 @@ class RoleSwitcherService {
       ];
     }
 
-    return [user.role];
+    return [user.role!];
   }
 }
 
