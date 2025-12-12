@@ -4,8 +4,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_dimensions.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/loading/shimmer_loading.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../vehicles/domain/entities/shuttle_vehicle.dart';
@@ -241,7 +239,7 @@ class _DispatcherVehiclesScreenState
                         const SizedBox(width: 16),
                         _buildVehicleInfo(
                           Icons.event_seat_rounded,
-                          '${vehicle.seatCapacity ?? 0} مقعد',
+                          '${vehicle.seatCapacity} مقعد',
                         ),
                       ],
                     ),
@@ -387,16 +385,16 @@ class _DispatcherVehiclesScreenState
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: vehicle.active == true
+                      color: vehicle.active
                           ? AppColors.success.withValues(alpha: 0.1)
                           : AppColors.textSecondary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      vehicle.active == true ? 'نشط' : 'غير نشط',
+                      vehicle.active ? 'نشط' : 'غير نشط',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: vehicle.active == true
+                        color: vehicle.active
                             ? AppColors.success
                             : AppColors.textSecondary,
                         fontFamily: 'Cairo',
@@ -406,10 +404,18 @@ class _DispatcherVehiclesScreenState
                 ),
                 const SizedBox(height: 32),
                 _buildDetailRow('رقم اللوحة', vehicle.licensePlate ?? 'غير محدد'),
-                _buildDetailRow('السعة', '${vehicle.seatCapacity ?? 0} مقعد'),
-                _buildDetailRow('عدد الرحلات', '${vehicle.tripCount ?? 0}'),
-                if (vehicle.homeLocationName != null)
-                  _buildDetailRow('الموقع الرئيسي', vehicle.homeLocationName!),
+                _buildDetailRow('السعة', '${vehicle.seatCapacity} مقعد'),
+                _buildDetailRow('عدد الرحلات', '${vehicle.tripCount}'),
+                if (vehicle.homeAddress != null &&
+                    vehicle.homeAddress!.trim().isNotEmpty)
+                  _buildDetailRow('الموقع الرئيسي', vehicle.homeAddress!),
+                if ((vehicle.homeAddress == null ||
+                        vehicle.homeAddress!.trim().isEmpty) &&
+                    vehicle.hasParkingLocation)
+                  _buildDetailRow(
+                    'موقع الموقف',
+                    '${vehicle.homeLatitude}, ${vehicle.homeLongitude}',
+                  ),
               ],
             ),
           ),

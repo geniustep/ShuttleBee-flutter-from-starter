@@ -37,7 +37,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
   late AnimationController _pulseController;
 
   // === Riverpod Subscription ===
-  ProviderSubscription<AsyncValue<AuthState>>? _authSubscription;
+  ProviderSubscription<AsyncValue>? _authSubscription;
 
   @override
   void initState() {
@@ -58,7 +58,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
 
   /// Setup auth state listener using listenManual for better performance
   void _setupAuthListener() {
-    _authSubscription = ref.listenManual<AsyncValue<AuthState>>(
+    _authSubscription = ref.listenManual(
       authStateProvider,
       (previous, next) {
         if (_hasInitializedAfterAuth) return;
@@ -124,7 +124,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
     }
 
     final userName = authState.asData?.value.user?.name ?? 'السائق';
-    
+
     // استخدام smartDriverTripsProvider للتحديثات الفورية
     final tripsState = ref.watch(smartDriverTripsProvider);
 
@@ -150,7 +150,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
       ),
     );
   }
-  
+
   /// بناء محتوى الرحلات بناءً على الحالة
   Widget _buildTripsContent(SmartDriverTripsState tripsState) {
     // حالة التحميل الأولي
@@ -159,11 +159,12 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
         child: _buildTripsLoadingState(),
       );
     }
-    
+
     // حالة الخطأ (بدون بيانات)
     if (tripsState.hasError && !tripsState.hasData) {
       return SliverFillRemaining(
-        child: _buildErrorState(_getErrorMessage(tripsState.error ?? 'حدث خطأ غير معروف')),
+        child: _buildErrorState(
+            _getErrorMessage(tripsState.error ?? 'حدث خطأ غير معروف')),
       );
     }
 
@@ -179,7 +180,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
               title: 'لا توجد بيانات مخزنة لليوم',
               message: 'اضغط تحديث لمزامنة رحلات اليوم وحفظها محلياً مع الركاب',
               buttonText: 'تحديث رحلات اليوم',
-              onPressed: () => ref.read(smartDriverTripsProvider.notifier).refresh(),
+              onPressed: () =>
+                  ref.read(smartDriverTripsProvider.notifier).refresh(),
               icon: Icons.cloud_sync_rounded,
             ),
           ]),
@@ -192,7 +194,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
           const SizedBox(height: 24),
           _buildEmptyState(
             title: 'لا توجد رحلات',
-            message: 'لا توجد رحلات مجدولة في هذا التاريخ\nاختر تاريخاً آخر لعرض الرحلات',
+            message:
+                'لا توجد رحلات مجدولة في هذا التاريخ\nاختر تاريخاً آخر لعرض الرحلات',
             buttonText: 'اختر تاريخ آخر',
             onPressed: _selectDate,
             icon: Icons.calendar_today_rounded,
@@ -200,7 +203,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
         ]),
       );
     }
-    
+
     // عرض البيانات (مع مؤشر المزامنة إذا كان يحدث)
     return _buildContent(tripsState.trips);
   }
@@ -434,7 +437,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
                 ? () {
                     HapticFeedback.lightImpact();
                     setState(() {
-                      _selectedDate = _selectedDate.add(const Duration(days: 1));
+                      _selectedDate =
+                          _selectedDate.add(const Duration(days: 1));
                     });
                     _loadSelectedDate();
                   }
@@ -1460,7 +1464,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
           OutlinedButton.icon(
             onPressed: onPressed,
             icon: Icon(icon),
-            label: Text(buttonText, style: const TextStyle(fontFamily: 'Cairo')),
+            label:
+                Text(buttonText, style: const TextStyle(fontFamily: 'Cairo')),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
               side: const BorderSide(color: AppColors.primary),
@@ -1571,7 +1576,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
           else
             ElevatedButton.icon(
               onPressed: () {
-                ref.read(smartDriverTripsProvider.notifier).loadTrips(_selectedDate);
+                ref
+                    .read(smartDriverTripsProvider.notifier)
+                    .loadTrips(_selectedDate);
               },
               icon: const Icon(Icons.refresh_rounded),
               label: const Text(

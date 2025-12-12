@@ -181,6 +181,12 @@ final allTripsProvider = FutureProvider.autoDispose
   );
 });
 
+/// Ongoing Trips Provider (for live monitoring screens)
+///
+/// Uses the generic [allTripsProvider] with a fixed filter (ongoing only).
+final ongoingTripsProvider =
+    allTripsProvider(const TripFilters(state: TripState.ongoing, limit: 200));
+
 /// Trip Filters
 class TripFilters {
   final TripState? state;

@@ -195,13 +195,8 @@ class RoleSwitcherWidget extends ConsumerWidget {
     WidgetRef ref,
     UserRole role,
   ) async {
-    final roleSwitcher = ref.read(roleSwitcherServiceProvider);
-
-    // حفظ الدور الجديد
-    await roleSwitcher.setActiveRole(role);
-
-    // تحديث الـ state
-    ref.read(activeRoleProvider.notifier).state = role;
+    // تحديث الدور النشط + حفظه (داخل الـ notifier)
+    ref.read(activeRoleProvider.notifier).setRole(role);
 
     // الانتقال للصفحة المناسبة
     if (context.mounted) {
@@ -223,14 +218,8 @@ class RoleSwitcherWidget extends ConsumerWidget {
     final authState = ref.read(authStateProvider);
     final user = authState.asData?.value.user;
     if (user == null) return;
-
-    final roleSwitcher = ref.read(roleSwitcherServiceProvider);
-
-    // مسح الدور النشط
-    await roleSwitcher.clearActiveRole();
-
-    // تحديث الـ state
-    ref.read(activeRoleProvider.notifier).state = null;
+    // مسح الدور النشط (داخل الـ notifier)
+    ref.read(activeRoleProvider.notifier).clearRole();
 
     // الانتقال للصفحة الأصلية
     if (context.mounted) {
@@ -404,9 +393,7 @@ class RoleSwitcherBottomSheet extends ConsumerWidget {
     WidgetRef ref,
     UserRole role,
   ) async {
-    final roleSwitcher = ref.read(roleSwitcherServiceProvider);
-    await roleSwitcher.setActiveRole(role);
-    ref.read(activeRoleProvider.notifier).state = role;
+    ref.read(activeRoleProvider.notifier).setRole(role);
 
     if (context.mounted) {
       final homeRoute = getHomeRouteForRole(role);

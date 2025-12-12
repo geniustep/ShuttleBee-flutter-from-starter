@@ -4,7 +4,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../data/datasources/vehicle_remote_data_source.dart';
 import '../../domain/entities/shuttle_vehicle.dart';
 import '../providers/vehicle_providers.dart';
 

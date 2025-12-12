@@ -6,13 +6,11 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/widgets/role_switcher_widget.dart';
 import '../../../../shared/widgets/common/hero_header.dart';
 import '../../../../shared/widgets/common/stat_card.dart';
-import '../../../../shared/widgets/common/user_avatar.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
