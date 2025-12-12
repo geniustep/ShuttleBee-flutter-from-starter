@@ -22,6 +22,12 @@ import '../../features/driver/presentation/screens/driver_trip_detail_screen.dar
 import '../../features/driver/presentation/screens/driver_active_trip_screen.dart';
 import '../../features/driver/presentation/screens/driver_live_trip_map_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_home_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_trips_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_vehicles_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_monitor_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_groups_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_create_group_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_create_trip_screen.dart';
 import '../../features/passenger/presentation/screens/passenger_home_screen.dart';
 import '../../features/manager/presentation/screens/manager_home_screen.dart';
 import '../../features/manager/presentation/screens/manager_analytics_screen.dart';
@@ -156,25 +162,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: RouteNames.dispatcherHome,
         builder: (context, state) => const DispatcherHomeScreen(),
         routes: [
+          // Trips Management
           GoRoute(
             path: 'trips',
             name: RouteNames.dispatcherTrips,
-            builder: (context, state) {
-              // TODO: Replace with actual TripListScreen
-              return Scaffold(
-                appBar: AppBar(title: const Text('إدارة الرحلات')),
-                body: const Center(child: Text('قائمة الرحلات')),
-              );
-            },
+            builder: (context, state) => const DispatcherTripsScreen(),
             routes: [
               GoRoute(
                 path: 'create',
                 name: RouteNames.dispatcherCreateTrip,
                 builder: (context, state) {
-                  // TODO: Replace with actual CreateTripScreen
-                  return Scaffold(
-                    appBar: AppBar(title: const Text('إنشاء رحلة جديدة')),
-                    body: const Center(child: Text('نموذج إنشاء رحلة')),
+                  final groupId = state.uri.queryParameters['groupId'];
+                  return DispatcherCreateTripScreen(
+                    initialGroupId: groupId != null ? int.tryParse(groupId) : null,
                   );
                 },
               ),
@@ -206,27 +206,17 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // Live Monitoring
           GoRoute(
             path: 'monitor',
             name: RouteNames.dispatcherMonitor,
-            builder: (context, state) {
-              // TODO: Replace with actual RealTimeMonitoringScreen
-              return Scaffold(
-                appBar: AppBar(title: const Text('المراقبة الحية')),
-                body: const Center(child: Text('خريطة المراقبة الحية')),
-              );
-            },
+            builder: (context, state) => const DispatcherMonitorScreen(),
           ),
+          // Vehicles Management
           GoRoute(
             path: 'vehicles',
             name: RouteNames.dispatcherVehicles,
-            builder: (context, state) {
-              // TODO: Replace with actual VehicleManagementScreen
-              return Scaffold(
-                appBar: AppBar(title: const Text('إدارة المركبات')),
-                body: const Center(child: Text('قائمة المركبات')),
-              );
-            },
+            builder: (context, state) => const DispatcherVehiclesScreen(),
             routes: [
               GoRoute(
                 path: 'create',
@@ -238,6 +228,69 @@ final routerProvider = Provider<GoRouter>((ref) {
                     body: const Center(child: Text('نموذج إضافة مركبة')),
                   );
                 },
+              ),
+            ],
+          ),
+          // Groups Management
+          GoRoute(
+            path: 'groups',
+            name: RouteNames.dispatcherGroups,
+            builder: (context, state) => const DispatcherGroupsScreen(),
+            routes: [
+              GoRoute(
+                path: 'create',
+                name: RouteNames.dispatcherCreateGroup,
+                builder: (context, state) => const DispatcherCreateGroupScreen(),
+              ),
+              GoRoute(
+                path: ':groupId',
+                name: RouteNames.dispatcherGroupDetail,
+                builder: (context, state) {
+                  final groupId = int.parse(state.pathParameters['groupId']!);
+                  // TODO: Replace with actual GroupDetailScreen
+                  return Scaffold(
+                    appBar: AppBar(title: const Text('تفاصيل المجموعة')),
+                    body: Center(child: Text('تفاصيل المجموعة رقم: $groupId')),
+                  );
+                },
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    name: RouteNames.dispatcherEditGroup,
+                    builder: (context, state) {
+                      final groupId = int.parse(state.pathParameters['groupId']!);
+                      // TODO: Replace with actual EditGroupScreen
+                      return Scaffold(
+                        appBar: AppBar(title: const Text('تعديل المجموعة')),
+                        body: Center(child: Text('تعديل المجموعة رقم: $groupId')),
+                      );
+                    },
+                  ),
+                  GoRoute(
+                    path: 'schedules',
+                    name: RouteNames.dispatcherGroupSchedules,
+                    builder: (context, state) {
+                      final groupId = int.parse(state.pathParameters['groupId']!);
+                      // TODO: Replace with actual GroupSchedulesScreen
+                      return Scaffold(
+                        appBar: AppBar(title: const Text('جداول المجموعة')),
+                        body: Center(child: Text('جداول المجموعة رقم: $groupId')),
+                      );
+                    },
+                  ),
+                  GoRoute(
+                    path: 'passengers',
+                    name: RouteNames.dispatcherGroupPassengers,
+                    builder: (context, state) {
+                      final groupId = int.parse(state.pathParameters['groupId']!);
+                      // TODO: Replace with actual GroupPassengersScreen
+                      return Scaffold(
+                        appBar: AppBar(title: const Text('ركاب المجموعة')),
+                        body: Center(child: Text('ركاب المجموعة رقم: $groupId')),
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),
