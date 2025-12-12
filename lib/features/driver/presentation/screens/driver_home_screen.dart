@@ -36,10 +36,17 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
   // === Animation Controllers ===
   late AnimationController _pulseController;
 
+  // === Riverpod Subscription ===
+  ProviderSubscription<AsyncValue<AuthState>>? _authSubscription;
+
   @override
   void initState() {
     super.initState();
     _initAnimations();
+    // Setup auth listener after first frame to ensure ref is available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _setupAuthListener();
+    });
   }
 
   void _initAnimations() {
@@ -47,6 +54,29 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
+  }
+
+  /// Setup auth state listener using listenManual for better performance
+  void _setupAuthListener() {
+    _authSubscription = ref.listenManual<AsyncValue<AuthState>>(
+      authStateProvider,
+      (previous, next) {
+        if (_hasInitializedAfterAuth) return;
+        if (next.isLoading) return;
+        final user = next.asData?.value.user;
+        if (user == null) return;
+
+        _hasInitializedAfterAuth = true;
+        _initializeTrips();
+      },
+      fireImmediately: true,
+    );
+  }
+
+  /// Initialize trips after auth is ready
+  Future<void> _initializeTrips() async {
+    await _preloadTodayTrips();
+    _loadSelectedDate();
   }
 
   /// 🚌 تحميل رحلات اليوم مسبقاً للكاش مع الركاب
@@ -76,6 +106,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
 
   @override
   void dispose() {
+    _authSubscription?.close();
     _pulseController.dispose();
     super.dispose();
   }
@@ -83,35 +114,6 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
-
-    // Riverpod: ref.listen يجب أن يكون داخل build (أو استخدم listenManual في initState)
-    ref.listen(
-      authStateProvider,
-      (previous, next) {
-        if (_hasInitializedAfterAuth) return;
-        if (next.isLoading) return;
-        final user = next.asData?.value.user;
-        if (user == null) return;
-
-        _hasInitializedAfterAuth = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          await _preloadTodayTrips();
-          _loadSelectedDate();
-        });
-      },
-    );
-
-    // إذا كانت حالة auth جاهزة من البداية، نهيّء مرة واحدة (بدون fireImmediately)
-    if (!_hasInitializedAfterAuth && !authState.isLoading) {
-      final user = authState.asData?.value.user;
-      if (user != null) {
-        _hasInitializedAfterAuth = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          await _preloadTodayTrips();
-          _loadSelectedDate();
-        });
-      }
-    }
 
     // Wait for auth state to be ready before loading trips
     if (authState.isLoading) {
