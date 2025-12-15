@@ -233,8 +233,10 @@ class AuthState {
   factory AuthState.loading() => const AuthState(isLoading: true);
 
   /// Authenticated state with valid token
-  factory AuthState.authenticated(User user,
-          {TokenState tokenState = TokenState.valid}) =>
+  factory AuthState.authenticated(
+    User user, {
+    TokenState tokenState = TokenState.valid,
+  }) =>
       AuthState(
         user: user,
         isAuthenticated: true,

@@ -6,8 +6,7 @@ import 'package:bridgecore_flutter_starter/core/utils/logger.dart';
 
 /// Dynamic forms builder service
 class FormsBuilderService {
-  static final FormsBuilderService _instance =
-      FormsBuilderService._internal();
+  static final FormsBuilderService _instance = FormsBuilderService._internal();
   factory FormsBuilderService() => _instance;
   FormsBuilderService._internal();
 
@@ -191,7 +190,8 @@ class FormsBuilderService {
 
   /// Build validators for field
   FormFieldValidator<String>? _buildStringValidators(
-      FormFieldDefinition field) {
+    FormFieldDefinition field,
+  ) {
     final validators = <FormFieldValidator<String>>[];
 
     if (field.required) {
@@ -257,10 +257,12 @@ class FormDefinition {
 
     fields.forEach((fieldName, fieldData) {
       final data = fieldData as Map<String, dynamic>;
-      fieldDefinitions.add(FormFieldDefinition.fromOdooField(
-        name: fieldName,
-        data: data,
-      ));
+      fieldDefinitions.add(
+        FormFieldDefinition.fromOdooField(
+          name: fieldName,
+          data: data,
+        ),
+      );
     });
 
     return FormDefinition(
@@ -309,10 +311,12 @@ class FormFieldDefinition {
     List<SelectionOption>? options;
     if (data['selection'] != null) {
       options = (data['selection'] as List)
-          .map((item) => SelectionOption(
-                value: item[0].toString(),
-                label: item[1] as String,
-              ))
+          .map(
+            (item) => SelectionOption(
+              value: item[0].toString(),
+              label: item[1] as String,
+            ),
+          )
           .toList();
     }
 

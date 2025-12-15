@@ -134,28 +134,30 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     // Demo search results
     final results = [
-      _SearchResult(
+      const _SearchResult(
         type: 'Product',
         title: 'Product ABC',
         subtitle: 'SKU: PRD-001 • \$99.99',
         icon: Icons.inventory_2,
       ),
-      _SearchResult(
+      const _SearchResult(
         type: 'Customer',
         title: 'John Doe',
         subtitle: 'john@example.com',
         icon: Icons.person,
       ),
-      _SearchResult(
+      const _SearchResult(
         type: 'Order',
         title: 'Order #1234',
         subtitle: 'John Doe • \$250.00',
         icon: Icons.shopping_cart,
       ),
     ]
-        .where((r) =>
-            r.title.toLowerCase().contains(_query.toLowerCase()) ||
-            r.subtitle.toLowerCase().contains(_query.toLowerCase()))
+        .where(
+          (r) =>
+              r.title.toLowerCase().contains(_query.toLowerCase()) ||
+              r.subtitle.toLowerCase().contains(_query.toLowerCase()),
+        )
         .toList();
 
     if (results.isEmpty) {
@@ -174,7 +176,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         return ListTile(
           leading: Container(
             padding: const EdgeInsets.all(AppDimensions.sm),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.primaryContainer,
               borderRadius: AppDimensions.borderRadiusSm,
             ),

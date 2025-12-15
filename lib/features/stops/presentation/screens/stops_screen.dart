@@ -119,7 +119,8 @@ class _StopsScreenState extends ConsumerState<StopsScreen>
             fontFamily: 'Cairo',
             color: Colors.grey[400],
           ),
-          prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
+          prefixIcon:
+              const Icon(Icons.search_rounded, color: AppColors.primary),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear_rounded),
@@ -130,7 +131,8 @@ class _StopsScreenState extends ConsumerState<StopsScreen>
                 )
               : null,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
         style: const TextStyle(fontFamily: 'Cairo'),
       ),
@@ -180,7 +182,8 @@ class _StopsScreenState extends ConsumerState<StopsScreen>
         // تصفية حسب النوع
         if (filterType != null) {
           filteredStops = stops
-              .where((s) => s.stopType == filterType || s.stopType == StopType.both)
+              .where((s) =>
+                  s.stopType == filterType || s.stopType == StopType.both)
               .toList();
         }
 
@@ -188,10 +191,12 @@ class _StopsScreenState extends ConsumerState<StopsScreen>
         if (_searchQuery.isNotEmpty) {
           final query = _searchQuery.toLowerCase();
           filteredStops = filteredStops
-              .where((s) =>
-                  s.name.toLowerCase().contains(query) ||
-                  (s.code?.toLowerCase().contains(query) ?? false) ||
-                  (s.city?.toLowerCase().contains(query) ?? false))
+              .where(
+                (s) =>
+                    s.name.toLowerCase().contains(query) ||
+                    (s.code?.toLowerCase().contains(query) ?? false) ||
+                    (s.city?.toLowerCase().contains(query) ?? false),
+              )
               .toList();
         }
 
@@ -490,8 +495,10 @@ class _StopsScreenState extends ConsumerState<StopsScreen>
             ),
             ListTile(
               leading: const Icon(Icons.map_rounded, color: Colors.green),
-              title: const Text('عرض على الخريطة',
-                  style: TextStyle(fontFamily: 'Cairo')),
+              title: const Text(
+                'عرض على الخريطة',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _showOnMap(stop);
@@ -567,13 +574,16 @@ class _StopsScreenState extends ConsumerState<StopsScreen>
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              final success =
-                  await ref.read(stopActionsProvider.notifier).deleteStop(stop.id);
+              final success = await ref
+                  .read(stopActionsProvider.notifier)
+                  .deleteStop(stop.id);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      success ? 'تم حذف نقطة التوقف بنجاح' : 'فشل في حذف نقطة التوقف',
+                      success
+                          ? 'تم حذف نقطة التوقف بنجاح'
+                          : 'فشل في حذف نقطة التوقف',
                     ),
                   ),
                 );
@@ -789,4 +799,3 @@ class _StopDetailsSheet extends StatelessWidget {
     );
   }
 }
-

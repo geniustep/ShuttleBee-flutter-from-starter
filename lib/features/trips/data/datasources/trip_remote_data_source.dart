@@ -2,10 +2,12 @@ import '../../../../core/bridgecore_integration/client/bridgecore_client.dart';
 import '../../../../core/enums/enums.dart';
 import '../../domain/entities/trip.dart';
 import '../../domain/repositories/trip_repository.dart';
+import '../../../shuttlebee/data/services/shuttlebee_api_service.dart';
 
 /// Trip Remote Data Source - ShuttleBee
 class TripRemoteDataSource {
   final BridgecoreClient _client;
+  final ShuttleBeeApiService? _shuttleBeeApi;
 
   /// Odoo model names
   static const String _tripModel = 'shuttle.trip';
@@ -21,7 +23,8 @@ class TripRemoteDataSource {
   // ignore: unused_field - will be used for GPS tracking
   static const String _gpsPositionModel = 'shuttle.gps.position';
 
-  TripRemoteDataSource(this._client);
+  TripRemoteDataSource(this._client, {ShuttleBeeApiService? shuttleBeeApi})
+      : _shuttleBeeApi = shuttleBeeApi;
 
   /// Get trips by date
   Future<List<Trip>> getTripsByDate(DateTime date) async {
@@ -114,7 +117,7 @@ class TripRemoteDataSource {
       result = await _client.searchRead(
         model: _tripModel,
         domain: [
-          ['id', '=', tripId]
+          ['id', '=', tripId],
         ],
         fields: _tripFields,
         limit: 1,
@@ -163,7 +166,7 @@ class TripRemoteDataSource {
       final result = await _client.searchRead(
         model: 'res.company',
         domain: [
-          ['id', '=', companyId]
+          ['id', '=', companyId],
         ],
         fields: ['id', 'name', 'shuttle_latitude', 'shuttle_longitude'],
         limit: 1,
@@ -220,14 +223,14 @@ class TripRemoteDataSource {
         .toList();
 
     // جلب بيانات الركاب (الإحداثيات والمحطات)
-    Map<int, Map<String, dynamic>> passengersData = {};
+    final Map<int, Map<String, dynamic>> passengersData = {};
     if (passengerIds.isNotEmpty) {
       print('👥 [getTripLines] Fetching ${passengerIds.length} passengers...');
       try {
         final passengers = await _client.searchRead(
           model: 'res.partner',
           domain: [
-            ['id', 'in', passengerIds]
+            ['id', 'in', passengerIds],
           ],
           fields: _passengerLocationFields,
         );
@@ -261,14 +264,14 @@ class TripRemoteDataSource {
       if (dropoffStopId != null) stopIds.add(dropoffStopId);
     }
 
-    Map<int, Map<String, dynamic>> stopsData = {};
+    final Map<int, Map<String, dynamic>> stopsData = {};
     if (stopIds.isNotEmpty) {
       print('📍 [getTripLines] Fetching ${stopIds.length} stops...');
       try {
         final stops = await _client.searchRead(
           model: _stopModel,
           domain: [
-            ['id', 'in', stopIds.toList()]
+            ['id', 'in', stopIds.toList()],
           ],
           fields: ['id', 'name', 'latitude', 'longitude'],
         );
@@ -425,20 +428,48 @@ class TripRemoteDataSource {
 
   /// Confirm trip (draft → planned)
   /// Returns minimal trip data to avoid multiple API calls
-  Future<Trip> confirmTrip(int tripId) async {
-    await _client.callKw(
-      model: _tripModel,
-      method: 'action_confirm',
-      args: [
-        [tripId]
-      ],
-    );
+  Future<Trip> confirmTrip(
+    int tripId, {
+    double? latitude,
+    double? longitude,
+    int? stopId,
+    String? note,
+  }) async {
+    // Prefer the new ShuttleBee REST endpoint when available.
+    if (_shuttleBeeApi != null) {
+      try {
+        await _shuttleBeeApi.confirmTrip(
+          tripId,
+          latitude: latitude,
+          longitude: longitude,
+          stopId: stopId,
+          note: note,
+        );
+      } catch (_) {
+        // Fallback to RPC below (older servers / temporary failures).
+        await _client.callKw(
+          model: _tripModel,
+          method: 'action_confirm',
+          args: [
+            [tripId],
+          ],
+        );
+      }
+    } else {
+      await _client.callKw(
+        model: _tripModel,
+        method: 'action_confirm',
+        args: [
+          [tripId],
+        ],
+      );
+    }
 
     // Get minimal trip data (without all related data to avoid rate limiting)
     final tripResult = await _client.searchRead(
       model: _tripModel,
       domain: [
-        ['id', '=', tripId]
+        ['id', '=', tripId],
       ],
       fields: _tripFields,
       limit: 1,
@@ -458,7 +489,7 @@ class TripRemoteDataSource {
       model: _tripModel,
       method: 'action_start',
       args: [
-        [tripId]
+        [tripId],
       ],
     );
 
@@ -468,7 +499,7 @@ class TripRemoteDataSource {
       final tripResult = await _client.searchRead(
         model: _tripModel,
         domain: [
-          ['id', '=', tripId]
+          ['id', '=', tripId],
         ],
         fields: _tripFields,
         limit: 1,
@@ -483,7 +514,7 @@ class TripRemoteDataSource {
     final tripResult = await _client.searchRead(
       model: _tripModel,
       domain: [
-        ['id', '=', tripId]
+        ['id', '=', tripId],
       ],
       fields: _tripFields,
       limit: 1,
@@ -503,7 +534,7 @@ class TripRemoteDataSource {
       model: _tripModel,
       method: 'action_complete',
       args: [
-        [tripId]
+        [tripId],
       ],
     );
 
@@ -511,7 +542,7 @@ class TripRemoteDataSource {
     final tripResult = await _client.searchRead(
       model: _tripModel,
       domain: [
-        ['id', '=', tripId]
+        ['id', '=', tripId],
       ],
       fields: _tripFields,
       limit: 1,
@@ -530,14 +561,16 @@ class TripRemoteDataSource {
       model: _tripModel,
       method: 'action_cancel',
       args: [
-        [tripId]
+        [tripId],
       ],
     );
   }
 
   /// Update passenger status
   Future<TripLine> updatePassengerStatus(
-      int tripLineId, TripLineStatus status) async {
+    int tripLineId,
+    TripLineStatus status,
+  ) async {
     await _client.write(
       model: _tripLineModel,
       ids: [tripLineId],
@@ -553,7 +586,7 @@ class TripRemoteDataSource {
       model: _tripLineModel,
       method: 'action_mark_boarded',
       args: [
-        [tripLineId]
+        [tripLineId],
       ],
     );
 
@@ -566,7 +599,7 @@ class TripRemoteDataSource {
       model: _tripLineModel,
       method: 'action_mark_absent',
       args: [
-        [tripLineId]
+        [tripLineId],
       ],
     );
 
@@ -579,7 +612,7 @@ class TripRemoteDataSource {
       model: _tripLineModel,
       method: 'action_mark_dropped',
       args: [
-        [tripLineId]
+        [tripLineId],
       ],
     );
 
@@ -592,7 +625,7 @@ class TripRemoteDataSource {
       model: _tripLineModel,
       method: 'action_reset_to_planned',
       args: [
-        [tripLineId]
+        [tripLineId],
       ],
     );
 
@@ -604,7 +637,7 @@ class TripRemoteDataSource {
     final result = await _client.searchRead(
       model: _tripLineModel,
       domain: [
-        ['id', '=', tripLineId]
+        ['id', '=', tripLineId],
       ],
       fields: _tripLineFields,
       limit: 1,
@@ -619,16 +652,38 @@ class TripRemoteDataSource {
 
   /// Get dashboard statistics
   Future<TripDashboardStats> getDashboardStats(DateTime date) async {
-    final dateStr = _formatDate(date);
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final dateFromStr = _formatDate(dateOnly);
+    final dateToStr = _formatDate(dateOnly);
 
     final result = await _client.callKw(
       model: _tripModel,
       method: 'get_dashboard_stats',
-      args: [dateStr],
+      // Odoo signature: get_dashboard_stats(date_from, date_to, company_id=None)
+      args: [dateFromStr, dateToStr],
     );
 
     if (result is Map<String, dynamic>) {
-      return TripDashboardStats.fromJson(result);
+      // Backward/forward compatible parsing:
+      // - Some server versions return "total_trips_today/ongoing_trips/..." (TripDashboardStats JSON)
+      // - Current ShuttleBee Odoo module returns "total_trips/total_passengers/present_count/absent_count"
+      if (result.containsKey('total_trips_today') ||
+          result.containsKey('ongoing_trips') ||
+          result.containsKey('active_vehicles')) {
+        return TripDashboardStats.fromJson(result);
+      }
+
+      if (result.containsKey('total_trips') ||
+          result.containsKey('total_passengers') ||
+          result.containsKey('present_count') ||
+          result.containsKey('absent_count')) {
+        return TripDashboardStats(
+          totalTripsToday: (result['total_trips'] as num?)?.toInt() ?? 0,
+          totalPassengers: (result['total_passengers'] as num?)?.toInt() ?? 0,
+          boardedPassengers: (result['present_count'] as num?)?.toInt() ?? 0,
+          absentPassengers: (result['absent_count'] as num?)?.toInt() ?? 0,
+        );
+      }
     }
 
     // Fallback: calculate stats manually
@@ -767,6 +822,10 @@ class TripRemoteDataSource {
     'dropped_count',
     'notes',
     'company_id',
+    // Live tracking (needed for dispatcher monitor map)
+    'current_latitude',
+    'current_longitude',
+    'last_gps_update',
   ];
 
   // Fields to fetch for trip lines - MINIMAL SET

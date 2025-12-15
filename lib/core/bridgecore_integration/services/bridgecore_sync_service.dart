@@ -133,11 +133,13 @@ class BridgeCoreSyncService {
     try {
       // TODO: Implement using BridgeCore sync API
       // For now, return empty result
-      
-      _eventBus.emit(BusEvent(
-        type: EventType.syncCompleted,
-        data: {'total_records': 0, 'models': []},
-      ));
+
+      _eventBus.emit(
+        BusEvent(
+          type: EventType.syncCompleted,
+          data: {'total_records': 0, 'models': []},
+        ),
+      );
 
       AppLogger.info('Pull completed');
 
@@ -147,10 +149,12 @@ class BridgeCoreSyncService {
         'synced_at': DateTime.now().toIso8601String(),
       };
     } catch (e) {
-      _eventBus.emit(BusEvent(
-        type: EventType.syncFailed,
-        data: {'error': e.toString()},
-      ));
+      _eventBus.emit(
+        BusEvent(
+          type: EventType.syncFailed,
+          data: {'error': e.toString()},
+        ),
+      );
       AppLogger.error('Pull failed: $e');
       rethrow;
     } finally {
@@ -167,7 +171,7 @@ class BridgeCoreSyncService {
     try {
       // TODO: Implement using BridgeCore sync API
       // For now, simulate success
-      
+
       AppLogger.info('Push completed');
 
       return {
@@ -207,11 +211,13 @@ class BridgeCoreSyncService {
 
     try {
       // TODO: Implement using BridgeCore smart sync API
-      
-      _eventBus.emit(BusEvent(
-        type: EventType.syncCompleted,
-        data: {'has_updates': false, 'new_events_count': 0},
-      ));
+
+      _eventBus.emit(
+        BusEvent(
+          type: EventType.syncCompleted,
+          data: {'has_updates': false, 'new_events_count': 0},
+        ),
+      );
 
       AppLogger.info('Smart sync completed');
 
@@ -224,10 +230,12 @@ class BridgeCoreSyncService {
         'sync_state': null,
       };
     } catch (e) {
-      _eventBus.emit(BusEvent(
-        type: EventType.syncFailed,
-        data: {'error': e.toString()},
-      ));
+      _eventBus.emit(
+        BusEvent(
+          type: EventType.syncFailed,
+          data: {'error': e.toString()},
+        ),
+      );
       AppLogger.error('Smart sync failed: $e');
       rethrow;
     } finally {

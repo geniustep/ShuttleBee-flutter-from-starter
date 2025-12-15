@@ -1,5 +1,5 @@
 /// ShuttleBee Trips Feature Exports
-library trips;
+library;
 
 // Domain
 export 'domain/entities/trip.dart';

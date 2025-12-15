@@ -61,7 +61,8 @@ class OdooErrorHandler {
         exceptionString.contains('warning')) {
       // Extract message if possible
       return ServerFailure(
-        message: _extractErrorMessage(message) ?? 'Operation cannot be completed',
+        message:
+            _extractErrorMessage(message) ?? 'Operation cannot be completed',
         code: 'ODOO_USER_ERROR',
       );
     }

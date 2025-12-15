@@ -5,6 +5,7 @@
 /// ```dart
 /// import 'package:bridgecore_flutter_starter/features/notifications/notifications.dart';
 /// ```
+library;
 
 // Data Layer
 export 'data/datasources/notification_remote_data_source.dart';
@@ -18,4 +19,3 @@ export 'domain/entities/shuttle_notification.dart';
 export 'presentation/providers/notification_providers.dart';
 export 'presentation/widgets/notification_action_buttons.dart';
 export 'presentation/widgets/notification_item.dart';
-

@@ -113,7 +113,10 @@ class StatCard extends StatelessWidget {
     );
 
     if (animationDelay > 0) {
-      card = card.animate().fadeIn(duration: 400.ms, delay: (200 + animationDelay).ms).scale(
+      card = card
+          .animate()
+          .fadeIn(duration: 400.ms, delay: (200 + animationDelay).ms)
+          .scale(
             begin: const Offset(0.9, 0.9),
             end: const Offset(1, 1),
             duration: 400.ms,
@@ -171,9 +174,7 @@ class KPICard extends StatelessWidget {
                   const SizedBox(width: 8),
                   if (trend != null)
                     Icon(
-                      isTrendPositive
-                          ? Icons.trending_up
-                          : Icons.trending_down,
+                      isTrendPositive ? Icons.trending_up : Icons.trending_down,
                       size: 16,
                       color: trendColor,
                     ),

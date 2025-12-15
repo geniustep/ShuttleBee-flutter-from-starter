@@ -89,7 +89,8 @@ class PassengerGroup {
           json['member_count'] as int? ?? json['passenger_count'] as int? ?? 0,
       subscriptionPrice: _extractDouble(json['subscription_price']),
       billingCycle: BillingCycle.fromString(
-          _extractString(json['billing_cycle']) ?? 'monthly'),
+        _extractString(json['billing_cycle']) ?? 'monthly',
+      ),
       autoScheduleEnabled: json['auto_schedule_enabled'] as bool? ?? true,
       autoScheduleWeeks: json['auto_schedule_weeks'] as int? ?? 1,
       autoScheduleIncludePickup:
@@ -99,6 +100,86 @@ class PassengerGroup {
       scheduleTimezone: _extractString(json['schedule_timezone']) ?? 'UTC',
     );
   }
+
+  /// Local JSON (for caching) - **not** the same as Odoo payload.
+  factory PassengerGroup.fromJson(Map<String, dynamic> json) {
+    return PassengerGroup(
+      id: json['id'] as int? ?? 0,
+      name: json['name'] as String? ?? '',
+      code: json['code'] as String?,
+      driverId: json['driver_id'] as int?,
+      driverName: json['driver_name'] as String?,
+      vehicleId: json['vehicle_id'] as int?,
+      vehicleName: json['vehicle_name'] as String?,
+      totalSeats: json['total_seats'] as int? ?? 15,
+      tripType:
+          GroupTripType.fromString(json['trip_type'] as String? ?? 'both'),
+      destinationStopId: json['destination_stop_id'] as int?,
+      destinationStopName: json['destination_stop_name'] as String?,
+      useCompanyDestination: json['use_company_destination'] as bool? ?? true,
+      destinationLatitude: (json['destination_latitude'] as num?)?.toDouble(),
+      destinationLongitude: (json['destination_longitude'] as num?)?.toDouble(),
+      color: json['color'] as int? ?? 0,
+      notes: json['notes'] as String?,
+      active: json['active'] as bool? ?? true,
+      companyId: json['company_id'] as int?,
+      companyName: json['company_name'] as String?,
+      memberCount: json['member_count'] as int? ?? 0,
+      subscriptionPrice: (json['subscription_price'] as num?)?.toDouble(),
+      billingCycle: BillingCycle.fromString(
+        json['billing_cycle'] as String? ?? 'monthly',
+      ),
+      schedules: (json['schedules'] as List<dynamic>? ?? const [])
+          .map(
+            (e) => GroupSchedule.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
+          .toList(),
+      holidays: (json['holidays'] as List<dynamic>? ?? const [])
+          .map(
+            (e) => GroupHoliday.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
+          .toList(),
+      autoScheduleEnabled: json['auto_schedule_enabled'] as bool? ?? true,
+      autoScheduleWeeks: json['auto_schedule_weeks'] as int? ?? 1,
+      autoScheduleIncludePickup:
+          json['auto_schedule_include_pickup'] as bool? ?? true,
+      autoScheduleIncludeDropoff:
+          json['auto_schedule_include_dropoff'] as bool? ?? true,
+      scheduleTimezone: json['schedule_timezone'] as String? ?? 'UTC',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'code': code,
+        'driver_id': driverId,
+        'driver_name': driverName,
+        'vehicle_id': vehicleId,
+        'vehicle_name': vehicleName,
+        'total_seats': totalSeats,
+        'trip_type': tripType.value,
+        'destination_stop_id': destinationStopId,
+        'destination_stop_name': destinationStopName,
+        'use_company_destination': useCompanyDestination,
+        'destination_latitude': destinationLatitude,
+        'destination_longitude': destinationLongitude,
+        'color': color,
+        'notes': notes,
+        'active': active,
+        'company_id': companyId,
+        'company_name': companyName,
+        'member_count': memberCount,
+        'subscription_price': subscriptionPrice,
+        'billing_cycle': billingCycle.value,
+        'schedules': schedules.map((e) => e.toJson()).toList(),
+        'holidays': holidays.map((e) => e.toJson()).toList(),
+        'auto_schedule_enabled': autoScheduleEnabled,
+        'auto_schedule_weeks': autoScheduleWeeks,
+        'auto_schedule_include_pickup': autoScheduleIncludePickup,
+        'auto_schedule_include_dropoff': autoScheduleIncludeDropoff,
+        'schedule_timezone': scheduleTimezone,
+      };
 
   Map<String, dynamic> toOdoo() {
     return {
@@ -122,7 +203,10 @@ class PassengerGroup {
       'auto_schedule_weeks': autoScheduleWeeks,
       'auto_schedule_include_pickup': autoScheduleIncludePickup,
       'auto_schedule_include_dropoff': autoScheduleIncludeDropoff,
-      'schedule_timezone': scheduleTimezone,
+      // Avoid forcing a timezone on the server when the app uses a placeholder.
+      // Odoo has smarter defaults (company/user timezone).
+      if (scheduleTimezone.trim().isNotEmpty && scheduleTimezone != 'UTC')
+        'schedule_timezone': scheduleTimezone,
     };
   }
 
@@ -314,6 +398,38 @@ class GroupSchedule {
     );
   }
 
+  factory GroupSchedule.fromJson(Map<String, dynamic> json) {
+    return GroupSchedule(
+      id: json['id'] as int? ?? 0,
+      groupId: json['group_id'] as int? ?? 0,
+      weekday: Weekday.fromString(json['weekday'] as String? ?? 'monday'),
+      pickupTime: (json['pickup_time'] as String?) == null
+          ? null
+          : DateTime.tryParse(json['pickup_time'] as String),
+      dropoffTime: (json['dropoff_time'] as String?) == null
+          ? null
+          : DateTime.tryParse(json['dropoff_time'] as String),
+      pickupTimeDisplay: json['pickup_time_display'] as String?,
+      dropoffTimeDisplay: json['dropoff_time_display'] as String?,
+      createPickup: json['create_pickup'] as bool? ?? true,
+      createDropoff: json['create_dropoff'] as bool? ?? true,
+      active: json['active'] as bool? ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'group_id': groupId,
+        'weekday': weekday.value,
+        'pickup_time': pickupTime?.toIso8601String(),
+        'dropoff_time': dropoffTime?.toIso8601String(),
+        'pickup_time_display': pickupTimeDisplay,
+        'dropoff_time_display': dropoffTimeDisplay,
+        'create_pickup': createPickup,
+        'create_dropoff': createDropoff,
+        'active': active,
+      };
+
   static int? _extractId(dynamic value) {
     if (value == null || value == false) return null;
     if (value is int) return value;
@@ -394,6 +510,26 @@ class GroupHoliday {
       active: json['active'] as bool? ?? true,
     );
   }
+
+  factory GroupHoliday.fromJson(Map<String, dynamic> json) {
+    return GroupHoliday(
+      id: json['id'] as int? ?? 0,
+      groupId: json['group_id'] as int? ?? 0,
+      name: json['name'] as String? ?? '',
+      startDate: DateTime.parse(json['start_date'] as String),
+      endDate: DateTime.parse(json['end_date'] as String),
+      active: json['active'] as bool? ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'group_id': groupId,
+        'name': name,
+        'start_date': startDate.toIso8601String(),
+        'end_date': endDate.toIso8601String(),
+        'active': active,
+      };
 
   static int? _extractId(dynamic value) {
     if (value == null || value == false) return null;

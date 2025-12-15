@@ -34,8 +34,20 @@ class RoutePaths {
   static const String dispatcherCreateGroup = '/dispatcher/groups/create';
   static const String dispatcherGroupDetail = '/dispatcher/groups/:groupId';
   static const String dispatcherEditGroup = '/dispatcher/groups/:groupId/edit';
-  static const String dispatcherGroupSchedules = '/dispatcher/groups/:groupId/schedules';
-  static const String dispatcherGroupPassengers = '/dispatcher/groups/:groupId/passengers';
+  static const String dispatcherGroupSchedules =
+      '/dispatcher/groups/:groupId/schedules';
+  static const String dispatcherGroupPassengers =
+      '/dispatcher/groups/:groupId/passengers';
+  static const String dispatcherPassengers = '/dispatcher/passengers';
+  static const String dispatcherCreatePassenger =
+      '/dispatcher/passengers/create';
+  static const String dispatcherPassengersGroupPassengers =
+      '/dispatcher/passengers/groups/:groupId';
+  static const String dispatcherPassengerDetail =
+      '/dispatcher/passengers/p/:passengerId';
+  static const String dispatcherHolidays = '/dispatcher/holidays';
+  static const String dispatcherHolidayDetail =
+      '/dispatcher/holidays/:holidayId';
 
   // === Passenger Routes ===
   static const String passengerTripTracking = '/passenger/track/:tripId';
@@ -96,6 +108,13 @@ class RouteNames {
   static const String dispatcherEditGroup = 'dispatcherEditGroup';
   static const String dispatcherGroupSchedules = 'dispatcherGroupSchedules';
   static const String dispatcherGroupPassengers = 'dispatcherGroupPassengers';
+  static const String dispatcherPassengers = 'dispatcherPassengers';
+  static const String dispatcherCreatePassenger = 'dispatcherCreatePassenger';
+  static const String dispatcherPassengersGroupPassengers =
+      'dispatcherPassengersGroupPassengers';
+  static const String dispatcherPassengerDetail = 'dispatcherPassengerDetail';
+  static const String dispatcherHolidays = 'dispatcherHolidays';
+  static const String dispatcherHolidayDetail = 'dispatcherHolidayDetail';
 
   // Passenger
   static const String passengerTripTracking = 'passengerTripTracking';

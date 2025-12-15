@@ -124,8 +124,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 prefixIcon: const Icon(Icons.person_outline),
                               ),
                               textInputAction: TextInputAction.next,
-                              validator: (v) => Validators.required(v,
-                                  fieldName: l10n.username),
+                              validator: (v) => Validators.required(
+                                v,
+                                fieldName: l10n.username,
+                              ),
                             ),
 
                             const SizedBox(height: AppDimensions.md),
@@ -152,8 +154,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               obscureText: _obscurePassword,
                               textInputAction: TextInputAction.done,
                               onFieldSubmitted: (_) => _handleLogin(),
-                              validator: (v) => Validators.required(v,
-                                  fieldName: l10n.password),
+                              validator: (v) => Validators.required(
+                                v,
+                                fieldName: l10n.password,
+                              ),
                             ),
 
                             const SizedBox(height: AppDimensions.sm),

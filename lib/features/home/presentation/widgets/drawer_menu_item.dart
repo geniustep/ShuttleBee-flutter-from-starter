@@ -42,7 +42,7 @@ class DrawerMenuItem extends StatelessWidget {
                   horizontal: AppDimensions.sm,
                   vertical: AppDimensions.xxs,
                 ),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.error,
                   borderRadius: AppDimensions.borderRadiusCircle,
                 ),

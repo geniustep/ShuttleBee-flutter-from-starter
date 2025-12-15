@@ -61,6 +61,49 @@ class ShuttleVehicle {
     );
   }
 
+  /// Local JSON (for caching) - **not** the same as Odoo payload.
+  factory ShuttleVehicle.fromJson(Map<String, dynamic> json) {
+    return ShuttleVehicle(
+      id: json['id'] as int? ?? 0,
+      name: json['name'] as String? ?? '',
+      fleetVehicleId: json['fleet_vehicle_id'] as int?,
+      fleetVehicleName: json['fleet_vehicle_name'] as String?,
+      licensePlate: json['license_plate'] as String?,
+      seatCapacity: json['seat_capacity'] as int? ?? 12,
+      driverId: json['driver_id'] as int?,
+      driverName: json['driver_name'] as String?,
+      color: json['color'] as int? ?? 0,
+      active: json['active'] as bool? ?? true,
+      note: json['note'] as String?,
+      companyId: json['company_id'] as int?,
+      companyName: json['company_name'] as String?,
+      tripCount: json['trip_count'] as int? ?? 0,
+      homeLatitude: (json['home_latitude'] as num?)?.toDouble(),
+      homeLongitude: (json['home_longitude'] as num?)?.toDouble(),
+      homeAddress: json['home_address'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'fleet_vehicle_id': fleetVehicleId,
+        'fleet_vehicle_name': fleetVehicleName,
+        'license_plate': licensePlate,
+        'seat_capacity': seatCapacity,
+        'driver_id': driverId,
+        'driver_name': driverName,
+        'color': color,
+        'active': active,
+        'note': note,
+        'company_id': companyId,
+        'company_name': companyName,
+        'trip_count': tripCount,
+        'home_latitude': homeLatitude,
+        'home_longitude': homeLongitude,
+        'home_address': homeAddress,
+      };
+
   Map<String, dynamic> toOdoo() {
     return {
       'name': name,
@@ -118,8 +161,7 @@ class ShuttleVehicle {
   bool get hasDriver => driverId != null;
 
   /// هل لديه موقع موقف محدد
-  bool get hasParkingLocation =>
-      homeLatitude != null && homeLongitude != null;
+  bool get hasParkingLocation => homeLatitude != null && homeLongitude != null;
 
   ShuttleVehicle copyWith({
     int? id,
@@ -165,4 +207,3 @@ class ShuttleVehicle {
   String toString() =>
       'ShuttleVehicle(id: $id, name: $name, plate: $licensePlate)';
 }
-

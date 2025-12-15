@@ -67,7 +67,8 @@ class OdooContextManager {
   /// Set company
   Future<void> setCompany(int companyId) async {
     _companyId = companyId;
-    await _storage.write(key: 'context_company_id', value: companyId.toString());
+    await _storage.write(
+        key: 'context_company_id', value: companyId.toString());
   }
 
   /// Set allowed companies
@@ -171,7 +172,8 @@ class OdooContextManager {
   /// Switch to another company (for multi-company support)
   Future<void> switchCompany(int companyId) async {
     if (_companyIds == null || !_companyIds!.contains(companyId)) {
-      throw StateError('Cannot switch to company $companyId. User does not have access.');
+      throw StateError(
+          'Cannot switch to company $companyId. User does not have access.');
     }
 
     await setCompany(companyId);

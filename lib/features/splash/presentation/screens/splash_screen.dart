@@ -11,7 +11,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../widgets/animated_logo.dart';
 
 /// Splash screen with smart auth handling
-/// 
+///
 /// هذه الشاشة تتعامل بذكاء مع حالات التوكن المختلفة:
 /// - authenticated: دخول مباشر للـ Home
 /// - needsRefresh: محاولة تجديد التوكن أو الدخول أوفلاين
@@ -71,7 +71,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     // Wait for auth state to be ready
     final authState = ref.read(authStateProvider);
-    
+
     if (authState.isLoading) {
       // Wait a bit more for auth check to complete
       await Future.delayed(const Duration(milliseconds: 500));
@@ -103,7 +103,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           _updateStatus('جاري تحديث الجلسة...');
           final authNotifier = ref.read(authStateProvider.notifier);
           final refreshed = await authNotifier.refreshToken();
-          
+
           if (refreshed) {
             _updateStatus('مرحباً ${auth.user?.name ?? ""}');
             await Future.delayed(const Duration(milliseconds: 300));
@@ -153,7 +153,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   void _navigateToHome({bool offlineMode = false}) {
     if (!mounted) return;
-    
+
     if (offlineMode) {
       // Show offline indicator before navigating
       ScaffoldMessenger.of(context).showSnackBar(
@@ -164,13 +164,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         ),
       );
     }
-    
+
     // Navigate to role-based home screen
     final auth = ref.read(authStateProvider).asData?.value;
     final role = auth?.user?.role;
     final homeRoute = getHomeRouteForRole(role);
-    
-    print('🚀 [SplashScreen] Navigating to: $homeRoute (role: ${role?.value ?? "null"})');
+
+    print(
+        '🚀 [SplashScreen] Navigating to: $homeRoute (role: ${role?.value ?? "null"})');
     context.go(homeRoute);
   }
 

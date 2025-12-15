@@ -136,14 +136,16 @@ class BridgeCoreTriggerService {
 
     _triggers[id] = trigger;
 
-    _eventBus.emit(BusEvent.custom(
-      eventName: 'trigger.created',
-      data: {
-        'trigger_id': id,
-        'name': name,
-        'model': model,
-      },
-    ));
+    _eventBus.emit(
+      BusEvent.custom(
+        eventName: 'trigger.created',
+        data: {
+          'trigger_id': id,
+          'name': name,
+          'model': model,
+        },
+      ),
+    );
 
     AppLogger.info('Trigger created: $name ($id)');
 
@@ -288,10 +290,12 @@ class BridgeCoreTriggerService {
 
     _triggers[triggerId] = updated;
 
-    _eventBus.emit(BusEvent.custom(
-      eventName: isEnabled ? 'trigger.enabled' : 'trigger.disabled',
-      data: {'trigger_id': triggerId, 'name': updated.name},
-    ));
+    _eventBus.emit(
+      BusEvent.custom(
+        eventName: isEnabled ? 'trigger.enabled' : 'trigger.disabled',
+        data: {'trigger_id': triggerId, 'name': updated.name},
+      ),
+    );
 
     AppLogger.info(
       'Trigger ${isEnabled ? 'enabled' : 'disabled'}: ${updated.name} ($triggerId)',
@@ -307,10 +311,12 @@ class BridgeCoreTriggerService {
     final removed = _triggers.remove(triggerId);
 
     if (removed != null) {
-      _eventBus.emit(BusEvent.custom(
-        eventName: 'trigger.deleted',
-        data: {'trigger_id': triggerId},
-      ));
+      _eventBus.emit(
+        BusEvent.custom(
+          eventName: 'trigger.deleted',
+          data: {'trigger_id': triggerId},
+        ),
+      );
 
       AppLogger.info('Trigger deleted: $triggerId');
       return true;
@@ -336,15 +342,17 @@ class BridgeCoreTriggerService {
       return {'success': false, 'error': 'Trigger not found'};
     }
 
-    _eventBus.emit(BusEvent.custom(
-      eventName: 'trigger.executed',
-      data: {
-        'trigger_id': triggerId,
-        'success': true,
-        'records_affected': recordIds?.length ?? 0,
-        'test_mode': testMode,
-      },
-    ));
+    _eventBus.emit(
+      BusEvent.custom(
+        eventName: 'trigger.executed',
+        data: {
+          'trigger_id': triggerId,
+          'success': true,
+          'records_affected': recordIds?.length ?? 0,
+          'test_mode': testMode,
+        },
+      ),
+    );
 
     AppLogger.info('Trigger executed: $triggerId');
 

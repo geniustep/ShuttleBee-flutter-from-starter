@@ -110,6 +110,14 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen>
           },
         ),
         HeroHeaderAction(
+          icon: Icons.settings_rounded,
+          tooltip: 'الإعدادات',
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            context.push(RoutePaths.settings);
+          },
+        ),
+        HeroHeaderAction(
           icon: Icons.notifications_rounded,
           tooltip: 'الإشعارات',
           onPressed: () {
@@ -129,10 +137,12 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen>
   SliverList _buildTripsContent(List<Trip> trips) {
     final today = DateTime.now();
     final todayTrips = trips
-        .where((t) =>
-            t.date.year == today.year &&
-            t.date.month == today.month &&
-            t.date.day == today.day)
+        .where(
+          (t) =>
+              t.date.year == today.year &&
+              t.date.month == today.month &&
+              t.date.day == today.day,
+        )
         .toList();
     final upcomingTrips = trips.where((t) => t.date.isAfter(today)).toList();
     final activeTrip = trips.where((t) => t.state.isOngoing).firstOrNull;
@@ -161,8 +171,9 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen>
             AppColors.primary,
           ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
           const SizedBox(height: 12),
-          ...todayTrips.asMap().entries.map((entry) =>
-              _buildTripCard(entry.value, entry.key)),
+          ...todayTrips.asMap().entries.map(
+                (entry) => _buildTripCard(entry.value, entry.key),
+              ),
           const SizedBox(height: 24),
         ],
 
@@ -175,8 +186,10 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen>
             AppColors.warning,
           ).animate().fadeIn(duration: 400.ms, delay: 250.ms),
           const SizedBox(height: 12),
-          ...upcomingTrips.take(5).toList().asMap().entries.map((entry) =>
-              _buildTripCard(entry.value, entry.key + todayTrips.length)),
+          ...upcomingTrips.take(5).toList().asMap().entries.map(
+                (entry) =>
+                    _buildTripCard(entry.value, entry.key + todayTrips.length),
+              ),
           const SizedBox(height: 24),
         ],
 
@@ -313,7 +326,10 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen>
                                   ),
                                 ],
                               ),
-                            ).animate(onPlay: (c) => c.repeat()).fadeIn(duration: 500.ms).fadeOut(duration: 500.ms),
+                            )
+                                .animate(onPlay: (c) => c.repeat())
+                                .fadeIn(duration: 500.ms)
+                                .fadeOut(duration: 500.ms),
                             const SizedBox(width: 8),
                             Text(
                               'الرحلة جارية الآن',
@@ -485,7 +501,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen>
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.calendar_today_rounded,
                             size: 14,
                             color: AppColors.textSecondary,
@@ -501,7 +517,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen>
                           ),
                           const SizedBox(width: 12),
                           if (trip.plannedStartTime != null) ...[
-                            Icon(
+                            const Icon(
                               Icons.access_time_rounded,
                               size: 14,
                               color: AppColors.textSecondary,

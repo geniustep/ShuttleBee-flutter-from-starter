@@ -13,14 +13,16 @@ class OnboardingScreen extends StatelessWidget {
       pages: [
         PageViewModel(
           title: "Welcome to BridgeCore",
-          body: "Your complete business management solution powered by Odoo ERP",
+          body:
+              "Your complete business management solution powered by Odoo ERP",
           image: Center(
             child: Lottie.asset(
               'assets/lottie/welcome.json',
               width: 300,
               height: 300,
               errorBuilder: (context, error, stackTrace) {
-                return const Icon(Icons.business, size: 200, color: Colors.blue);
+                return const Icon(Icons.business,
+                    size: 200, color: Colors.blue);
               },
             ),
           ),
@@ -28,14 +30,16 @@ class OnboardingScreen extends StatelessWidget {
         ),
         PageViewModel(
           title: "Offline First",
-          body: "Work seamlessly even without internet connection. Your data syncs automatically when online.",
+          body:
+              "Work seamlessly even without internet connection. Your data syncs automatically when online.",
           image: Center(
             child: Lottie.asset(
               'assets/lottie/offline.json',
               width: 300,
               height: 300,
               errorBuilder: (context, error, stackTrace) {
-                return const Icon(Icons.cloud_off, size: 200, color: Colors.blue);
+                return const Icon(Icons.cloud_off,
+                    size: 200, color: Colors.blue);
               },
             ),
           ),
@@ -43,7 +47,8 @@ class OnboardingScreen extends StatelessWidget {
         ),
         PageViewModel(
           title: "Real-time Updates",
-          body: "Stay connected with real-time notifications and live data updates.",
+          body:
+              "Stay connected with real-time notifications and live data updates.",
           image: Center(
             child: Lottie.asset(
               'assets/lottie/realtime.json',
@@ -58,14 +63,16 @@ class OnboardingScreen extends StatelessWidget {
         ),
         PageViewModel(
           title: "Multi-Company Support",
-          body: "Manage multiple companies with ease. Switch between companies seamlessly.",
+          body:
+              "Manage multiple companies with ease. Switch between companies seamlessly.",
           image: Center(
             child: Lottie.asset(
               'assets/lottie/company.json',
               width: 300,
               height: 300,
               errorBuilder: (context, error, stackTrace) {
-                return const Icon(Icons.business_center, size: 200, color: Colors.blue);
+                return const Icon(Icons.business_center,
+                    size: 200, color: Colors.blue);
               },
             ),
           ),
@@ -73,14 +80,16 @@ class OnboardingScreen extends StatelessWidget {
         ),
         PageViewModel(
           title: "Secure & Biometric",
-          body: "Your data is secure with encryption and biometric authentication support.",
+          body:
+              "Your data is secure with encryption and biometric authentication support.",
           image: Center(
             child: Lottie.asset(
               'assets/lottie/security.json',
               width: 300,
               height: 300,
               errorBuilder: (context, error, stackTrace) {
-                return const Icon(Icons.security, size: 200, color: Colors.blue);
+                return const Icon(Icons.security,
+                    size: 200, color: Colors.blue);
               },
             ),
           ),
@@ -92,14 +101,16 @@ class OnboardingScreen extends StatelessWidget {
       showSkipButton: true,
       skip: const Text('Skip', style: TextStyle(fontWeight: FontWeight.w600)),
       next: const Icon(Icons.arrow_forward),
-      done: const Text('Get Started', style: TextStyle(fontWeight: FontWeight.w600)),
+      done: const Text('Get Started',
+          style: TextStyle(fontWeight: FontWeight.w600)),
       dotsDecorator: _getDotsDecorator(),
       globalBackgroundColor: Theme.of(context).scaffoldBackgroundColor,
     );
   }
 
   void _onDone(BuildContext context) async {
-    await PrefsStorageService.instance.write(key: 'onboarding_completed', value: true);
+    await PrefsStorageService.instance
+        .write(key: 'onboarding_completed', value: true);
     if (context.mounted) {
       context.go('/login');
     }

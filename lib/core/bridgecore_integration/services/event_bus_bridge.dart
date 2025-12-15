@@ -157,29 +157,35 @@ class EventBusBridge {
 
   /// Listen to all sync events
   Stream<BusEvent> get onSyncEvents {
-    return _localEventBus.events.where((event) =>
-        event.type == EventType.syncStarted ||
-        event.type == EventType.syncCompleted ||
-        event.type == EventType.syncFailed);
+    return _localEventBus.events.where(
+      (event) =>
+          event.type == EventType.syncStarted ||
+          event.type == EventType.syncCompleted ||
+          event.type == EventType.syncFailed,
+    );
   }
 
   /// Listen to all auth events
   Stream<BusEvent> get onAuthEvents {
-    return _localEventBus.events.where((event) =>
-        event.type == EventType.userLogin ||
-        event.type == EventType.userLogout ||
-        event.type == EventType.userUpdated);
+    return _localEventBus.events.where(
+      (event) =>
+          event.type == EventType.userLogin ||
+          event.type == EventType.userLogout ||
+          event.type == EventType.userUpdated,
+    );
   }
 
   /// Listen to all Odoo record events
   Stream<BusEvent> get onRecordEvents {
-    return _localEventBus.events.where((event) =>
-        event.type == EventType.recordCreated ||
-        event.type == EventType.recordUpdated ||
-        event.type == EventType.recordDeleted ||
-        event.type == EventType.recordValidated ||
-        event.type == EventType.recordApproved ||
-        event.type == EventType.recordRejected);
+    return _localEventBus.events.where(
+      (event) =>
+          event.type == EventType.recordCreated ||
+          event.type == EventType.recordUpdated ||
+          event.type == EventType.recordDeleted ||
+          event.type == EventType.recordValidated ||
+          event.type == EventType.recordApproved ||
+          event.type == EventType.recordRejected,
+    );
   }
 
   /// Listen to Odoo record events for a specific model
@@ -202,8 +208,11 @@ class EventBusBridge {
   }
 
   /// Emit BridgeCore event
-  void emitBridgeCore(String type, Map<String, dynamic> data,
-      {String? source}) {
+  void emitBridgeCore(
+    String type,
+    Map<String, dynamic> data, {
+    String? source,
+  }) {
     final event = BridgeCoreEventModel(
       type: type,
       data: data,
@@ -225,12 +234,14 @@ class EventBusBridge {
     Map<String, dynamic>? data,
   }) {
     // Emit to local
-    _localEventBus.emit(BusEvent(
-      type: localType,
-      model: model,
-      recordId: recordId,
-      data: data,
-    ));
+    _localEventBus.emit(
+      BusEvent(
+        type: localType,
+        model: model,
+        recordId: recordId,
+        data: data,
+      ),
+    );
 
     // Emit to BridgeCore
     emitBridgeCore(

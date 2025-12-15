@@ -196,11 +196,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
         tabs: const [
           Tab(text: 'الكل', icon: Icon(Icons.inbox_rounded, size: 20)),
           Tab(
-              text: 'غير مقروءة',
-              icon: Icon(Icons.mark_email_unread_rounded, size: 20)),
+            text: 'غير مقروءة',
+            icon: Icon(Icons.mark_email_unread_rounded, size: 20),
+          ),
           Tab(
-              text: 'مقروءة',
-              icon: Icon(Icons.mark_email_read_rounded, size: 20)),
+            text: 'مقروءة',
+            icon: Icon(Icons.mark_email_read_rounded, size: 20),
+          ),
         ],
       ),
     );
@@ -215,9 +217,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
 
         // تصفية حسب حالة القراءة
         if (isReadFilter != null) {
-          filteredNotifications = notifications
-              .where((n) => n.isRead == isReadFilter)
-              .toList();
+          filteredNotifications =
+              notifications.where((n) => n.isRead == isReadFilter).toList();
         }
 
         if (filteredNotifications.isEmpty) {
@@ -233,7 +234,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
             itemCount: filteredNotifications.length,
             itemBuilder: (context, index) {
               return _buildNotificationCard(
-                  filteredNotifications[index], index);
+                filteredNotifications[index],
+                index,
+              );
             },
           ),
         );
@@ -333,8 +336,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                               notification.notificationType.arabicLabel,
                               style: TextStyle(
                                 fontSize: 14,
-                                fontWeight:
-                                    isRead ? FontWeight.normal : FontWeight.bold,
+                                fontWeight: isRead
+                                    ? FontWeight.normal
+                                    : FontWeight.bold,
                                 fontFamily: 'Cairo',
                               ),
                             ),
@@ -571,7 +575,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
   void _markAllAsRead() async {
     final notifications =
         ref.read(passengerNotificationsProvider).asData?.value ?? [];
-    final unreadIds = notifications.where((n) => !n.isRead).map((n) => n.id).toList();
+    final unreadIds =
+        notifications.where((n) => !n.isRead).map((n) => n.id).toList();
 
     if (unreadIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

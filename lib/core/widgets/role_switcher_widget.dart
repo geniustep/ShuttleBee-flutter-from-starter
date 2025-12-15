@@ -12,7 +12,14 @@ import '../../features/auth/presentation/providers/auth_provider.dart';
 
 /// Role Switcher Widget - عنصر التبديل بين الأدوار
 class RoleSwitcherWidget extends ConsumerWidget {
-  const RoleSwitcherWidget({super.key});
+  const RoleSwitcherWidget({
+    super.key,
+    this.allowedRoles,
+  });
+
+  /// Optional hard filter for roles to show in this widget.
+  /// Useful for pages like Manager Home where you want Manager <-> Dispatcher only.
+  final Set<UserRole>? allowedRoles;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,7 +32,11 @@ class RoleSwitcherWidget extends ConsumerWidget {
     final currentRole = activeRole ?? user.role;
 
     final roleSwitcher = ref.watch(roleSwitcherServiceProvider);
-    final availableRoles = roleSwitcher.getAvailableRoles(user);
+    var availableRoles = roleSwitcher.getAvailableRoles(user);
+    if (allowedRoles != null) {
+      availableRoles =
+          availableRoles.where((r) => allowedRoles!.contains(r)).toList();
+    }
 
     // إذا كان هناك دور واحد فقط، لا نعرض المبدل
     if (availableRoles.length <= 1) {
@@ -53,7 +64,7 @@ class RoleSwitcherWidget extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.swap_horiz,
                 size: 20,
                 color: AppColors.primary,
@@ -154,7 +165,7 @@ class RoleSwitcherWidget extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.info_outline,
                     size: 16,
                     color: AppColors.warning,
@@ -239,7 +250,13 @@ class RoleSwitcherWidget extends ConsumerWidget {
 
 /// Role Switcher Button (للاستخدام في AppBar)
 class RoleSwitcherButton extends ConsumerWidget {
-  const RoleSwitcherButton({super.key});
+  const RoleSwitcherButton({
+    super.key,
+    this.allowedRoles,
+  });
+
+  /// Optional hard filter for roles to show in the bottom sheet.
+  final Set<UserRole>? allowedRoles;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -252,7 +269,11 @@ class RoleSwitcherButton extends ConsumerWidget {
     final currentRole = activeRole ?? user.role;
 
     final roleSwitcher = ref.watch(roleSwitcherServiceProvider);
-    final availableRoles = roleSwitcher.getAvailableRoles(user);
+    var availableRoles = roleSwitcher.getAvailableRoles(user);
+    if (allowedRoles != null) {
+      availableRoles =
+          availableRoles.where((r) => allowedRoles!.contains(r)).toList();
+    }
 
     if (availableRoles.length <= 1) {
       return const SizedBox.shrink();
@@ -287,7 +308,8 @@ class RoleSwitcherButton extends ConsumerWidget {
       onPressed: () {
         showModalBottomSheet(
           context: context,
-          builder: (context) => const RoleSwitcherBottomSheet(),
+          builder: (context) =>
+              RoleSwitcherBottomSheet(allowedRoles: allowedRoles),
         );
       },
     );
@@ -296,7 +318,12 @@ class RoleSwitcherButton extends ConsumerWidget {
 
 /// Bottom Sheet للاختيار السريع
 class RoleSwitcherBottomSheet extends ConsumerWidget {
-  const RoleSwitcherBottomSheet({super.key});
+  const RoleSwitcherBottomSheet({
+    super.key,
+    this.allowedRoles,
+  });
+
+  final Set<UserRole>? allowedRoles;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -309,7 +336,11 @@ class RoleSwitcherBottomSheet extends ConsumerWidget {
     final currentRole = activeRole ?? user.role;
 
     final roleSwitcher = ref.watch(roleSwitcherServiceProvider);
-    final availableRoles = roleSwitcher.getAvailableRoles(user);
+    var availableRoles = roleSwitcher.getAvailableRoles(user);
+    if (allowedRoles != null) {
+      availableRoles =
+          availableRoles.where((r) => allowedRoles!.contains(r)).toList();
+    }
 
     return Container(
       padding: const EdgeInsets.all(AppDimensions.lg),
@@ -317,10 +348,10 @@ class RoleSwitcherBottomSheet extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.swap_horiz, color: AppColors.primary),
-              const SizedBox(width: AppDimensions.sm),
+              SizedBox(width: AppDimensions.sm),
               Text('تبديل العرض', style: AppTypography.h5),
             ],
           ),
@@ -359,7 +390,7 @@ class RoleSwitcherBottomSheet extends ConsumerWidget {
                 ],
               ),
               trailing: isActive
-                  ? Icon(Icons.check_circle, color: AppColors.primary)
+                  ? const Icon(Icons.check_circle, color: AppColors.primary)
                   : null,
               selected: isActive,
               onTap: isActive

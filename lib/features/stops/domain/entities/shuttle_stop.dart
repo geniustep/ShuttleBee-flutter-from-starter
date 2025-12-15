@@ -186,7 +186,8 @@ class ShuttleStop {
   }
 
   @override
-  String toString() => 'ShuttleStop(id: $id, name: $name, type: ${stopType.value})';
+  String toString() =>
+      'ShuttleStop(id: $id, name: $name, type: ${stopType.value})';
 }
 
 /// نوع نقطة التوقف
@@ -239,4 +240,3 @@ class StopSuggestion {
     return '${distanceKm.toStringAsFixed(1)} كم';
   }
 }
-

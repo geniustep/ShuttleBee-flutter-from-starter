@@ -225,10 +225,12 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
         if (_searchQuery.isNotEmpty) {
           final query = _searchQuery.toLowerCase();
           filteredVehicles = vehicles
-              .where((v) =>
-                  v.name.toLowerCase().contains(query) ||
-                  (v.licensePlate?.toLowerCase().contains(query) ?? false) ||
-                  (v.driverName?.toLowerCase().contains(query) ?? false))
+              .where(
+                (v) =>
+                    v.name.toLowerCase().contains(query) ||
+                    (v.licensePlate?.toLowerCase().contains(query) ?? false) ||
+                    (v.driverName?.toLowerCase().contains(query) ?? false),
+              )
               .toList();
         }
 
@@ -792,8 +794,12 @@ class _VehicleDetailsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value,
-      {bool isWarning = false}) {
+  Widget _buildDetailRow(
+    IconData icon,
+    String label,
+    String value, {
+    bool isWarning = false,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -837,7 +843,7 @@ class _VehicleDetailsSheet extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
+            const Icon(
               Icons.local_parking_rounded,
               size: 20,
               color: AppColors.primary,
@@ -884,4 +890,3 @@ class _VehicleDetailsSheet extends StatelessWidget {
     );
   }
 }
-

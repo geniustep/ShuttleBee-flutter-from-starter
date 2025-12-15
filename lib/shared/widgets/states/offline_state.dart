@@ -24,7 +24,7 @@ class OfflineState extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(AppDimensions.lg),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.warningLight,
                 shape: BoxShape.circle,
               ),

@@ -131,7 +131,8 @@ class EventBusService {
 
   /// Emit an event to all listeners
   void emit(BusEvent event) {
-    AppLogger.debug('EventBus: Emitting event: ${event.type} for ${event.model}');
+    AppLogger.debug(
+        'EventBus: Emitting event: ${event.type} for ${event.model}');
     _eventController.add(event);
 
     // Also emit to specific streams
@@ -280,7 +281,8 @@ class TriggerService {
   void _handleEvent(BusEvent event) {
     for (final trigger in _triggers.values) {
       if (trigger.enabled && trigger.condition.matches(event)) {
-        AppLogger.debug('Executing trigger: ${trigger.id} for event: ${event.type}');
+        AppLogger.debug(
+            'Executing trigger: ${trigger.id} for event: ${event.type}');
         trigger.action(event).catchError((error) {
           AppLogger.error('Trigger ${trigger.id} failed: $error');
         });

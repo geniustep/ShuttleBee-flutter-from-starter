@@ -20,6 +20,13 @@ class AppColors {
   static const Color onSecondary = Color(0xFFFFFFFF);
   static const Color onSecondaryContainer = Color(0xFFE65100);
 
+  // === Role Colors (ShuttleBee) ===
+  // Dispatcher palette (Purple)
+  static const Color dispatcherPrimary = Color(0xFF7B1FA2);
+  static const Color dispatcherPrimaryDark = Color(0xFF4A148C);
+  static const Color dispatcherPrimaryMid = Color(0xFF6A1B9A);
+  static const Color dispatcherPrimaryLight = Color(0xFF9C27B0);
+
   // === Neutral Colors ===
   static const Color background = Color(0xFFFAFAFA);
   static const Color surface = Color(0xFFFFFFFF);
@@ -136,5 +143,11 @@ class AppColors {
     colors: [surface, surfaceVariant],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
+  );
+
+  static const LinearGradient dispatcherGradient = LinearGradient(
+    colors: [dispatcherPrimary, dispatcherPrimaryMid, dispatcherPrimaryDark],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
   );
 }

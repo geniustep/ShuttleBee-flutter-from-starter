@@ -24,11 +24,13 @@ class TripRepositoryImpl extends BaseRepository implements TripRepository {
     DateTime date, {
     List<TripState>? states,
   }) async {
-    return execute(() => _remoteDataSource.getDriverTrips(
-          driverId,
-          date,
-          states: states,
-        ));
+    return execute(
+      () => _remoteDataSource.getDriverTrips(
+        driverId,
+        date,
+        states: states,
+      ),
+    );
   }
 
   @override
@@ -52,16 +54,18 @@ class TripRepositoryImpl extends BaseRepository implements TripRepository {
     int limit = 50,
     int offset = 0,
   }) async {
-    return execute(() => _remoteDataSource.getTrips(
-          state: state,
-          tripType: tripType,
-          fromDate: fromDate,
-          toDate: toDate,
-          driverId: driverId,
-          vehicleId: vehicleId,
-          limit: limit,
-          offset: offset,
-        ));
+    return execute(
+      () => _remoteDataSource.getTrips(
+        state: state,
+        tripType: tripType,
+        fromDate: fromDate,
+        toDate: toDate,
+        driverId: driverId,
+        vehicleId: vehicleId,
+        limit: limit,
+        offset: offset,
+      ),
+    );
   }
 
   @override
@@ -75,8 +79,22 @@ class TripRepositoryImpl extends BaseRepository implements TripRepository {
   }
 
   @override
-  Future<Either<Failure, Trip>> confirmTrip(int tripId) async {
-    return execute(() => _remoteDataSource.confirmTrip(tripId));
+  Future<Either<Failure, Trip>> confirmTrip(
+    int tripId, {
+    double? latitude,
+    double? longitude,
+    int? stopId,
+    String? note,
+  }) async {
+    return execute(
+      () => _remoteDataSource.confirmTrip(
+        tripId,
+        latitude: latitude,
+        longitude: longitude,
+        stopId: stopId,
+        note: note,
+      ),
+    );
   }
 
   @override
@@ -100,7 +118,8 @@ class TripRepositoryImpl extends BaseRepository implements TripRepository {
     TripLineStatus status,
   ) async {
     return execute(
-        () => _remoteDataSource.updatePassengerStatus(tripLineId, status));
+      () => _remoteDataSource.updatePassengerStatus(tripLineId, status),
+    );
   }
 
   @override
@@ -120,21 +139,25 @@ class TripRepositoryImpl extends BaseRepository implements TripRepository {
 
   @override
   Future<Either<Failure, TripLine>> resetPassengerToPlanned(
-      int tripLineId) async {
+    int tripLineId,
+  ) async {
     return execute(() => _remoteDataSource.resetPassengerToPlanned(tripLineId));
   }
 
   @override
   Future<Either<Failure, TripDashboardStats>> getDashboardStats(
-      DateTime date) async {
+    DateTime date,
+  ) async {
     return execute(() => _remoteDataSource.getDashboardStats(date));
   }
 
   @override
   Future<Either<Failure, ManagerAnalytics>> getManagerAnalytics() async {
-    return const Right(ManagerAnalytics(
-      totalTripsThisMonth: 100,
-    ));
+    return const Right(
+      ManagerAnalytics(
+        totalTripsThisMonth: 100,
+      ),
+    );
     // return execute(() => _remoteDataSource.getManagerAnalytics());
   }
 }

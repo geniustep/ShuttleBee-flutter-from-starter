@@ -78,7 +78,8 @@ class ProductProduct implements OdooModelBase {
       ];
 
   @override
-  String? get displayName => defaultCode != null ? '[$defaultCode] $name' : name;
+  String? get displayName =>
+      defaultCode != null ? '[$defaultCode] $name' : name;
 
   factory ProductProduct.fromJson(Map<String, dynamic> json) {
     return ProductProduct(

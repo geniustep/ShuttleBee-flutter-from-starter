@@ -8,6 +8,7 @@ import 'package:bridgecore_flutter_starter/core/data/datasources/local_data_sour
 import 'package:bridgecore_flutter_starter/core/error/failures.dart';
 
 class MockAuthRemoteDataSource extends Mock implements AuthRemoteDataSource {}
+
 class MockCacheDataSource extends Mock implements CacheDataSource {}
 
 void main() {
@@ -49,16 +50,20 @@ void main() {
         ),
       );
 
-      when(() => mockRemoteDataSource.login(
-            email: tEmail,
-            password: tPassword,
-          )).thenAnswer((_) async => tSession);
+      when(
+        () => mockRemoteDataSource.login(
+          email: tEmail,
+          password: tPassword,
+        ),
+      ).thenAnswer((_) async => tSession);
 
-      when(() => mockCacheDataSource.save(
-            key: any(named: 'key'),
-            data: any(named: 'data'),
-            ttl: any(named: 'ttl'),
-          )).thenAnswer((_) async => Future.value());
+      when(
+        () => mockCacheDataSource.save(
+          key: any(named: 'key'),
+          data: any(named: 'data'),
+          ttl: any(named: 'ttl'),
+        ),
+      ).thenAnswer((_) async => Future.value());
 
       // Act
       final result = await repository.login(
@@ -68,18 +73,22 @@ void main() {
 
       // Assert
       expect(result, equals(Right(tSession)));
-      verify(() => mockRemoteDataSource.login(
-            email: tEmail,
-            password: tPassword,
-          )).called(1);
+      verify(
+        () => mockRemoteDataSource.login(
+          email: tEmail,
+          password: tPassword,
+        ),
+      ).called(1);
     });
 
     test('should return AuthFailure when login fails', () async {
       // Arrange
-      when(() => mockRemoteDataSource.login(
-            email: tEmail,
-            password: tPassword,
-          )).thenThrow(AuthException('Invalid credentials'));
+      when(
+        () => mockRemoteDataSource.login(
+          email: tEmail,
+          password: tPassword,
+        ),
+      ).thenThrow(AuthException('Invalid credentials'));
 
       // Act
       final result = await repository.login(

@@ -7,6 +7,7 @@ import 'package:logger/logger.dart';
 import '../core/storage/hive_service.dart';
 import '../core/storage/prefs_service.dart';
 import '../core/storage/secure_storage_service.dart';
+import '../core/services/vehicle_heartbeat_background_service.dart';
 
 /// Handles all app initialization tasks
 class AppInitializer {
@@ -25,6 +26,9 @@ class AppInitializer {
 
       // Initialize BridgeCore client
       await _initializeBridgeCoreClient();
+
+      // Initialize Android foreground-task service (vehicle heartbeat)
+      await VehicleHeartbeatBackgroundService.initialize();
 
       _logger.i('App initialization completed successfully');
     } catch (e, stackTrace) {
@@ -77,13 +81,13 @@ class AppInitializer {
   }
 
   /// Initialize BridgeCore services after user login
-  /// 
+  ///
   /// This should be called after successful login to enable:
   /// - Smart sync
   /// - Server-side triggers
   /// - Push notifications
   /// - Event bus bridging
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// // After successful login

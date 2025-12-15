@@ -146,8 +146,11 @@ class Formatters {
   }
 
   /// Truncate text with ellipsis
-  static String truncate(String? text, int maxLength,
-      {String ellipsis = '...'}) {
+  static String truncate(
+    String? text,
+    int maxLength, {
+    String ellipsis = '...',
+  }) {
     if (text == null || text.isEmpty) return '';
     if (text.length <= maxLength) return text;
     return '${text.substring(0, maxLength - ellipsis.length)}$ellipsis';

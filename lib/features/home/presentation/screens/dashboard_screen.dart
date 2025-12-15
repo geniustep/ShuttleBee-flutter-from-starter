@@ -24,7 +24,7 @@ class DashboardScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // KPI Cards
-            Row(
+            const Row(
               children: [
                 Expanded(
                   child: _KPICard(
@@ -36,7 +36,7 @@ class DashboardScreen extends ConsumerWidget {
                     color: AppColors.success,
                   ),
                 ),
-                const SizedBox(width: AppDimensions.md),
+                SizedBox(width: AppDimensions.md),
                 Expanded(
                   child: _KPICard(
                     title: 'Orders',
@@ -52,7 +52,7 @@ class DashboardScreen extends ConsumerWidget {
 
             const SizedBox(height: AppDimensions.md),
 
-            Row(
+            const Row(
               children: [
                 Expanded(
                   child: _KPICard(
@@ -64,7 +64,7 @@ class DashboardScreen extends ConsumerWidget {
                     color: AppColors.secondary,
                   ),
                 ),
-                const SizedBox(width: AppDimensions.md),
+                SizedBox(width: AppDimensions.md),
                 Expanded(
                   child: _KPICard(
                     title: 'Pending',
@@ -204,7 +204,8 @@ class _SalesChart extends StatelessWidget {
             gridData: const FlGridData(show: false),
             titlesData: const FlTitlesData(
               leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles:
+                  AxisTitles(sideTitles: SideTitles(showTitles: false)),
               topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
               bottomTitles: AxisTitles(
                 sideTitles: SideTitles(
@@ -335,16 +336,16 @@ class _OrderStatusChart extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppDimensions.md),
-            Column(
+            const Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _LegendItem(color: AppColors.success, label: 'Completed'),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 _LegendItem(color: AppColors.primary, label: 'Processing'),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 _LegendItem(color: AppColors.warning, label: 'Pending'),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 _LegendItem(color: AppColors.error, label: 'Cancelled'),
               ],
             ),

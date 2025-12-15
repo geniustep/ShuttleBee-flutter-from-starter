@@ -138,6 +138,7 @@ class GroupActionsNotifier extends Notifier<AsyncValue<void>> {
     DateTime? dropoffTime,
     bool createPickup = true,
     bool createDropoff = true,
+    bool active = true,
   }) async {
     final dataSource = _dataSource;
     if (dataSource == null) return null;
@@ -150,6 +151,7 @@ class GroupActionsNotifier extends Notifier<AsyncValue<void>> {
         dropoffTime: dropoffTime,
         createPickup: createPickup,
         createDropoff: createDropoff,
+        active: active,
       );
 
       ref.invalidate(groupSchedulesProvider(groupId));
@@ -173,6 +175,23 @@ class GroupActionsNotifier extends Notifier<AsyncValue<void>> {
       }
       return success;
     } catch (e) {
+      return false;
+    }
+  }
+
+  /// تحديث جدول
+  Future<bool> updateSchedule(GroupSchedule schedule) async {
+    final dataSource = _dataSource;
+    if (dataSource == null) return false;
+
+    try {
+      final ok = await dataSource.updateSchedule(schedule);
+      if (ok) {
+        ref.invalidate(groupSchedulesProvider(schedule.groupId));
+        ref.invalidate(groupByIdProvider(schedule.groupId));
+      }
+      return ok;
+    } catch (_) {
       return false;
     }
   }
@@ -221,15 +240,28 @@ class GroupActionsNotifier extends Notifier<AsyncValue<void>> {
   }
 
   /// توليد رحلات من الجدول
-  Future<int> generateTrips(int groupId, {int weeks = 1}) async {
+  Future<int> generateTrips(
+    int groupId, {
+    int weeks = 1,
+    DateTime? startDate,
+    bool includePickup = true,
+    bool includeDropoff = true,
+    bool limitToWeek = false,
+  }) async {
     final dataSource = _dataSource;
     if (dataSource == null) return 0;
 
     state = const AsyncValue.loading();
 
     try {
-      final count =
-          await dataSource.generateTripsFromSchedule(groupId, weeks: weeks);
+      final count = await dataSource.generateTripsFromSchedule(
+        groupId,
+        weeks: weeks,
+        startDate: startDate,
+        includePickup: includePickup,
+        includeDropoff: includeDropoff,
+        limitToWeek: limitToWeek,
+      );
       state = const AsyncValue.data(null);
       return count;
     } catch (e, st) {
@@ -244,4 +276,3 @@ final groupActionsProvider =
     NotifierProvider<GroupActionsNotifier, AsyncValue<void>>(() {
   return GroupActionsNotifier();
 });
-

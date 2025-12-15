@@ -24,20 +24,29 @@ class AppDimensions {
   static const EdgeInsets paddingXl = EdgeInsets.all(xl);
 
   // === Horizontal Padding ===
-  static const EdgeInsets paddingHorizontalXs = EdgeInsets.symmetric(horizontal: xs);
-  static const EdgeInsets paddingHorizontalSm = EdgeInsets.symmetric(horizontal: sm);
-  static const EdgeInsets paddingHorizontalMd = EdgeInsets.symmetric(horizontal: md);
-  static const EdgeInsets paddingHorizontalLg = EdgeInsets.symmetric(horizontal: lg);
+  static const EdgeInsets paddingHorizontalXs =
+      EdgeInsets.symmetric(horizontal: xs);
+  static const EdgeInsets paddingHorizontalSm =
+      EdgeInsets.symmetric(horizontal: sm);
+  static const EdgeInsets paddingHorizontalMd =
+      EdgeInsets.symmetric(horizontal: md);
+  static const EdgeInsets paddingHorizontalLg =
+      EdgeInsets.symmetric(horizontal: lg);
 
   // === Vertical Padding ===
-  static const EdgeInsets paddingVerticalXs = EdgeInsets.symmetric(vertical: xs);
-  static const EdgeInsets paddingVerticalSm = EdgeInsets.symmetric(vertical: sm);
-  static const EdgeInsets paddingVerticalMd = EdgeInsets.symmetric(vertical: md);
-  static const EdgeInsets paddingVerticalLg = EdgeInsets.symmetric(vertical: lg);
+  static const EdgeInsets paddingVerticalXs =
+      EdgeInsets.symmetric(vertical: xs);
+  static const EdgeInsets paddingVerticalSm =
+      EdgeInsets.symmetric(vertical: sm);
+  static const EdgeInsets paddingVerticalMd =
+      EdgeInsets.symmetric(vertical: md);
+  static const EdgeInsets paddingVerticalLg =
+      EdgeInsets.symmetric(vertical: lg);
 
   // === Screen Padding ===
   static const EdgeInsets screenPadding = EdgeInsets.all(md);
-  static const EdgeInsets screenPaddingHorizontal = EdgeInsets.symmetric(horizontal: md);
+  static const EdgeInsets screenPaddingHorizontal =
+      EdgeInsets.symmetric(horizontal: md);
 
   // === Border Radius ===
   static const double radiusXxs = 2.0;
@@ -49,12 +58,18 @@ class AppDimensions {
   static const double radiusCircle = 9999.0;
 
   // === Border Radius Objects ===
-  static const BorderRadius borderRadiusXs = BorderRadius.all(Radius.circular(radiusXs));
-  static const BorderRadius borderRadiusSm = BorderRadius.all(Radius.circular(radiusSm));
-  static const BorderRadius borderRadiusMd = BorderRadius.all(Radius.circular(radiusMd));
-  static const BorderRadius borderRadiusLg = BorderRadius.all(Radius.circular(radiusLg));
-  static const BorderRadius borderRadiusXl = BorderRadius.all(Radius.circular(radiusXl));
-  static const BorderRadius borderRadiusCircle = BorderRadius.all(Radius.circular(radiusCircle));
+  static const BorderRadius borderRadiusXs =
+      BorderRadius.all(Radius.circular(radiusXs));
+  static const BorderRadius borderRadiusSm =
+      BorderRadius.all(Radius.circular(radiusSm));
+  static const BorderRadius borderRadiusMd =
+      BorderRadius.all(Radius.circular(radiusMd));
+  static const BorderRadius borderRadiusLg =
+      BorderRadius.all(Radius.circular(radiusLg));
+  static const BorderRadius borderRadiusXl =
+      BorderRadius.all(Radius.circular(radiusXl));
+  static const BorderRadius borderRadiusCircle =
+      BorderRadius.all(Radius.circular(radiusCircle));
 
   // === Icon Sizes ===
   static const double iconXs = 16.0;

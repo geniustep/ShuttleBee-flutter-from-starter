@@ -10,28 +10,28 @@ class RecentActivitiesList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final activities = [
-      _Activity(
+      const _Activity(
         icon: Icons.shopping_cart,
         title: 'New order received',
         subtitle: 'Order #1234 - \$250.00',
         time: '2 min ago',
         color: AppColors.primary,
       ),
-      _Activity(
+      const _Activity(
         icon: Icons.person_add,
         title: 'New customer registered',
         subtitle: 'John Doe - john@example.com',
         time: '15 min ago',
         color: AppColors.success,
       ),
-      _Activity(
+      const _Activity(
         icon: Icons.payment,
         title: 'Payment received',
         subtitle: 'Invoice #567 - \$1,500.00',
         time: '1 hour ago',
         color: AppColors.secondary,
       ),
-      _Activity(
+      const _Activity(
         icon: Icons.local_shipping,
         title: 'Order shipped',
         subtitle: 'Order #1230 - Tracking available',

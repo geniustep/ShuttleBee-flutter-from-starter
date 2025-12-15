@@ -5,8 +5,7 @@ import 'package:bridgecore_flutter_starter/core/utils/logger.dart';
 
 /// Multi-company service
 class MultiCompanyService {
-  static final MultiCompanyService _instance =
-      MultiCompanyService._internal();
+  static final MultiCompanyService _instance = MultiCompanyService._internal();
   factory MultiCompanyService() => _instance;
   MultiCompanyService._internal();
 
@@ -35,7 +34,8 @@ class MultiCompanyService {
         _availableCompanies = cached
             .map((json) => Company.fromJson(json as Map<String, dynamic>))
             .toList();
-        AppLogger.debug('Loaded ${_availableCompanies.length} companies from cache');
+        AppLogger.debug(
+            'Loaded ${_availableCompanies.length} companies from cache');
         return;
       }
 
@@ -89,7 +89,8 @@ class MultiCompanyService {
   Company? get currentCompany => _currentCompany;
 
   /// Get available companies
-  List<Company> get availableCompanies => List.unmodifiable(_availableCompanies);
+  List<Company> get availableCompanies =>
+      List.unmodifiable(_availableCompanies);
 
   /// Check if multi-company is enabled
   bool get isMultiCompany => _availableCompanies.length > 1;

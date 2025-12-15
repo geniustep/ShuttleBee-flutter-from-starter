@@ -5,7 +5,8 @@ enum TripState {
   draft('draft', 'مسودة', 'Draft', Color(0xFF9E9E9E)),
   planned('planned', 'مخطط لها', 'Planned', Color(0xFF2196F3)),
   ongoing('ongoing', 'جارية', 'Ongoing', Color(0xFFFF9800)),
-  done('done', 'منتهية', 'Done', Color(0xFF1976D2)), // أزرق جميل للرحلة المكتملة
+  done(
+      'done', 'منتهية', 'Done', Color(0xFF1976D2)), // أزرق جميل للرحلة المكتملة
   cancelled('cancelled', 'ملغاة', 'Cancelled', Color(0xFFF44336));
 
   const TripState(

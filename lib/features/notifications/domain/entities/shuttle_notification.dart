@@ -56,11 +56,14 @@ class ShuttleNotification {
       passengerId: _extractId(json['passenger_id']) ?? 0,
       passengerName: _extractName(json['passenger_id']),
       notificationType: NotificationType.fromString(
-          _extractString(json['notification_type']) ?? 'custom'),
+        _extractString(json['notification_type']) ?? 'custom',
+      ),
       channel: NotificationChannel.fromString(
-          _extractString(json['channel']) ?? 'push'),
+        _extractString(json['channel']) ?? 'push',
+      ),
       status: NotificationStatus.fromString(
-          _extractString(json['status']) ?? 'pending'),
+        _extractString(json['status']) ?? 'pending',
+      ),
       messageContent: _extractString(json['message_content']) ?? '',
       templateId: _extractId(json['template_id']),
       sentDate: _parseDateTime(json['sent_date']),
@@ -177,7 +180,8 @@ class ShuttleNotification {
   bool get isRead => status == NotificationStatus.read;
 
   /// هل الإشعار مرسل
-  bool get isSent => status == NotificationStatus.sent ||
+  bool get isSent =>
+      status == NotificationStatus.sent ||
       status == NotificationStatus.delivered ||
       status == NotificationStatus.read;
 
@@ -260,4 +264,3 @@ enum NotificationStatus {
     );
   }
 }
-

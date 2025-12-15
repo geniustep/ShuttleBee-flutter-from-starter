@@ -74,4 +74,3 @@ class StatusBadge extends StatelessWidget {
 }
 
 enum StatusBadgeSize { small, medium, large }
-

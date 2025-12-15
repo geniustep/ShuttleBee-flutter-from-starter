@@ -24,10 +24,11 @@ class SyncManager {
     // Listen to connectivity changes
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
       (List<ConnectivityResult> results) {
-        final hasConnection = results.any((result) =>
-          result == ConnectivityResult.mobile ||
-          result == ConnectivityResult.wifi ||
-          result == ConnectivityResult.ethernet
+        final hasConnection = results.any(
+          (result) =>
+              result == ConnectivityResult.mobile ||
+              result == ConnectivityResult.wifi ||
+              result == ConnectivityResult.ethernet,
         );
 
         if (hasConnection && !_isSyncing) {
@@ -59,10 +60,11 @@ class SyncManager {
 
     // Try to sync immediately if online
     final connectivityResults = await _connectivity.checkConnectivity();
-    final hasConnection = connectivityResults.any((result) =>
-      result == ConnectivityResult.mobile ||
-      result == ConnectivityResult.wifi ||
-      result == ConnectivityResult.ethernet
+    final hasConnection = connectivityResults.any(
+      (result) =>
+          result == ConnectivityResult.mobile ||
+          result == ConnectivityResult.wifi ||
+          result == ConnectivityResult.ethernet,
     );
 
     if (hasConnection) {

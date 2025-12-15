@@ -152,10 +152,12 @@ class _TripMapWidgetState extends State<TripMapWidget> {
 
     // Add driver position
     if (widget.currentPosition != null) {
-      points.add(LatLng(
-        widget.currentPosition!.latitude,
-        widget.currentPosition!.longitude,
-      ));
+      points.add(
+        LatLng(
+          widget.currentPosition!.latitude,
+          widget.currentPosition!.longitude,
+        ),
+      );
     }
 
     // Add passenger locations (استخدام الإحداثيات الفعلية)
@@ -238,10 +240,12 @@ class _TripMapWidgetState extends State<TripMapWidget> {
 
       // Add driver position
       if (widget.currentPosition != null) {
-        points.add(LatLng(
-          widget.currentPosition!.latitude,
-          widget.currentPosition!.longitude,
-        ));
+        points.add(
+          LatLng(
+            widget.currentPosition!.latitude,
+            widget.currentPosition!.longitude,
+          ),
+        );
       }
 
       // Add passenger locations (استخدام الإحداثيات الفعلية)

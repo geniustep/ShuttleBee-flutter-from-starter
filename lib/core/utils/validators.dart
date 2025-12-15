@@ -5,7 +5,9 @@ class Validators {
   /// Validate required field
   static String? required(String? value, {String? fieldName}) {
     if (value == null || value.trim().isEmpty) {
-      return fieldName != null ? '$fieldName is required' : 'This field is required';
+      return fieldName != null
+          ? '$fieldName is required'
+          : 'This field is required';
     }
     return null;
   }
@@ -224,7 +226,8 @@ class Validators {
   }
 
   /// Combine multiple validators
-  static String? combine(String? value, List<String? Function(String?)> validators) {
+  static String? combine(
+      String? value, List<String? Function(String?)> validators) {
     for (final validator in validators) {
       final error = validator(value);
       if (error != null) {

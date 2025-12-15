@@ -14,7 +14,7 @@ class StatsSummaryCard extends StatelessWidget {
         padding: AppDimensions.paddingMd,
         child: Row(
           children: [
-            Expanded(
+            const Expanded(
               child: _StatItem(
                 icon: Icons.shopping_cart_outlined,
                 label: 'Orders',
@@ -23,7 +23,7 @@ class StatsSummaryCard extends StatelessWidget {
               ),
             ),
             _buildDivider(),
-            Expanded(
+            const Expanded(
               child: _StatItem(
                 icon: Icons.people_outline,
                 label: 'Customers',
@@ -32,7 +32,7 @@ class StatsSummaryCard extends StatelessWidget {
               ),
             ),
             _buildDivider(),
-            Expanded(
+            const Expanded(
               child: _StatItem(
                 icon: Icons.inventory_2_outlined,
                 label: 'Products',

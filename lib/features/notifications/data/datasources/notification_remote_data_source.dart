@@ -69,8 +69,10 @@ class NotificationRemoteDataSource {
 
       if (result is List) {
         return result
-            .map((json) =>
-                ShuttleNotification.fromOdoo(json as Map<String, dynamic>))
+            .map(
+              (json) =>
+                  ShuttleNotification.fromOdoo(json as Map<String, dynamic>),
+            )
             .toList();
       }
     } catch (e) {
@@ -98,12 +100,17 @@ class NotificationRemoteDataSource {
 
   /// الحصول على الإشعارات غير المقروءة
   Future<List<ShuttleNotification>> getUnreadNotifications(
-      int passengerId) async {
+    int passengerId,
+  ) async {
     final result = await _client.searchRead(
       model: _notificationModel,
       domain: [
         ['passenger_id', '=', passengerId],
-        ['status', 'not in', ['read']],
+        [
+          'status',
+          'not in',
+          ['read']
+        ],
       ],
       fields: _notificationFields,
       order: 'create_date desc',
@@ -119,7 +126,7 @@ class NotificationRemoteDataSource {
         model: _notificationModel,
         method: 'action_mark_read',
         args: [
-          [notificationId]
+          [notificationId],
         ],
       );
       return true;
@@ -143,7 +150,7 @@ class NotificationRemoteDataSource {
         model: _notificationModel,
         method: 'action_mark_delivered',
         args: [
-          [notificationId]
+          [notificationId],
         ],
       );
       return true;
@@ -166,7 +173,7 @@ class NotificationRemoteDataSource {
         model: _notificationModel,
         method: 'action_retry',
         args: [
-          [notificationId]
+          [notificationId],
         ],
       );
       return true;
@@ -181,7 +188,11 @@ class NotificationRemoteDataSource {
       model: _notificationModel,
       domain: [
         ['passenger_id', '=', passengerId],
-        ['status', 'not in', ['read']],
+        [
+          'status',
+          'not in',
+          ['read']
+        ],
       ],
     );
   }
@@ -225,7 +236,7 @@ class NotificationRemoteDataSource {
         model: _tripLineModel,
         method: 'action_send_approaching_notification',
         args: [
-          [tripLineId]
+          [tripLineId],
         ],
       );
 
@@ -250,7 +261,7 @@ class NotificationRemoteDataSource {
         model: _tripLineModel,
         method: 'action_send_arrived_notification',
         args: [
-          [tripLineId]
+          [tripLineId],
         ],
       );
 
@@ -293,7 +304,7 @@ class NotificationRemoteDataSource {
         model: _notificationModel,
         method: 'action_send',
         args: [
-          [notificationId]
+          [notificationId],
         ],
       );
 
@@ -324,7 +335,7 @@ class NotificationRemoteDataSource {
         model: 'shuttle.trip',
         method: 'action_notify_all_passengers',
         args: [
-          [tripId]
+          [tripId],
         ],
         kwargs: {
           'notification_type': notificationType,
@@ -361,7 +372,11 @@ class NotificationRemoteDataSource {
         domain.add(['language', '=', language]);
       }
       if (channel != null && channel != 'all') {
-        domain.add(['channel', 'in', [channel, 'all']]);
+        domain.add([
+          'channel',
+          'in',
+          [channel, 'all']
+        ]);
       }
 
       final result = await _client.searchRead(
@@ -396,7 +411,7 @@ class NotificationRemoteDataSource {
         model: 'shuttle.message.template',
         method: 'preview_message',
         args: [
-          [templateId]
+          [templateId],
         ],
         kwargs: variables,
       );
@@ -434,4 +449,3 @@ class NotificationSendResult {
   bool get isSuccess => success;
   bool get isError => !success;
 }
-

@@ -106,7 +106,8 @@ class TripCacheService {
         );
       }
 
-      _logger.d('📦 Cached ${trips.length} trips${cacheKey != null ? ' with key: $cacheKey' : ''}');
+      _logger.d(
+          '📦 Cached ${trips.length} trips${cacheKey != null ? ' with key: $cacheKey' : ''}');
     } catch (e) {
       _logger.e('❌ Failed to cache trips', error: e);
     }
@@ -151,7 +152,8 @@ class TripCacheService {
   }
 
   /// Check if cache is valid (not expired)
-  Future<bool> isCacheValid(String cacheKey, {Duration maxAge = const Duration(minutes: 30)}) async {
+  Future<bool> isCacheValid(String cacheKey,
+      {Duration maxAge = const Duration(minutes: 30)}) async {
     await _ensureInitialized();
     try {
       final cachedAt = _metadataBox!.get('${cacheKey}_cached_at') as int?;
@@ -232,7 +234,8 @@ class TripCacheService {
       // Save to cache
       await cacheTrip(updatedTrip);
 
-      _logger.d('🔄 Applied optimistic update: trip $tripId, line $lineId -> $newStatus');
+      _logger.d(
+          '🔄 Applied optimistic update: trip $tripId, line $lineId -> $newStatus');
       return updatedTrip;
     } catch (e) {
       _logger.e('❌ Failed to apply optimistic update', error: e);
@@ -253,7 +256,8 @@ class TripCacheService {
       final updatedTrip = trip.copyWithState(newState);
       await cacheTrip(updatedTrip);
 
-      _logger.d('🔄 Applied optimistic trip state update: trip $tripId -> $newState');
+      _logger.d(
+          '🔄 Applied optimistic trip state update: trip $tripId -> $newState');
       return updatedTrip;
     } catch (e) {
       _logger.e('❌ Failed to apply optimistic trip state update', error: e);
@@ -274,7 +278,8 @@ class TripCacheService {
   }) async {
     await _ensureInitialized();
     try {
-      final actionId = '${DateTime.now().millisecondsSinceEpoch}_${tripId}_$lineId';
+      final actionId =
+          '${DateTime.now().millisecondsSinceEpoch}_${tripId}_$lineId';
       final action = {
         'id': actionId,
         'type': actionType,
@@ -301,8 +306,9 @@ class TripCacheService {
           .toList();
 
       // Sort by creation time
-      actions.sort((a, b) =>
-          (a['createdAt'] as int).compareTo(b['createdAt'] as int));
+      actions.sort(
+        (a, b) => (a['createdAt'] as int).compareTo(b['createdAt'] as int),
+      );
 
       return actions;
     } catch (e) {
@@ -420,4 +426,3 @@ extension TripCacheExtension on Trip {
     );
   }
 }
-

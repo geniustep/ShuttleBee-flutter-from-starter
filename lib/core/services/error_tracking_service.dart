@@ -118,12 +118,14 @@ class ErrorTrackingService {
   }) {
     // Set user in Sentry
     Sentry.configureScope((scope) {
-      scope.setUser(SentryUser(
-        id: id,
-        email: email,
-        username: username,
-        data: extras,
-      ));
+      scope.setUser(
+        SentryUser(
+          id: id,
+          email: email,
+          username: username,
+          data: extras,
+        ),
+      );
     });
 
     // Set user in Firebase Crashlytics
@@ -152,12 +154,14 @@ class ErrorTrackingService {
     Map<String, dynamic>? data,
     SentryLevel level = SentryLevel.info,
   }) {
-    Sentry.addBreadcrumb(Breadcrumb(
-      message: message,
-      category: category,
-      data: data,
-      level: level,
-    ));
+    Sentry.addBreadcrumb(
+      Breadcrumb(
+        message: message,
+        category: category,
+        data: data,
+        level: level,
+      ),
+    );
   }
 }
 

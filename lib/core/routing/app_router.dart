@@ -28,6 +28,15 @@ import '../../features/dispatcher/presentation/screens/dispatcher_monitor_screen
 import '../../features/dispatcher/presentation/screens/dispatcher_groups_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_create_group_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_create_trip_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_shell_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_create_vehicle_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_group_passengers_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_passengers_board_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_create_passenger_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_passenger_detail_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_holidays_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_holiday_detail_screen.dart';
+import '../../features/groups/presentation/screens/group_schedules_screen.dart';
 import '../../features/passenger/presentation/screens/passenger_home_screen.dart';
 import '../../features/manager/presentation/screens/manager_home_screen.dart';
 import '../../features/manager/presentation/screens/manager_analytics_screen.dart';
@@ -156,138 +165,251 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // Dispatcher Home + children
-      GoRoute(
-        path: RoutePaths.dispatcherHome,
-        name: RouteNames.dispatcherHome,
-        builder: (context, state) => const DispatcherHomeScreen(),
-        routes: [
-          // Trips Management
-          GoRoute(
-            path: 'trips',
-            name: RouteNames.dispatcherTrips,
-            builder: (context, state) => const DispatcherTripsScreen(),
+      // Dispatcher Shell (Bottom Navigation) + branches
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return DispatcherShellScreen(navigationShell: navigationShell);
+        },
+        branches: [
+          // Home
+          StatefulShellBranch(
             routes: [
               GoRoute(
-                path: 'create',
-                name: RouteNames.dispatcherCreateTrip,
-                builder: (context, state) {
-                  final groupId = state.uri.queryParameters['groupId'];
-                  return DispatcherCreateTripScreen(
-                    initialGroupId: groupId != null ? int.tryParse(groupId) : null,
-                  );
-                },
-              ),
-              GoRoute(
-                path: ':tripId',
-                name: RouteNames.dispatcherTripDetail,
-                builder: (context, state) {
-                  final tripId = int.parse(state.pathParameters['tripId']!);
-                  // TODO: Replace with actual DispatcherTripDetailScreen
-                  return Scaffold(
-                    appBar: AppBar(title: const Text('تفاصيل الرحلة')),
-                    body: Center(child: Text('تفاصيل الرحلة رقم: $tripId')),
-                  );
-                },
+                path: RoutePaths.dispatcherHome,
+                name: RouteNames.dispatcherHome,
+                builder: (context, state) => const DispatcherHomeScreen(),
                 routes: [
                   GoRoute(
-                    path: 'edit',
-                    name: RouteNames.dispatcherEditTrip,
+                    path: 'holidays',
+                    name: RouteNames.dispatcherHolidays,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (context, state) =>
+                        const DispatcherHolidaysScreen(),
+                    routes: [
+                      GoRoute(
+                        path: ':holidayId',
+                        name: RouteNames.dispatcherHolidayDetail,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (context, state) {
+                          final holidayId =
+                              int.parse(state.pathParameters['holidayId']!);
+                          return DispatcherHolidayDetailScreen(
+                            key: ValueKey('dispatcher_holiday_$holidayId'),
+                            holidayId: holidayId,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'passengers',
+                    name: RouteNames.dispatcherPassengers,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) {
-                      final tripId = int.parse(state.pathParameters['tripId']!);
-                      // TODO: Replace with actual EditTripScreen
-                      return Scaffold(
-                        appBar: AppBar(title: const Text('تعديل الرحلة')),
-                        body: Center(child: Text('تعديل الرحلة رقم: $tripId')),
-                      );
+                      return const DispatcherPassengersBoardScreen();
                     },
+                    routes: [
+                      GoRoute(
+                        path: 'p/:passengerId',
+                        name: RouteNames.dispatcherPassengerDetail,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (context, state) {
+                          final passengerId =
+                              int.parse(state.pathParameters['passengerId']!);
+                          return DispatcherPassengerDetailScreen(
+                            key: ValueKey(
+                                'dispatcher_passenger_detail_$passengerId'),
+                            passengerId: passengerId,
+                          );
+                        },
+                      ),
+                      GoRoute(
+                        path: 'groups/:groupId',
+                        name: RouteNames.dispatcherPassengersGroupPassengers,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (context, state) {
+                          final groupId =
+                              int.parse(state.pathParameters['groupId']!);
+                          return DispatcherGroupPassengersScreen(
+                            key: ValueKey(
+                                'dispatcher_passengers_group_$groupId'),
+                            groupId: groupId,
+                          );
+                        },
+                      ),
+                      GoRoute(
+                        path: 'create',
+                        name: RouteNames.dispatcherCreatePassenger,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (context, state) {
+                          return const DispatcherCreatePassengerScreen();
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
             ],
           ),
-          // Live Monitoring
-          GoRoute(
-            path: 'monitor',
-            name: RouteNames.dispatcherMonitor,
-            builder: (context, state) => const DispatcherMonitorScreen(),
-          ),
-          // Vehicles Management
-          GoRoute(
-            path: 'vehicles',
-            name: RouteNames.dispatcherVehicles,
-            builder: (context, state) => const DispatcherVehiclesScreen(),
+          // Monitor
+          StatefulShellBranch(
             routes: [
               GoRoute(
-                path: 'create',
-                name: RouteNames.dispatcherCreateVehicle,
-                builder: (context, state) {
-                  // TODO: Replace with actual CreateEditVehicleScreen
-                  return Scaffold(
-                    appBar: AppBar(title: const Text('إضافة مركبة')),
-                    body: const Center(child: Text('نموذج إضافة مركبة')),
-                  );
-                },
+                path: RoutePaths.dispatcherMonitor,
+                name: RouteNames.dispatcherMonitor,
+                builder: (context, state) => const DispatcherMonitorScreen(),
               ),
             ],
           ),
-          // Groups Management
-          GoRoute(
-            path: 'groups',
-            name: RouteNames.dispatcherGroups,
-            builder: (context, state) => const DispatcherGroupsScreen(),
+          // Trips
+          StatefulShellBranch(
             routes: [
               GoRoute(
-                path: 'create',
-                name: RouteNames.dispatcherCreateGroup,
-                builder: (context, state) => const DispatcherCreateGroupScreen(),
-              ),
-              GoRoute(
-                path: ':groupId',
-                name: RouteNames.dispatcherGroupDetail,
-                builder: (context, state) {
-                  final groupId = int.parse(state.pathParameters['groupId']!);
-                  // TODO: Replace with actual GroupDetailScreen
-                  return Scaffold(
-                    appBar: AppBar(title: const Text('تفاصيل المجموعة')),
-                    body: Center(child: Text('تفاصيل المجموعة رقم: $groupId')),
-                  );
-                },
+                path: RoutePaths.dispatcherTrips,
+                name: RouteNames.dispatcherTrips,
+                builder: (context, state) => const DispatcherTripsScreen(),
                 routes: [
                   GoRoute(
-                    path: 'edit',
-                    name: RouteNames.dispatcherEditGroup,
+                    path: 'create',
+                    name: RouteNames.dispatcherCreateTrip,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) {
-                      final groupId = int.parse(state.pathParameters['groupId']!);
-                      // TODO: Replace with actual EditGroupScreen
-                      return Scaffold(
-                        appBar: AppBar(title: const Text('تعديل المجموعة')),
-                        body: Center(child: Text('تعديل المجموعة رقم: $groupId')),
+                      final groupId = state.uri.queryParameters['groupId'];
+                      return DispatcherCreateTripScreen(
+                        initialGroupId:
+                            groupId != null ? int.tryParse(groupId) : null,
                       );
                     },
                   ),
                   GoRoute(
-                    path: 'schedules',
-                    name: RouteNames.dispatcherGroupSchedules,
+                    path: ':tripId',
+                    name: RouteNames.dispatcherTripDetail,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) {
-                      final groupId = int.parse(state.pathParameters['groupId']!);
-                      // TODO: Replace with actual GroupSchedulesScreen
+                      final tripId = int.parse(state.pathParameters['tripId']!);
+                      // TODO: Replace with actual DispatcherTripDetailScreen
                       return Scaffold(
-                        appBar: AppBar(title: const Text('جداول المجموعة')),
-                        body: Center(child: Text('جداول المجموعة رقم: $groupId')),
+                        appBar: AppBar(title: const Text('تفاصيل الرحلة')),
+                        body: Center(child: Text('تفاصيل الرحلة رقم: $tripId')),
                       );
                     },
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        name: RouteNames.dispatcherEditTrip,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (context, state) {
+                          final tripId =
+                              int.parse(state.pathParameters['tripId']!);
+                          // TODO: Replace with actual EditTripScreen
+                          return Scaffold(
+                            appBar: AppBar(title: const Text('تعديل الرحلة')),
+                            body: Center(
+                              child: Text('تعديل الرحلة رقم: $tripId'),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Groups
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.dispatcherGroups,
+                name: RouteNames.dispatcherGroups,
+                builder: (context, state) => const DispatcherGroupsScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'create',
+                    name: RouteNames.dispatcherCreateGroup,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (context, state) =>
+                        const DispatcherCreateGroupScreen(),
                   ),
                   GoRoute(
-                    path: 'passengers',
+                    path: ':groupId/passengers',
                     name: RouteNames.dispatcherGroupPassengers,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) {
-                      final groupId = int.parse(state.pathParameters['groupId']!);
-                      // TODO: Replace with actual GroupPassengersScreen
-                      return Scaffold(
-                        appBar: AppBar(title: const Text('ركاب المجموعة')),
-                        body: Center(child: Text('ركاب المجموعة رقم: $groupId')),
+                      final groupId =
+                          int.parse(state.pathParameters['groupId']!);
+                      return DispatcherGroupPassengersScreen(
+                        key: ValueKey('dispatcher_group_passengers_$groupId'),
+                        groupId: groupId,
                       );
+                    },
+                  ),
+                  GoRoute(
+                    path: ':groupId',
+                    name: RouteNames.dispatcherGroupDetail,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (context, state) {
+                      final groupId =
+                          int.parse(state.pathParameters['groupId']!);
+                      // TODO: Replace with actual GroupDetailScreen
+                      return Scaffold(
+                        appBar: AppBar(title: const Text('تفاصيل المجموعة')),
+                        body: Center(
+                          child: Text('تفاصيل المجموعة رقم: $groupId'),
+                        ),
+                      );
+                    },
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        name: RouteNames.dispatcherEditGroup,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (context, state) {
+                          final groupId =
+                              int.parse(state.pathParameters['groupId']!);
+                          // TODO: Replace with actual EditGroupScreen
+                          return Scaffold(
+                            appBar: AppBar(title: const Text('تعديل المجموعة')),
+                            body: Center(
+                              child: Text('تعديل المجموعة رقم: $groupId'),
+                            ),
+                          );
+                        },
+                      ),
+                      GoRoute(
+                        path: 'schedules',
+                        name: RouteNames.dispatcherGroupSchedules,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (context, state) {
+                          final groupId =
+                              int.parse(state.pathParameters['groupId']!);
+                          return GroupSchedulesScreen(
+                            key:
+                                ValueKey('dispatcher_group_schedules_$groupId'),
+                            groupId: groupId,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Vehicles
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.dispatcherVehicles,
+                name: RouteNames.dispatcherVehicles,
+                builder: (context, state) => const DispatcherVehiclesScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'create',
+                    name: RouteNames.dispatcherCreateVehicle,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (context, state) {
+                      return const DispatcherCreateVehicleScreen();
                     },
                   ),
                 ],

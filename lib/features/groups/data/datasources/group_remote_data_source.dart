@@ -11,6 +11,19 @@ class GroupRemoteDataSource {
 
   GroupRemoteDataSource(this._client);
 
+  /// Odoo expects datetime values as naive UTC strings (no timezone suffix).
+  /// We keep the date part arbitrary (today), because schedule lines only care
+  /// about the time-of-day.
+  String _formatOdooDateTime(DateTime dt) {
+    final y = dt.year.toString().padLeft(4, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    final ss = dt.second.toString().padLeft(2, '0');
+    return '$y-$m-$d $hh:$mm:$ss';
+  }
+
   /// الحصول على جميع المجموعات
   Future<List<PassengerGroup>> getGroups({
     bool activeOnly = true,
@@ -40,7 +53,7 @@ class GroupRemoteDataSource {
     final result = await _client.searchRead(
       model: _groupModel,
       domain: [
-        ['id', '=', groupId]
+        ['id', '=', groupId],
       ],
       fields: _groupFields,
       limit: 1,
@@ -148,19 +161,21 @@ class GroupRemoteDataSource {
     DateTime? dropoffTime,
     bool createPickup = true,
     bool createDropoff = true,
+    bool active = true,
   }) async {
     final values = {
       'group_id': groupId,
       'weekday': weekday.value,
       'create_pickup': createPickup,
       'create_dropoff': createDropoff,
+      'active': active,
     };
 
     if (pickupTime != null) {
-      values['pickup_time'] = pickupTime.toIso8601String();
+      values['pickup_time'] = _formatOdooDateTime(pickupTime.toUtc());
     }
     if (dropoffTime != null) {
-      values['dropoff_time'] = dropoffTime.toIso8601String();
+      values['dropoff_time'] = _formatOdooDateTime(dropoffTime.toUtc());
     }
 
     final id = await _client.create(
@@ -171,7 +186,7 @@ class GroupRemoteDataSource {
     final result = await _client.searchRead(
       model: _scheduleModel,
       domain: [
-        ['id', '=', id]
+        ['id', '=', id],
       ],
       fields: _scheduleFields,
       limit: 1,
@@ -183,15 +198,22 @@ class GroupRemoteDataSource {
 
   /// تحديث جدول
   Future<bool> updateSchedule(GroupSchedule schedule) async {
+    // Use write and include time updates too.
+    final values = <String, dynamic>{
+      'weekday': schedule.weekday.value,
+      'create_pickup': schedule.createPickup,
+      'create_dropoff': schedule.createDropoff,
+      'active': schedule.active,
+      if (schedule.pickupTime != null)
+        'pickup_time': _formatOdooDateTime(schedule.pickupTime!.toUtc()),
+      if (schedule.dropoffTime != null)
+        'dropoff_time': _formatOdooDateTime(schedule.dropoffTime!.toUtc()),
+    };
+
     return await _client.write(
       model: _scheduleModel,
       ids: [schedule.id],
-      values: {
-        'weekday': schedule.weekday.value,
-        'create_pickup': schedule.createPickup,
-        'create_dropoff': schedule.createDropoff,
-        'active': schedule.active,
-      },
+      values: values,
     );
   }
 
@@ -223,7 +245,7 @@ class GroupRemoteDataSource {
     final result = await _client.searchRead(
       model: _holidayModel,
       domain: [
-        ['id', '=', id]
+        ['id', '=', id],
       ],
       fields: _holidayFields,
       limit: 1,
@@ -242,24 +264,51 @@ class GroupRemoteDataSource {
   }
 
   /// توليد رحلات من الجدول
-  Future<int> generateTripsFromSchedule(int groupId, {int weeks = 1}) async {
-    try {
-      final result = await _client.callKw(
-        model: _groupModel,
-        method: 'action_generate_trips',
-        args: [
-          [groupId]
-        ],
-        kwargs: {
-          'weeks': weeks,
-        },
-      );
+  Future<int> generateTripsFromSchedule(
+    int groupId, {
+    int weeks = 1,
+    DateTime? startDate,
+    bool includePickup = true,
+    bool includeDropoff = true,
+    bool limitToWeek = false,
+  }) async {
+    // Odoo method expects a start_date (Date) and returns an action dict with:
+    // domain: [('id','in', created_trip_ids)]
+    final start = startDate ?? DateTime.now();
+    final startOnly = DateTime(start.year, start.month, start.day);
 
-      if (result is int) return result;
-      return 0;
-    } catch (e) {
-      return 0;
+    final result = await _client.callKw(
+      model: _groupModel,
+      method: 'generate_trips_from_schedule',
+      args: [
+        [groupId],
+        _formatDate(startOnly),
+      ],
+      kwargs: {
+        'weeks': weeks,
+        'include_pickup': includePickup,
+        'include_dropoff': includeDropoff,
+        'limit_to_week': limitToWeek,
+      },
+    );
+
+    // Try to infer count from returned action domain.
+    if (result is Map) {
+      final domain = result['domain'];
+      if (domain is List) {
+        for (final clause in domain) {
+          if (clause is List &&
+              clause.length >= 3 &&
+              clause[0] == 'id' &&
+              clause[1] == 'in') {
+            final ids = clause[2];
+            if (ids is List) return ids.length;
+          }
+        }
+      }
     }
+
+    return 0;
   }
 
   /// عدد المجموعات
@@ -330,4 +379,3 @@ class GroupRemoteDataSource {
     'active',
   ];
 }
-

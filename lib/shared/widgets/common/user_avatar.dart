@@ -58,7 +58,7 @@ class UserAvatar extends StatelessWidget {
 
   String _getInitials(String? name) {
     if (name == null || name.isEmpty) return '?';
-    
+
     final parts = name.trim().split(' ');
     if (parts.length >= 2) {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
@@ -68,7 +68,7 @@ class UserAvatar extends StatelessWidget {
 
   Color _getColorFromName(String? name) {
     if (name == null || name.isEmpty) return AppColors.primary;
-    
+
     final colors = [
       AppColors.primary,
       AppColors.secondary,
@@ -77,11 +77,10 @@ class UserAvatar extends StatelessWidget {
       AppColors.error,
       AppColors.info,
     ];
-    
+
     final hash = name.codeUnits.fold(0, (prev, curr) => prev + curr);
     return colors[hash % colors.length];
   }
 }
 
 enum UserAvatarSize { small, medium, large, extraLarge }
-

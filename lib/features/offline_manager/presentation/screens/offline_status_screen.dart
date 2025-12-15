@@ -70,11 +70,10 @@ class OfflineStatusScreen extends ConsumerWidget {
           Card(
             child: Column(
               children: [
-                ListTile(
-                  leading:
-                      const Icon(Icons.cloud_done, color: AppColors.success),
-                  title: const Text('Last Sync'),
-                  subtitle: const Text('5 minutes ago'),
+                const ListTile(
+                  leading: Icon(Icons.cloud_done, color: AppColors.success),
+                  title: Text('Last Sync'),
+                  subtitle: Text('5 minutes ago'),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -85,10 +84,10 @@ class OfflineStatusScreen extends ConsumerWidget {
                   onTap: () => context.push(RoutePaths.pendingOperations),
                 ),
                 const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.storage, color: AppColors.info),
-                  title: const Text('Cached Data'),
-                  subtitle: const Text('2.5 MB'),
+                const ListTile(
+                  leading: Icon(Icons.storage, color: AppColors.info),
+                  title: Text('Cached Data'),
+                  subtitle: Text('2.5 MB'),
                 ),
               ],
             ),

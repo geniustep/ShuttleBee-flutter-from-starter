@@ -11,19 +11,19 @@ class GoogleMapScreen extends StatefulWidget {
 
 class _GoogleMapScreenState extends State<GoogleMapScreen> {
   GoogleMapController? _mapController;
-  
+
   // الموقع الافتراضي (القاهرة، مصر)
   static const LatLng _initialPosition = LatLng(30.0444, 31.2357);
-  
+
   // مجموعة من العلامات على الخريطة
   final Set<Marker> _markers = {};
-  
+
   @override
   void initState() {
     super.initState();
     _addMarker();
   }
-  
+
   void _addMarker() {
     setState(() {
       _markers.add(
@@ -99,11 +99,10 @@ class _GoogleMapScreenState extends State<GoogleMapScreen> {
       ),
     );
   }
-  
+
   @override
   void dispose() {
     _mapController?.dispose();
     super.dispose();
   }
 }
-

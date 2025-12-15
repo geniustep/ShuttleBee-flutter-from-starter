@@ -111,10 +111,12 @@ class _DriverLiveTripMapScreenState
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 1),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(
+      CurvedAnimation(
+        parent: _slideController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
   }
 
   Future<void> _initializeMap() async {
@@ -161,7 +163,7 @@ class _DriverLiveTripMapScreenState
     // Bus body (yellow)
     paint.color = const Color(0xFFFFB300);
     final busRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(10, 20, 60, 35),
+      const Rect.fromLTWH(10, 20, 60, 35),
       const Radius.circular(8),
     );
     canvas.drawRRect(busRect, paint);
@@ -170,7 +172,7 @@ class _DriverLiveTripMapScreenState
     paint.color = const Color(0xFFFF8F00);
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(15, 15, 50, 10),
+        const Rect.fromLTWH(15, 15, 50, 10),
         const Radius.circular(5),
       ),
       paint,
@@ -213,7 +215,7 @@ class _DriverLiveTripMapScreenState
 
     // Shadow
     paint.color = Colors.black.withOpacity(0.2);
-    canvas.drawOval(Rect.fromLTWH(15, 60, 50, 8), paint);
+    canvas.drawOval(const Rect.fromLTWH(15, 60, 50, 8), paint);
 
     final picture = pictureRecorder.endRecording();
     final image =
@@ -404,7 +406,7 @@ class _DriverLiveTripMapScreenState
     canvas.drawCircle(const Offset(30, 32), 6, paint);
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(24, 40, 12, 14),
+        const Rect.fromLTWH(24, 40, 12, 14),
         const Radius.circular(4),
       ),
       paint,
@@ -415,7 +417,7 @@ class _DriverLiveTripMapScreenState
     canvas.drawCircle(const Offset(50, 32), 6, paint);
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(44, 40, 12, 14),
+        const Rect.fromLTWH(44, 40, 12, 14),
         const Radius.circular(4),
       ),
       paint,
@@ -793,8 +795,9 @@ class _DriverLiveTripMapScreenState
 
   bool _areAllPickupsCompleted(Trip trip) {
     // Check if all passengers have been boarded or marked absent
-    return trip.lines.every((line) =>
-        line.status.value == 'boarded' || line.status.value == 'absent');
+    return trip.lines.every(
+      (line) => line.status.value == 'boarded' || line.status.value == 'absent',
+    );
   }
 
   Future<Marker?> _createCompanyMarker({
@@ -846,7 +849,7 @@ class _DriverLiveTripMapScreenState
       // Building body
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTWH(30, 30, 20, 20),
+          const Rect.fromLTWH(30, 30, 20, 20),
           const Radius.circular(2),
         ),
         paint,
@@ -865,9 +868,9 @@ class _DriverLiveTripMapScreenState
 
       // Flag on top
       paint.color = const Color(0xFFEF4444);
-      canvas.drawRect(Rect.fromLTWH(38, 25, 6, 4), paint);
+      canvas.drawRect(const Rect.fromLTWH(38, 25, 6, 4), paint);
       paint.color = const Color(0xFF10B981);
-      canvas.drawRect(Rect.fromLTWH(38, 25, 2, 8), paint);
+      canvas.drawRect(const Rect.fromLTWH(38, 25, 2, 8), paint);
 
       final picture = pictureRecorder.endRecording();
       final image =
@@ -971,17 +974,21 @@ class _DriverLiveTripMapScreenState
 
         // Start from current position
         if (_currentPosition != null) {
-          toCompanyPoints.add(LatLng(
-            _currentPosition!.latitude,
-            _currentPosition!.longitude,
-          ));
+          toCompanyPoints.add(
+            LatLng(
+              _currentPosition!.latitude,
+              _currentPosition!.longitude,
+            ),
+          );
         }
 
         // Add company location
-        toCompanyPoints.add(LatLng(
-          trip.companyLatitude!,
-          trip.companyLongitude!,
-        ));
+        toCompanyPoints.add(
+          LatLng(
+            trip.companyLatitude!,
+            trip.companyLongitude!,
+          ),
+        );
 
         if (toCompanyPoints.length >= 2) {
           polylines.add(
@@ -1004,10 +1011,12 @@ class _DriverLiveTripMapScreenState
 
       // Add driver position
       if (_currentPosition != null) {
-        points.add(LatLng(
-          _currentPosition!.latitude,
-          _currentPosition!.longitude,
-        ));
+        points.add(
+          LatLng(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          ),
+        );
       }
 
       // Add passenger locations in sequence
@@ -1039,10 +1048,12 @@ class _DriverLiveTripMapScreenState
         // Completed route (solid line)
         final completedPoints = <LatLng>[];
         if (_currentPosition != null) {
-          completedPoints.add(LatLng(
-            _currentPosition!.latitude,
-            _currentPosition!.longitude,
-          ));
+          completedPoints.add(
+            LatLng(
+              _currentPosition!.latitude,
+              _currentPosition!.longitude,
+            ),
+          );
         }
 
         for (final line in sortedLines) {
@@ -1272,7 +1283,8 @@ class _DriverLiveTripMapScreenState
     if (mounted) {
       if (success) {
         _showSuccessSnackBar(
-            '🔄 تم إعادة حالة ${passenger.passengerName ?? 'الراكب'}');
+          '🔄 تم إعادة حالة ${passenger.passengerName ?? 'الراكب'}',
+        );
         // Close passenger card if open
         if (_showPassengerCard) {
           _closePassengerCard();
@@ -1580,7 +1592,8 @@ class _DriverLiveTripMapScreenState
   Widget _buildHeader(Trip trip) {
     final completedStops = trip.lines
         .where(
-            (l) => l.status.value == 'boarded' || l.status.value == 'dropped')
+          (l) => l.status.value == 'boarded' || l.status.value == 'dropped',
+        )
         .length;
 
     return Positioned(
@@ -1636,7 +1649,7 @@ class _DriverLiveTripMapScreenState
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.directions_bus,
                         size: 14,
                         color: AppColors.textSecondary,
@@ -1985,7 +1998,7 @@ class _DriverLiveTripMapScreenState
               Center(
                 child: Column(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.check_circle_outline,
                       size: 48,
                       color: AppColors.success,
@@ -2074,14 +2087,14 @@ class _DriverLiveTripMapScreenState
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  Row(
+                  const Row(
                     children: [
                       Icon(
                         Icons.location_on,
                         size: 14,
                         color: AppColors.textSecondary,
                       ),
-                      const SizedBox(width: 4),
+                      SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           'مقر الشركة',
@@ -2111,7 +2124,9 @@ class _DriverLiveTripMapScreenState
                   if (trip.companyLatitude != null &&
                       trip.companyLongitude != null) {
                     _navigateToLocation(
-                        trip.companyLatitude!, trip.companyLongitude!);
+                      trip.companyLatitude!,
+                      trip.companyLongitude!,
+                    );
                   }
                 },
               ),
@@ -2240,7 +2255,7 @@ class _DriverLiveTripMapScreenState
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle, color: AppColors.success, size: 20),
+            const Icon(Icons.check_circle, color: AppColors.success, size: 20),
             const SizedBox(width: 8),
             Text(
               'تمت الرحلة بنجاح ✅',
@@ -2303,9 +2318,50 @@ class _DriverLiveTripMapScreenState
     );
   }
 
+  Future<String?> _promptConfirmTripNote() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title:
+              const Text('تأكيد الرحلة', style: TextStyle(fontFamily: 'Cairo')),
+          content: TextField(
+            controller: controller,
+            maxLines: 2,
+            decoration: const InputDecoration(
+              hintText: 'ملاحظة (اختياري)...',
+              hintStyle: TextStyle(fontFamily: 'Cairo'),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(''),
+              child: const Text('بدون ملاحظة',
+                  style: TextStyle(fontFamily: 'Cairo')),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(controller.text),
+              child: const Text('تأكيد', style: TextStyle(fontFamily: 'Cairo')),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+    return result;
+  }
+
   /// 🎮 تأكيد الرحلة
   Future<void> _confirmTrip(Trip trip) async {
     HapticFeedback.mediumImpact();
+
+    final note = await _promptConfirmTripNote();
+    if (note == null || !mounted) return; // cancelled
 
     // Show loading
     showDialog(
@@ -2316,7 +2372,11 @@ class _DriverLiveTripMapScreenState
       ),
     );
 
-    final success = await ref.read(smartTripProvider.notifier).confirmTrip();
+    final success = await ref.read(smartTripProvider.notifier).confirmTrip(
+          latitude: _currentPosition?.latitude,
+          longitude: _currentPosition?.longitude,
+          note: note,
+        );
 
     // Close loading dialog
     if (mounted) Navigator.pop(context);
@@ -2394,7 +2454,7 @@ class _DriverLiveTripMapScreenState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'هل أنت متأكد من إنهاء الرحلة؟',
               style: AppTypography.bodyMedium,
             ),
@@ -2434,7 +2494,7 @@ class _DriverLiveTripMapScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(
+            child: const Text(
               'إلغاء',
               style: TextStyle(color: AppColors.textSecondary),
             ),
@@ -2604,11 +2664,11 @@ class _DriverLiveTripMapScreenState
         // Header
         Container(
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [AppColors.primary, AppColors.primaryDark],
             ),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Row(
             children: [
@@ -3288,7 +3348,7 @@ class _DriverLiveTripMapScreenState
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Container(
+        child: SizedBox(
           width: 44,
           height: 44,
           child: Icon(icon, color: AppColors.textPrimary, size: 22),

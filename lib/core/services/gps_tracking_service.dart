@@ -42,7 +42,8 @@ class GpsTrackingService {
   /// بدء تتبع الموقع لرحلة معينة
   Future<bool> startTracking(int tripId) async {
     if (_isTracking) {
-      AppLogger.warning('🛰️ [GpsTrackingService] Already tracking trip $_activeTripId');
+      AppLogger.warning(
+          '🛰️ [GpsTrackingService] Already tracking trip $_activeTripId');
       return false;
     }
 
@@ -72,7 +73,8 @@ class GpsTrackingService {
     ).listen(
       _onPositionUpdate,
       onError: (error) {
-        AppLogger.error('🛰️ [GpsTrackingService] Position stream error: $error');
+        AppLogger.error(
+            '🛰️ [GpsTrackingService] Position stream error: $error');
       },
     );
 
@@ -180,7 +182,8 @@ class GpsTrackingService {
         },
       );
     } catch (e) {
-      AppLogger.error('🛰️ [GpsTrackingService] Direct position save failed: $e');
+      AppLogger.error(
+          '🛰️ [GpsTrackingService] Direct position save failed: $e');
     }
   }
 
@@ -250,7 +253,8 @@ class GpsTrackingService {
       AppLogger.info('🛰️ [GpsTrackingService] Trip conditions updated');
       return true;
     } catch (e) {
-      AppLogger.error('🛰️ [GpsTrackingService] Failed to update conditions: $e');
+      AppLogger.error(
+          '🛰️ [GpsTrackingService] Failed to update conditions: $e');
       return false;
     }
   }
@@ -326,4 +330,3 @@ enum RiskLevel {
     );
   }
 }
-

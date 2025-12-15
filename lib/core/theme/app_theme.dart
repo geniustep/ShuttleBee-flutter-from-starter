@@ -273,7 +273,7 @@ class AppTheme {
           contentTextStyle: AppTypography.bodyMedium.copyWith(
             color: AppColors.surface,
           ),
-          shape: RoundedRectangleBorder(
+          shape: const RoundedRectangleBorder(
             borderRadius: AppDimensions.borderRadiusSm,
           ),
           behavior: SnackBarBehavior.floating,
@@ -491,7 +491,7 @@ class AppTheme {
           contentTextStyle: AppTypography.bodyMedium.copyWith(
             color: AppColors.darkOnSurface,
           ),
-          shape: RoundedRectangleBorder(
+          shape: const RoundedRectangleBorder(
             borderRadius: AppDimensions.borderRadiusSm,
           ),
           behavior: SnackBarBehavior.floating,

@@ -9,12 +9,14 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/widgets/role_switcher_widget.dart';
+import '../../../../shared/providers/global_providers.dart';
 import '../../../../shared/widgets/common/hero_header.dart';
 import '../../../../shared/widgets/common/stat_card.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../trips/domain/repositories/trip_repository.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
+import '../providers/dispatcher_cached_providers.dart';
 
 /// Dispatcher Home Screen - الصفحة الرئيسية للمرسل - ShuttleBee
 /// تصميم احترافي مطابق لمستوى صفحة السائق
@@ -49,13 +51,26 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final user = authState.asData?.value.user;
-    final statsAsync = ref.watch(dashboardStatsProvider(DateTime.now()));
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final statsAsync = ref.watch(dispatcherDashboardStatsProvider(today));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(dashboardStatsProvider(DateTime.now()));
+          final cache = ref.read(dispatcherCacheDataSourceProvider);
+          final userId =
+              ref.read(authStateProvider).asData?.value.user?.id ?? 0;
+          if (userId != 0) {
+            await cache.delete(
+              DispatcherCacheKeys.dashboardStats(
+                userId: userId,
+                date: today,
+              ),
+            );
+          }
+          ref.invalidate(dispatcherDashboardStatsProvider(today));
         },
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
@@ -96,25 +111,88 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
   }
 
   Widget _buildHeroHeader(
-      User? user, AsyncValue<TripDashboardStats> statsAsync) {
+    User? user,
+    AsyncValue<TripDashboardStats> statsAsync,
+  ) {
     final isRefreshing = statsAsync.isLoading;
+    final isOnline = ref.watch(isOnlineStateProvider);
 
     return HeroHeader(
       title: 'مرحباً',
       userName: user?.name ?? 'المرسل',
       subtitle: DateFormat('EEEE، d MMMM yyyy', 'ar').format(DateTime.now()),
       gradientColors: HeroGradients.dispatcher,
-      showOnlineIndicator: true,
+      showOnlineIndicator: isOnline,
       onlineIndicatorController: _pulseController,
       expandedHeight: 180,
+      bottomWidget: !isOnline
+          ? GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                context.go(RoutePaths.offlineStatus);
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.cloud_off_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'غير متصل • عرض حالة المزامنة',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Cairo',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
       actions: [
         HeroHeaderAction(
           icon: Icons.refresh_rounded,
           tooltip: 'تحديث',
           isLoading: isRefreshing,
-          onPressed: () {
+          onPressed: () async {
             HapticFeedback.mediumImpact();
-            ref.invalidate(dashboardStatsProvider(DateTime.now()));
+            final now = DateTime.now();
+            final today = DateTime(now.year, now.month, now.day);
+            final cache = ref.read(dispatcherCacheDataSourceProvider);
+            final userId =
+                ref.read(authStateProvider).asData?.value.user?.id ?? 0;
+            if (userId != 0) {
+              await cache.delete(
+                DispatcherCacheKeys.dashboardStats(
+                  userId: userId,
+                  date: today,
+                ),
+              );
+            }
+            ref.invalidate(dispatcherDashboardStatsProvider(today));
+          },
+        ),
+        HeroHeaderAction(
+          icon: Icons.settings_rounded,
+          tooltip: 'الإعدادات',
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            context.push(RoutePaths.settings);
           },
         ),
         HeroHeaderAction(
@@ -145,9 +223,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF7B1FA2), Color(0xFF6A1B9A)],
-                  ),
+                  gradient: AppColors.dispatcherGradient,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -172,14 +248,14 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
             crossAxisSpacing: 12,
             childAspectRatio: 1.5,
             children: [
-              _buildActionCard(
-                icon: Icons.add_road_rounded,
-                label: 'إنشاء رحلة جديدة',
-                color: AppColors.primary,
-                delay: 0,
-                onTap: () =>
-                    context.go('${RoutePaths.dispatcherHome}/trips/create'),
-              ),
+              // _buildActionCard(
+              //   icon: Icons.add_road_rounded,
+              //   label: 'إنشاء رحلة جديدة',
+              //   color: AppColors.primary,
+              //   delay: 0,
+              //   onTap: () =>
+              //       context.go('${RoutePaths.dispatcherHome}/trips/create'),
+              // ),
               _buildActionCard(
                 icon: Icons.list_alt_rounded,
                 label: 'إدارة الرحلات',
@@ -188,17 +264,47 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
                 onTap: () => context.go('${RoutePaths.dispatcherHome}/trips'),
               ),
               _buildActionCard(
+                icon: Icons.groups_rounded,
+                label: 'إدارة المجموعات',
+                color: AppColors.dispatcherPrimary,
+                delay: 150,
+                onTap: () => context.go('${RoutePaths.dispatcherHome}/groups'),
+              ),
+              _buildActionCard(
+                icon: Icons.event_busy_rounded,
+                label: 'إدارة العطل',
+                color: AppColors.warning,
+                delay: 165,
+                onTap: () => context.go(RoutePaths.dispatcherHolidays),
+              ),
+              _buildActionCard(
+                icon: Icons.people_alt_rounded,
+                label: 'إدارة الركّاب',
+                color: AppColors.primary,
+                delay: 175,
+                onTap: () => context.go(RoutePaths.dispatcherPassengers),
+              ),
+              _buildActionCard(
+                icon: Icons.person_add_alt_1_rounded,
+                label: 'إضافة راكب',
+                color: AppColors.success,
+                delay: 190,
+                onTap: () => context.go(RoutePaths.dispatcherCreatePassenger),
+              ),
+              _buildActionCard(
                 icon: Icons.directions_bus_rounded,
                 label: 'إدارة المركبات',
                 color: AppColors.warning,
                 delay: 100,
-                onTap: () => context.go('${RoutePaths.dispatcherHome}/vehicles'),
+                onTap: () =>
+                    context.go('${RoutePaths.dispatcherHome}/vehicles'),
               ),
+
               _buildActionCard(
                 icon: Icons.map_rounded,
                 label: 'المراقبة الحية',
                 color: AppColors.error,
-                delay: 150,
+                delay: 200,
                 onTap: () => context.go('${RoutePaths.dispatcherHome}/monitor'),
               ),
             ],
@@ -356,54 +462,35 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
   Widget _buildTodayStatistics(TripDashboardStats stats) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: StatCard(
-                  title: 'إجمالي الرحلات',
-                  value: '${stats.totalTripsToday}',
-                  icon: Icons.route_rounded,
-                  color: AppColors.primary,
-                  animationDelay: 0,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatCard(
-                  title: 'رحلات جارية',
-                  value: '${stats.ongoingTrips}',
-                  icon: Icons.play_circle_rounded,
-                  color: AppColors.warning,
-                  animationDelay: 50,
-                ),
-              ),
-            ],
+          Expanded(
+            child: StatCard(
+              title: 'إجمالي الرحلات',
+              value: '${stats.totalTripsToday}',
+              icon: Icons.route_rounded,
+              color: AppColors.primary,
+              animationDelay: 0,
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: StatCard(
-                  title: 'منتهية',
-                  value: '${stats.completedTrips}',
-                  icon: Icons.check_circle_rounded,
-                  color: AppColors.success,
-                  animationDelay: 100,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatCard(
-                  title: 'ملغاة',
-                  value: '${stats.cancelledTrips}',
-                  icon: Icons.cancel_rounded,
-                  color: AppColors.error,
-                  animationDelay: 150,
-                ),
-              ),
-            ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: StatCard(
+              title: 'رحلات جارية',
+              value: '${stats.ongoingTrips}',
+              icon: Icons.play_circle_rounded,
+              color: AppColors.warning,
+              animationDelay: 50,
+            ),
+          ),
+          Expanded(
+            child: StatCard(
+              title: 'منتهية',
+              value: '${stats.completedTrips}',
+              icon: Icons.check_circle_rounded,
+              color: AppColors.success,
+              animationDelay: 100,
+            ),
           ),
         ],
       ),
@@ -526,14 +613,17 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF7B1FA2), Color(0xFF6A1B9A)],
+              colors: [
+                AppColors.dispatcherPrimary,
+                AppColors.dispatcherPrimaryMid,
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF7B1FA2).withValues(alpha: 0.3),
+                color: AppColors.dispatcherPrimary.withValues(alpha: 0.3),
                 blurRadius: 15,
                 offset: const Offset(0, 6),
               ),
@@ -706,8 +796,11 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () =>
-                  ref.invalidate(dashboardStatsProvider(DateTime.now())),
+              onPressed: () {
+                final now = DateTime.now();
+                final today = DateTime(now.year, now.month, now.day);
+                ref.invalidate(dispatcherDashboardStatsProvider(today));
+              },
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('إعادة المحاولة'),
               style: ElevatedButton.styleFrom(

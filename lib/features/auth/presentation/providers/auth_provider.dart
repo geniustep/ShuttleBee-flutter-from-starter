@@ -9,9 +9,13 @@ import '../../../../core/enums/user_role.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/storage/prefs_service.dart';
 import '../../../../core/storage/secure_storage_service.dart';
+import '../../../../core/data/datasources/local_data_source.dart';
+import '../../../../core/config/env_config.dart';
 import '../../../../shared/providers/global_providers.dart';
 import '../../../trips/data/cache/trip_cache_service.dart';
 import '../../domain/entities/user.dart';
+import '../../../../core/services/vehicle_heartbeat_background_service.dart';
+import '../../../shuttlebee/data/services/shuttlebee_rest_auth_service.dart';
 
 /// Auth state provider
 final authStateProvider =
@@ -58,12 +62,14 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
       final isOnline = await _networkInfo.isConnected;
       _ref.read(isOnlineStateProvider.notifier).state = isOnline;
       print(
-          '🌐 [_checkAuthStatus] Network status: ${isOnline ? "online" : "offline"}');
+        '🌐 [_checkAuthStatus] Network status: ${isOnline ? "online" : "offline"}',
+      );
 
       // Get BridgeCore token state
       final bridgeCoreAuthState = await BridgeCore.instance.auth.authState;
       print(
-          '🔐 [_checkAuthStatus] BridgeCore auth state: $bridgeCoreAuthState');
+        '🔐 [_checkAuthStatus] BridgeCore auth state: $bridgeCoreAuthState',
+      );
 
       // Map BridgeCore AuthState to our TokenState
       final tokenState = _mapBridgeCoreAuthState(bridgeCoreAuthState);
@@ -74,7 +80,8 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
       final serverUrl = _prefs.getString(StorageKeys.serverUrl);
 
       print(
-          '🔍 [_checkAuthStatus] userId: $userId, sessionId: ${sessionId != null ? "exists" : "null"}, serverUrl: $serverUrl');
+        '🔍 [_checkAuthStatus] userId: $userId, sessionId: ${sessionId != null ? "exists" : "null"}, serverUrl: $serverUrl',
+      );
 
       // Validate that token is a proper tenant token
       if (tokenState == TokenState.valid ||
@@ -86,7 +93,8 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
           final tokenInfo = await BridgeCore.instance.auth.getTokenInfo();
           print('📋 [_checkAuthStatus] Token details: $tokenInfo');
           print(
-              '🔄 [_checkAuthStatus] Clearing invalid token and requiring re-login...');
+            '🔄 [_checkAuthStatus] Clearing invalid token and requiring re-login...',
+          );
           await _clearSession();
           await BridgeCore.instance.auth.logout();
           state = AsyncValue.data(AuthState.invalidToken());
@@ -217,8 +225,10 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
     final role = UserRole.tryFromString(roleString);
 
     print(
-        '🔍 [_restoreSession] userName: $userName, partnerId: $partnerId, role: ${role?.value ?? "null"}, tokenState: $tokenState');
-    _logger.d('Restoring session for user: $userName, partnerId: $partnerId, role: ${role?.value}');
+      '🔍 [_restoreSession] userName: $userName, partnerId: $partnerId, role: ${role?.value ?? "null"}, tokenState: $tokenState',
+    );
+    _logger.d(
+        'Restoring session for user: $userName, partnerId: $partnerId, role: ${role?.value}');
 
     // Create BridgecoreClient and restore session
     if (sessionId != null) {
@@ -226,7 +236,8 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
       // ⚠️ مهم: استعادة حالة المصادقة في الـ client
       client.restoreSession(sessionId: sessionId, userId: userId);
       _ref.read(bridgecoreClientProvider.notifier).state = client;
-      print('✅ [_restoreSession] BridgecoreClient created with restored session');
+      print(
+          '✅ [_restoreSession] BridgecoreClient created with restored session');
     }
 
     final user = User(
@@ -242,11 +253,13 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
       state = AsyncValue.data(AuthState.needsRefresh(user, isOffline: true));
     } else {
       state = AsyncValue.data(
-          AuthState.authenticated(user, tokenState: tokenState));
+        AuthState.authenticated(user, tokenState: tokenState),
+      );
     }
 
     print(
-        '✅ [_restoreSession] Auth state set (tokenState: $tokenState, offline: $isOffline, role: ${role?.value ?? "null"})');
+      '✅ [_restoreSession] Auth state set (tokenState: $tokenState, offline: $isOffline, role: ${role?.value ?? "null"})',
+    );
   }
 
   /// Login with credentials
@@ -270,13 +283,15 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
       );
 
       // Get complete user info including partnerId and shuttle_role
-      print('🔍 [login] Getting current user info for partnerId and shuttle_role...');
+      print(
+          '🔍 [login] Getting current user info for partnerId and shuttle_role...');
       final meResponse = await client
           .getCurrentUser(modelName: 'res.users', listFields: ['shuttle_role']);
 
       // Extract data from /me endpoint
       final partnerId = meResponse['partner_id'] as int?;
-      final shuttleRole = meResponse['shuttle_role'] ?? meResponse['odoo_fields_data']?['shuttle_role'];
+      final shuttleRole = meResponse['shuttle_role'] ??
+          meResponse['odoo_fields_data']?['shuttle_role'];
       print('🔍 [login] partnerId from /me: $partnerId');
       print('🔍 [login] shuttle_role from /me: $shuttleRole');
 
@@ -287,7 +302,8 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
       };
 
       final user = User.fromOdoo(mergedResult);
-      _logger.i('User logged in: ${user.name}, partnerId: ${user.partnerId}, role: ${user.role?.value}');
+      _logger.i(
+          'User logged in: ${user.name}, partnerId: ${user.partnerId}, role: ${user.role?.value}');
 
       // Save to storage
       await _saveSession(
@@ -297,11 +313,23 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
         rememberMe: rememberMe,
       );
 
+      // Ensure ShuttleBee REST session (if configured to use a separate base URL).
+      // This is best-effort and should not block login.
+      try {
+        if (EnvConfig.shuttleBeeApiUrl.isNotEmpty) {
+          await ShuttleBeeRestAuthService().ensureSession(
+            login: username,
+            password: password,
+          );
+        }
+      } catch (_) {}
+
       // Update client provider
       _ref.read(bridgecoreClientProvider.notifier).state = client;
 
       state = AsyncValue.data(
-          AuthState.authenticated(user, tokenState: TokenState.valid));
+        AuthState.authenticated(user, tokenState: TokenState.valid),
+      );
       _logger.i('Login successful for user: ${user.name}');
 
       return true;
@@ -325,8 +353,10 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
       final currentState = state.asData?.value;
       if (currentState?.user != null) {
         state = AsyncValue.data(
-          AuthState.authenticated(currentState!.user!,
-              tokenState: TokenState.valid),
+          AuthState.authenticated(
+            currentState!.user!,
+            tokenState: TokenState.valid,
+          ),
         );
       }
 
@@ -351,7 +381,8 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
     if (isOnline && currentState.needsTokenRefresh) {
       // Back online and token needs refresh
       print(
-          '🌐 [updateNetworkStatus] Back online, attempting token refresh...');
+        '🌐 [updateNetworkStatus] Back online, attempting token refresh...',
+      );
       final refreshed = await refreshToken();
 
       if (!refreshed && currentState.user != null) {
@@ -403,6 +434,11 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
   /// Logout
   Future<void> logout() async {
     try {
+      // Stop Android background heartbeat service (if running)
+      try {
+        await VehicleHeartbeatBackgroundService.stop();
+      } catch (_) {}
+
       // Clear BridgeCore tokens
       await BridgeCore.instance.auth.logout();
 
@@ -422,6 +458,13 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
         _logger.w('Failed to clear trip caches on logout: $e');
       }
 
+      // Clear generic Hive cache (cache_box/metadata_box) used by dispatcher & core services
+      try {
+        await CacheDataSource().clear();
+      } catch (e) {
+        _logger.w('Failed to clear generic cache on logout: $e');
+      }
+
       state = const AsyncValue.data(AuthState());
       _logger.i('Logout successful');
     } catch (e, stackTrace) {
@@ -434,6 +477,11 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
       } catch (e) {
         _logger.w('Failed to clear trip caches on logout (error path): $e');
       }
+      try {
+        await CacheDataSource().clear();
+      } catch (e) {
+        _logger.w('Failed to clear generic cache on logout (error path): $e');
+      }
       state = const AsyncValue.data(AuthState());
     }
   }
@@ -442,7 +490,9 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
   Future<void> _clearSession() async {
     _logger.d('Clearing session data');
     await _secureStorage.delete(StorageKeys.sessionId);
+    await _secureStorage.delete(StorageKeys.shuttleBeeSessionId);
     await _secureStorage.delete(StorageKeys.accessToken);
+    await _prefs.remove(StorageKeys.lastVehicleId);
     await _prefs.remove(StorageKeys.userId);
     await _prefs.remove(StorageKeys.userDisplayName);
     await _prefs.remove(StorageKeys.partnerId);

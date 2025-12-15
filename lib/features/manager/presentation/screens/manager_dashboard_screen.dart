@@ -19,7 +19,8 @@ class ManagerDashboardScreen extends ConsumerStatefulWidget {
       _ManagerDashboardScreenState();
 }
 
-class _ManagerDashboardScreenState extends ConsumerState<ManagerDashboardScreen> {
+class _ManagerDashboardScreenState
+    extends ConsumerState<ManagerDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -281,7 +282,10 @@ class _ManagerDashboardScreenState extends ConsumerState<ManagerDashboardScreen>
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0);
+    )
+        .animate()
+        .fadeIn(duration: 400.ms, delay: 100.ms)
+        .slideY(begin: 0.1, end: 0);
   }
 
   Widget _buildOverviewItem(String label, String value, String emoji) {
@@ -357,7 +361,10 @@ class _ManagerDashboardScreenState extends ConsumerState<ManagerDashboardScreen>
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: 200.ms).slideY(begin: 0.1, end: 0);
+    )
+        .animate()
+        .fadeIn(duration: 400.ms, delay: 200.ms)
+        .slideY(begin: 0.1, end: 0);
   }
 
   Widget _buildActionButton(
@@ -453,7 +460,10 @@ class _ManagerDashboardScreenState extends ConsumerState<ManagerDashboardScreen>
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: 300.ms).slideY(begin: 0.1, end: 0);
+    )
+        .animate()
+        .fadeIn(duration: 400.ms, delay: 300.ms)
+        .slideY(begin: 0.1, end: 0);
   }
 
   Widget _buildResourceCard(
@@ -558,9 +568,29 @@ class _ManagerDashboardScreenState extends ConsumerState<ManagerDashboardScreen>
   }
 
   String _formatDate(DateTime date) {
-    final days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-    final months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-                    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    final days = [
+      'الأحد',
+      'الإثنين',
+      'الثلاثاء',
+      'الأربعاء',
+      'الخميس',
+      'الجمعة',
+      'السبت'
+    ];
+    final months = [
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
+    ];
     return '${days[date.weekday % 7]}، ${date.day} ${months[date.month - 1]}';
   }
 
@@ -580,4 +610,3 @@ class _ManagerDashboardScreenState extends ConsumerState<ManagerDashboardScreen>
     );
   }
 }
-

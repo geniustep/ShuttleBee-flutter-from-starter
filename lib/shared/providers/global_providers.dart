@@ -8,7 +8,8 @@ import '../../core/storage/prefs_service.dart';
 import '../../core/bridgecore_integration/services/services.dart';
 
 /// Theme mode provider
-final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+final themeModeProvider =
+    StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
   return ThemeModeNotifier();
 });
 
@@ -84,9 +85,8 @@ class LocaleNotifier extends StateNotifier<Locale> {
   }
 
   Future<void> toggleLocale() async {
-    final newLocale = state.languageCode == 'en'
-        ? const Locale('ar')
-        : const Locale('en');
+    final newLocale =
+        state.languageCode == 'en' ? const Locale('ar') : const Locale('en');
     await setLocale(newLocale);
   }
 }
@@ -106,7 +106,7 @@ final isOnlineProvider = FutureProvider<bool>((ref) async {
 });
 
 /// Is online state provider (State-based, for reactive updates)
-/// 
+///
 /// هذا الـ Provider يُستخدم للتحديث المباشر لحالة الشبكة
 /// يُحدّث من auth_provider عند تغير حالة الاتصال
 final isOnlineStateProvider = StateProvider<bool>((ref) => true);
@@ -162,22 +162,22 @@ final hasUpdatesProvider = FutureProvider<bool>((ref) async {
 final unreadNotificationsCountProvider = FutureProvider<int>((ref) async {
   final notificationService = ref.watch(bridgeCoreNotificationsProvider);
   if (!notificationService.isInitialized) return 0;
-  
+
   final stats = await notificationService.getStats();
   return stats.unreadCount;
 });
 
 /// BridgeCore services initialization status provider
-final bridgeCoreServicesStatusProvider =
-    Provider<Map<String, bool>>((ref) {
+final bridgeCoreServicesStatusProvider = Provider<Map<String, bool>>((ref) {
   return BridgeCoreServices.getServicesStatus();
 });
 
 /// Smart sync state provider
-final smartSyncStateProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
+final smartSyncStateProvider =
+    FutureProvider<Map<String, dynamic>?>((ref) async {
   final syncService = ref.watch(bridgeCoreSyncProvider);
   if (!syncService.isInitialized) return null;
-  
+
   try {
     return await syncService.getSmartSyncState();
   } catch (e) {
@@ -189,7 +189,7 @@ final smartSyncStateProvider = FutureProvider<Map<String, dynamic>?>((ref) async
 final syncHealthProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
   final syncService = ref.watch(bridgeCoreSyncProvider);
   if (!syncService.isInitialized) return null;
-  
+
   try {
     return await syncService.checkHealth();
   } catch (e) {

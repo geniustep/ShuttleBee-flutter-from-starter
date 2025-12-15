@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/widgets/role_switcher_widget.dart';
+import '../../../../core/enums/user_role.dart';
 import '../../../../shared/widgets/common/hero_header.dart';
 import '../../../../shared/widgets/common/stat_card.dart';
 import '../../../auth/domain/entities/user.dart';
@@ -65,7 +66,9 @@ class _ManagerHomeScreenState extends ConsumerState<ManagerHomeScreen>
             SliverToBoxAdapter(
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: RoleSwitcherWidget(),
+                child: RoleSwitcherWidget(
+                  allowedRoles: {UserRole.manager, UserRole.dispatcher},
+                ),
               ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
             ),
 
@@ -93,7 +96,8 @@ class _ManagerHomeScreenState extends ConsumerState<ManagerHomeScreen>
     );
   }
 
-  Widget _buildHeroHeader(User? user, AsyncValue<ManagerAnalytics> analyticsAsync) {
+  Widget _buildHeroHeader(
+      User? user, AsyncValue<ManagerAnalytics> analyticsAsync) {
     final isRefreshing = analyticsAsync.isLoading;
 
     return HeroHeader(
@@ -430,7 +434,8 @@ class _ManagerHomeScreenState extends ConsumerState<ManagerHomeScreen>
               Expanded(
                 child: StatCard(
                   title: 'معدل الإشغال',
-                  value: '${analytics.averageOccupancyRate.toStringAsFixed(1)}%',
+                  value:
+                      '${analytics.averageOccupancyRate.toStringAsFixed(1)}%',
                   icon: Icons.event_seat_rounded,
                   color: AppColors.success,
                   trend: 3.2,
@@ -457,7 +462,8 @@ class _ManagerHomeScreenState extends ConsumerState<ManagerHomeScreen>
               Expanded(
                 child: StatCard(
                   title: 'متوسط التأخير',
-                  value: '${analytics.averageDelayMinutes.toStringAsFixed(0)} د',
+                  value:
+                      '${analytics.averageDelayMinutes.toStringAsFixed(0)} د',
                   icon: Icons.timer_rounded,
                   color: analytics.averageDelayMinutes <= 5
                       ? AppColors.success
@@ -492,7 +498,8 @@ class _ManagerHomeScreenState extends ConsumerState<ManagerHomeScreen>
               Expanded(
                 child: StatCard(
                   title: 'متوسط المسافة',
-                  value: '${analytics.averageDistancePerTrip.toStringAsFixed(1)} كم',
+                  value:
+                      '${analytics.averageDistancePerTrip.toStringAsFixed(1)} كم',
                   icon: Icons.straighten_rounded,
                   color: AppColors.success,
                   animationDelay: 450,

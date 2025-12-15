@@ -96,7 +96,7 @@ class AppDrawer extends ConsumerWidget {
           // Bottom section
           Container(
             padding: AppDimensions.paddingMd,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               border: Border(
                 top: BorderSide(color: AppColors.border),
               ),

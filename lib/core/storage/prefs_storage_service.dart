@@ -7,8 +7,7 @@ class PrefsStorageService {
 
   static final PrefsStorageService instance = PrefsStorageService._();
 
-  Future<SharedPreferences> get _prefs async =>
-      SharedPreferences.getInstance();
+  Future<SharedPreferences> get _prefs async => SharedPreferences.getInstance();
 
   /// Read a value of type [T] from storage.
   Future<T?> read<T>({required String key}) async {
@@ -39,4 +38,3 @@ class PrefsStorageService {
     return prefs.remove(key);
   }
 }
-

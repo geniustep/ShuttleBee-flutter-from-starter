@@ -35,7 +35,7 @@ class _OfflineSettingsScreenState extends ConsumerState<OfflineSettingsScreen> {
             child: SwitchListTile(
               secondary: Container(
                 padding: const EdgeInsets.all(AppDimensions.sm),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.primaryContainer,
                   borderRadius: AppDimensions.borderRadiusSm,
                 ),
@@ -60,7 +60,7 @@ class _OfflineSettingsScreenState extends ConsumerState<OfflineSettingsScreen> {
             child: SwitchListTile(
               secondary: Container(
                 padding: const EdgeInsets.all(AppDimensions.sm),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.successLight,
                   borderRadius: AppDimensions.borderRadiusSm,
                 ),
@@ -87,7 +87,7 @@ class _OfflineSettingsScreenState extends ConsumerState<OfflineSettingsScreen> {
             child: SwitchListTile(
               secondary: Container(
                 padding: const EdgeInsets.all(AppDimensions.sm),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.infoLight,
                   borderRadius: AppDimensions.borderRadiusSm,
                 ),
@@ -121,21 +121,21 @@ class _OfflineSettingsScreenState extends ConsumerState<OfflineSettingsScreen> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: AppDimensions.md),
-                  _StatusRow(
+                  const _StatusRow(
                     icon: Icons.cloud_done,
                     label: 'Last sync',
                     value: '5 minutes ago',
                     color: AppColors.success,
                   ),
                   const SizedBox(height: AppDimensions.sm),
-                  _StatusRow(
+                  const _StatusRow(
                     icon: Icons.pending_actions,
                     label: 'Pending operations',
                     value: '0',
                     color: AppColors.warning,
                   ),
                   const SizedBox(height: AppDimensions.sm),
-                  _StatusRow(
+                  const _StatusRow(
                     icon: Icons.storage,
                     label: 'Cached data',
                     value: '2.5 MB',

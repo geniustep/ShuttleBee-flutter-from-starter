@@ -128,7 +128,7 @@ class _OperationCard extends StatelessWidget {
             const SizedBox(height: AppDimensions.sm),
             Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.access_time,
                   size: 14,
                   color: AppColors.textSecondary,

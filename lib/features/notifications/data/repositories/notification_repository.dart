@@ -32,7 +32,8 @@ class NotificationRepository {
       if (result.success) {
         return Right(result);
       } else {
-        return Left(ServerFailure(message: result.message ?? 'فشل إرسال إشعار الاقتراب'));
+        return Left(ServerFailure(
+            message: result.message ?? 'فشل إرسال إشعار الاقتراب'));
       }
     } catch (e) {
       return Left(ServerFailure(message: 'خطأ في إرسال إشعار الاقتراب: $e'));
@@ -49,7 +50,8 @@ class NotificationRepository {
       if (result.success) {
         return Right(result);
       } else {
-        return Left(ServerFailure(message: result.message ?? 'فشل إرسال إشعار الوصول'));
+        return Left(
+            ServerFailure(message: result.message ?? 'فشل إرسال إشعار الوصول'));
       }
     } catch (e) {
       return Left(ServerFailure(message: 'خطأ في إرسال إشعار الوصول: $e'));
@@ -74,7 +76,8 @@ class NotificationRepository {
       if (result.success) {
         return Right(result);
       } else {
-        return Left(ServerFailure(message: result.message ?? 'فشل إرسال الإشعار المخصص'));
+        return Left(ServerFailure(
+            message: result.message ?? 'فشل إرسال الإشعار المخصص'));
       }
     } catch (e) {
       return Left(ServerFailure(message: 'خطأ في إرسال الإشعار المخصص: $e'));
@@ -82,7 +85,8 @@ class NotificationRepository {
   }
 
   /// إرسال إشعار لجميع ركاب الرحلة
-  Future<Either<Failure, NotificationSendResult>> sendNotificationToAllPassengers({
+  Future<Either<Failure, NotificationSendResult>>
+      sendNotificationToAllPassengers({
     required int tripId,
     required String notificationType,
     String? message,
@@ -97,10 +101,12 @@ class NotificationRepository {
       if (result.success) {
         return Right(result);
       } else {
-        return Left(ServerFailure(message: result.message ?? 'فشل إرسال الإشعارات الجماعية'));
+        return Left(ServerFailure(
+            message: result.message ?? 'فشل إرسال الإشعارات الجماعية'));
       }
     } catch (e) {
-      return Left(ServerFailure(message: 'خطأ في إرسال الإشعارات الجماعية: $e'));
+      return Left(
+          ServerFailure(message: 'خطأ في إرسال الإشعارات الجماعية: $e'));
     }
   }
 
@@ -159,10 +165,12 @@ class NotificationRepository {
     int passengerId,
   ) async {
     try {
-      final notifications = await _dataSource.getUnreadNotifications(passengerId);
+      final notifications =
+          await _dataSource.getUnreadNotifications(passengerId);
       return Right(notifications);
     } catch (e) {
-      return Left(ServerFailure(message: 'خطأ في جلب الإشعارات غير المقروءة: $e'));
+      return Left(
+          ServerFailure(message: 'خطأ في جلب الإشعارات غير المقروءة: $e'));
     }
   }
 
@@ -246,7 +254,7 @@ class NotificationRepository {
       if (preview != null) {
         return Right(preview);
       } else {
-        return Left(ServerFailure(message: 'فشل معاينة الرسالة'));
+        return const Left(ServerFailure(message: 'فشل معاينة الرسالة'));
       }
     } catch (e) {
       return Left(ServerFailure(message: 'خطأ في معاينة الرسالة: $e'));
@@ -258,17 +266,20 @@ class NotificationRepository {
   // ============================================================
 
   /// الحصول على إعدادات قناة الإشعار الافتراضية
-  Future<Either<Failure, NotificationChannelSettings>> getNotificationChannelSettings() async {
+  Future<Either<Failure, NotificationChannelSettings>>
+      getNotificationChannelSettings() async {
     try {
       final settings = await _dataSource.getNotificationChannelSettings();
 
       if (settings != null) {
         return Right(settings);
       } else {
-        return Right(const NotificationChannelSettings(
-          defaultChannel: 'whatsapp',
-          availableChannels: ['whatsapp', 'sms', 'push', 'email'],
-        ));
+        return const Right(
+          NotificationChannelSettings(
+            defaultChannel: 'whatsapp',
+            availableChannels: ['whatsapp', 'sms', 'push', 'email'],
+          ),
+        );
       }
     } catch (e) {
       return Left(ServerFailure(message: 'خطأ في جلب إعدادات الإشعارات: $e'));
@@ -281,7 +292,8 @@ class NotificationRepository {
 // ============================================================
 
 /// Provider لمصدر بيانات الإشعارات
-final notificationDataSourceProvider = Provider<NotificationRemoteDataSource>((ref) {
+final notificationDataSourceProvider =
+    Provider<NotificationRemoteDataSource>((ref) {
   final client = ref.watch(bridgecoreClientProvider);
   final apiService = ref.watch(shuttleNotificationApiServiceProvider);
 
@@ -300,4 +312,3 @@ final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
   final dataSource = ref.watch(notificationDataSourceProvider);
   return NotificationRepository(dataSource);
 });
-

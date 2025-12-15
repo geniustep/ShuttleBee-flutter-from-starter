@@ -4,7 +4,8 @@ abstract class OdooModelBase {
   static String get modelName => throw UnimplementedError();
 
   /// Default fields to fetch
-  static List<String> get defaultFields => ['id', 'name', 'create_date', 'write_date'];
+  static List<String> get defaultFields =>
+      ['id', 'name', 'create_date', 'write_date'];
 
   /// Convert to JSON map
   Map<String, dynamic> toJson();

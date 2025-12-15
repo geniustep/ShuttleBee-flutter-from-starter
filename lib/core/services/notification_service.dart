@@ -36,7 +36,8 @@ class NotificationService {
 
   /// Initialize local notifications
   Future<void> _initializeLocalNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -102,7 +103,8 @@ class NotificationService {
     // Check for initial message (app opened from terminated state)
     final initialMessage = await _fcm.getInitialMessage();
     if (initialMessage != null) {
-      AppLogger.info('App opened from terminated state: ${initialMessage.messageId}');
+      AppLogger.info(
+          'App opened from terminated state: ${initialMessage.messageId}');
       _messageStreamController.add(initialMessage);
     }
   }

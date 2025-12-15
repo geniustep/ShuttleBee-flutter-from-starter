@@ -14,6 +14,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/utils/error_translator.dart';
+import '../../../../core/widgets/role_switcher_widget.dart';
+import '../../../../core/services/vehicle_heartbeat_background_service.dart';
+import '../../../../core/services/live_tracking_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../trips/domain/entities/trip.dart';
 import '../../../trips/presentation/providers/cached_trip_provider.dart';
@@ -38,6 +41,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
 
   // === Riverpod Subscription ===
   ProviderSubscription<AsyncValue>? _authSubscription;
+
+  // Background heartbeat (Android foreground service)
+  bool _heartbeatStarted = false;
 
   @override
   void initState() {
@@ -77,6 +83,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
   Future<void> _initializeTrips() async {
     await _preloadTodayTrips();
     _loadSelectedDate();
+    _startHeartbeat();
   }
 
   /// 🚌 تحميل رحلات اليوم مسبقاً للكاش مع الركاب
@@ -109,6 +116,34 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
     _authSubscription?.close();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  void _startHeartbeat() {
+    if (_heartbeatStarted) return;
+    _heartbeatStarted = true;
+
+    // Android foreground-service heartbeat (works in background).
+    VehicleHeartbeatBackgroundService.start();
+
+    // 🚀 اتصال WebSocket للتتبع الحي (Live Tracking)
+    _connectLiveTracking();
+  }
+
+  /// الاتصال بخدمة التتبع الحي
+  Future<void> _connectLiveTracking() async {
+    // تأخير الاتصال لتجنب تعديل الـ provider أثناء build
+    await Future.delayed(Duration.zero);
+    if (!mounted) return;
+
+    try {
+      await ref.read(driverLiveTrackingProvider.notifier).connect();
+      debugPrint('✅ [DriverHome] Live tracking connected successfully');
+    } catch (e) {
+      // WebSocket غير متاح حالياً - سيتم إعادة المحاولة تلقائياً
+      debugPrint(
+        '⚠️ [DriverHome] Live tracking unavailable (will retry): $e',
+      );
+    }
   }
 
   @override
@@ -164,7 +199,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
     if (tripsState.hasError && !tripsState.hasData) {
       return SliverFillRemaining(
         child: _buildErrorState(
-            _getErrorMessage(tripsState.error ?? 'حدث خطأ غير معروف')),
+          _getErrorMessage(tripsState.error ?? 'حدث خطأ غير معروف'),
+        ),
       );
     }
 
@@ -219,10 +255,19 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
       stretch: true,
       backgroundColor: AppColors.primary,
       actions: [
+        const RoleSwitcherButton(),
         _buildHeaderButton(
           icon: Icons.calendar_today_rounded,
           onPressed: _selectDate,
           tooltip: 'اختر التاريخ',
+        ),
+        _buildHeaderButton(
+          icon: Icons.settings_rounded,
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            context.push(RoutePaths.settings);
+          },
+          tooltip: 'الإعدادات',
         ),
         _buildHeaderButton(
           icon: isRefreshing ? Icons.more_horiz_rounded : Icons.refresh_rounded,
@@ -274,55 +319,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    // === Welcome Badge ===
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          AnimatedBuilder(
-                            animation: _pulseController,
-                            builder: (context, child) {
-                              return Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF4CAF50),
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF4CAF50).withValues(
-                                        alpha: 0.5 +
-                                            (_pulseController.value * 0.5),
-                                      ),
-                                      blurRadius:
-                                          4 + (_pulseController.value * 4),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'متصل الآن',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              fontFamily: 'Cairo',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    // === Live Tracking Status Badge ===
+                    _buildLiveTrackingBadge(),
                     const SizedBox(height: 12),
 
                     // === Welcome Text ===
@@ -595,13 +593,15 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
       final tripsWithPassengers =
           trips.where((t) => t.totalPassengers > 0).length;
       debugPrint(
-          '📊 Statistics: ${trips.length} trips, $tripsWithLines with lines, $tripsWithoutLines without lines, $tripsWithPassengers with totalPassengers > 0, calculated passengers: $totalPassengers');
+        '📊 Statistics: ${trips.length} trips, $tripsWithLines with lines, $tripsWithoutLines without lines, $tripsWithPassengers with totalPassengers > 0, calculated passengers: $totalPassengers',
+      );
 
       // إذا كان العدد 0، نطبع تفاصيل أكثر
       if (totalPassengers == 0) {
         for (final trip in trips) {
           debugPrint(
-              '  - Trip ${trip.id}: lines=${trip.lines.length}, totalPassengers=${trip.totalPassengers}');
+            '  - Trip ${trip.id}: lines=${trip.lines.length}, totalPassengers=${trip.totalPassengers}',
+          );
         }
       }
     }
@@ -739,7 +739,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
           if (index == 1) return const SizedBox(height: 24);
           if (index == 2) return _buildSectionHeader(trips);
 
-          final tripStartIndex = 3;
+          const tripStartIndex = 3;
           final tripEndExclusive = tripStartIndex + sortedTrips.length;
           if (index >= tripStartIndex && index < tripEndExclusive) {
             final tripIndex = index - tripStartIndex;
@@ -1019,7 +1019,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
                         const SizedBox(width: 12),
                         _buildTripStat(
                           icon: Icons.straighten_rounded,
-                          value: '${trip.plannedDistance!.toStringAsFixed(1)}',
+                          value: trip.plannedDistance!.toStringAsFixed(1),
                           label: 'كم',
                           color: const Color(0xFF8B5CF6),
                         ),
@@ -1180,9 +1180,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
           borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Icon(Icons.map_rounded, size: 16, color: Colors.white),
                 SizedBox(width: 4),
                 Text(
@@ -1213,9 +1213,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
           borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Icon(Icons.play_arrow_rounded, size: 16, color: Colors.white),
                 SizedBox(width: 4),
                 Text(
@@ -1249,6 +1249,80 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
   }
 
   // ============================================================
+  // 📡 LIVE TRACKING BADGE
+  // ============================================================
+  Widget _buildLiveTrackingBadge() {
+    final liveTrackingState = ref.watch(driverLiveTrackingProvider);
+
+    final isConnected = liveTrackingState.isConnected;
+    final isAutoTracking = liveTrackingState.isAutoTracking;
+
+    String statusText;
+    Color statusColor;
+
+    if (isAutoTracking) {
+      statusText = 'تتبع حي 📍';
+      statusColor = const Color(0xFFF59E0B); // Orange
+    } else if (isConnected) {
+      statusText = 'متصل الآن';
+      statusColor = const Color(0xFF4CAF50); // Green
+    } else if (liveTrackingState.isConnecting) {
+      statusText = 'جاري الاتصال...';
+      statusColor = const Color(0xFF2196F3); // Blue
+    } else {
+      statusText = 'غير متصل';
+      statusColor = const Color(0xFFEF4444); // Red
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              return Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: statusColor.withValues(
+                        alpha: 0.5 + (_pulseController.value * 0.5),
+                      ),
+                      blurRadius: 4 + (_pulseController.value * 4),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+          Text(
+            statusText,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Cairo',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
   // 🔧 HELPER METHODS
   // ============================================================
   bool _isToday(DateTime date) {
@@ -1275,7 +1349,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
               surface: Colors.white,
               onSurface: AppColors.textPrimary,
             ),
-            dialogBackgroundColor: Colors.white,
+            dialogTheme: const DialogThemeData(backgroundColor: Colors.white),
           ),
           child: child!,
         );
@@ -1443,7 +1517,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen>
           const SizedBox(height: 24),
           Text(
             title,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: AppColors.textPrimary,

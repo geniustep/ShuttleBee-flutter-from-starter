@@ -38,9 +38,8 @@ class WebSocketService {
 
     _serverUrl = serverUrl;
 
-    final optionsBuilder = io.OptionBuilder()
-        .setTransports(['websocket'])
-        .disableAutoConnect();
+    final optionsBuilder =
+        io.OptionBuilder().setTransports(['websocket']).disableAutoConnect();
 
     if (auth != null) {
       optionsBuilder.setAuth(auth);
@@ -85,11 +84,13 @@ class WebSocketService {
 
     // Listen to all events
     _socket!.onAny((event, data) {
-      _messageController.add(SocketMessage(
-        event: event,
-        data: data,
-        timestamp: DateTime.now(),
-      ));
+      _messageController.add(
+        SocketMessage(
+          event: event,
+          data: data,
+          timestamp: DateTime.now(),
+        ),
+      );
     });
   }
 
@@ -186,7 +187,8 @@ class SocketMessage {
   }
 
   @override
-  String toString() => 'SocketMessage(event: $event, data: $data, timestamp: $timestamp)';
+  String toString() =>
+      'SocketMessage(event: $event, data: $data, timestamp: $timestamp)';
 }
 
 /// Real-time updates service

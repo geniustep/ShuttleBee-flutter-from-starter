@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/env_config.dart';
+import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -16,7 +17,8 @@ class ShuttleNotificationApiService {
     required Dio dio,
     String? baseUrl,
   })  : _dio = dio,
-        _baseUrl = baseUrl ?? EnvConfig.odooUrl;
+        // Notifications are sent via ShuttleBee REST endpoints.
+        _baseUrl = baseUrl ?? EnvConfig.shuttleBeeApiBaseUrl;
 
   // ============================================================
   // 📱 إرسال إشعار Approaching (السائق يقترب)
@@ -29,7 +31,8 @@ class ShuttleNotificationApiService {
     int? eta, // الوقت المتوقع للوصول بالدقائق
   }) async {
     try {
-      AppLogger.info('📤 Sending approaching notification for trip_line: $tripLineId');
+      AppLogger.info(
+          '📤 Sending approaching notification for trip_line: $tripLineId');
 
       final response = await _dio.post(
         '$_baseUrl/api/v1/shuttle/trip-line/$tripLineId/notify/approaching',
@@ -40,12 +43,14 @@ class ShuttleNotificationApiService {
 
       return NotificationApiResponse.fromJson(response.data);
     } on DioException catch (e) {
-      AppLogger.error('❌ Failed to send approaching notification: ${e.message}');
+      AppLogger.error(
+          '❌ Failed to send approaching notification: ${e.message}');
       return NotificationApiResponse.error(
         e.response?.data?['message'] ?? 'فشل إرسال إشعار الاقتراب',
       );
     } catch (e) {
-      AppLogger.error('❌ Unexpected error sending approaching notification: $e');
+      AppLogger.error(
+          '❌ Unexpected error sending approaching notification: $e');
       return NotificationApiResponse.error('حدث خطأ غير متوقع');
     }
   }
@@ -56,9 +61,11 @@ class ShuttleNotificationApiService {
 
   /// إرسال إشعار وصول السائق لراكب معين
   /// POST /api/v1/shuttle/trip-line/{trip_line_id}/notify/arrived
-  Future<NotificationApiResponse> sendArrivedNotification(int tripLineId) async {
+  Future<NotificationApiResponse> sendArrivedNotification(
+      int tripLineId) async {
     try {
-      AppLogger.info('📤 Sending arrived notification for trip_line: $tripLineId');
+      AppLogger.info(
+          '📤 Sending arrived notification for trip_line: $tripLineId');
 
       final response = await _dio.post(
         '$_baseUrl/api/v1/shuttle/trip-line/$tripLineId/notify/arrived',
@@ -90,7 +97,8 @@ class ShuttleNotificationApiService {
     String notificationType = 'custom',
   }) async {
     try {
-      AppLogger.info('📤 Sending custom notification to passenger: $passengerId');
+      AppLogger.info(
+          '📤 Sending custom notification to passenger: $passengerId');
 
       final response = await _dio.post(
         '$_baseUrl/api/v1/shuttle/notification/send',
@@ -127,7 +135,8 @@ class ShuttleNotificationApiService {
     String? message,
   }) async {
     try {
-      AppLogger.info('📤 Sending notification to all passengers in trip: $tripId');
+      AppLogger.info(
+          '📤 Sending notification to all passengers in trip: $tripId');
 
       final response = await _dio.post(
         '$_baseUrl/api/v1/shuttle/trip/$tripId/notify/all',
@@ -291,17 +300,20 @@ class ShuttleNotificationApiService {
       );
 
       final notifications = (response.data['notifications'] as List?)
-              ?.map((n) => NotificationHistoryItem.fromJson(n as Map<String, dynamic>))
+              ?.map((n) =>
+                  NotificationHistoryItem.fromJson(n as Map<String, dynamic>))
               .toList() ??
           [];
 
       AppLogger.info('✅ Fetched ${notifications.length} notifications');
       return notifications;
     } on DioException catch (e) {
-      AppLogger.error('❌ Failed to fetch passenger notifications: ${e.message}');
+      AppLogger.error(
+          '❌ Failed to fetch passenger notifications: ${e.message}');
       return [];
     } catch (e) {
-      AppLogger.error('❌ Unexpected error fetching passenger notifications: $e');
+      AppLogger.error(
+          '❌ Unexpected error fetching passenger notifications: $e');
       return [];
     }
   }
@@ -322,10 +334,12 @@ class ShuttleNotificationApiService {
 
       return NotificationChannelSettings.fromJson(response.data);
     } on DioException catch (e) {
-      AppLogger.error('❌ Failed to get notification channel settings: ${e.message}');
+      AppLogger.error(
+          '❌ Failed to get notification channel settings: ${e.message}');
       return null;
     } catch (e) {
-      AppLogger.error('❌ Unexpected error getting notification channel settings: $e');
+      AppLogger.error(
+          '❌ Unexpected error getting notification channel settings: $e');
       return null;
     }
   }
@@ -508,9 +522,12 @@ class NotificationHistoryItem {
       channel: json['channel'] as String? ?? '',
       status: json['status'] as String? ?? 'pending',
       messageContent: json['message_content'] as String? ?? '',
-      createDate: NotificationStatusResponse._parseDateTime(json['create_date']) ?? DateTime.now(),
+      createDate:
+          NotificationStatusResponse._parseDateTime(json['create_date']) ??
+              DateTime.now(),
       sentDate: NotificationStatusResponse._parseDateTime(json['sent_date']),
-      deliveredDate: NotificationStatusResponse._parseDateTime(json['delivered_date']),
+      deliveredDate:
+          NotificationStatusResponse._parseDateTime(json['delivered_date']),
       readDate: NotificationStatusResponse._parseDateTime(json['read_date']),
     );
   }
@@ -542,18 +559,22 @@ class NotificationChannelSettings {
 // ============================================================
 
 /// Provider للحصول على خدمة API الإشعارات
-final shuttleNotificationApiServiceProvider = Provider<ShuttleNotificationApiService>((ref) {
-  final dioClient = DioClient();
-  
+final shuttleNotificationApiServiceProvider =
+    Provider<ShuttleNotificationApiService>((ref) {
+  // Notifications are sent via ShuttleBee REST endpoints and may live on a different base URL.
+  final dioClient = DioClient(
+    baseUrl: EnvConfig.shuttleBeeApiBaseUrl,
+    sessionStorageKey: StorageKeys.shuttleBeeSessionId,
+  );
+
   // إضافة interceptor للمصادقة
   final authState = ref.watch(authStateProvider);
   final user = authState.asData?.value.user;
-  
+
   // استخدام session_id المخزن للمصادقة
   if (user != null) {
     // يمكن إضافة headers إضافية هنا إذا لزم الأمر
   }
-  
+
   return ShuttleNotificationApiService(dio: dioClient.dio);
 });
-

@@ -69,8 +69,8 @@ class DashboardRepositoryImpl extends BaseRepository
       limit: 1000,
     );
 
-    final total =
-        invoices.fold<double>(0, (sum, inv) => sum + (inv['amount_total'] ?? 0));
+    final total = invoices.fold<double>(
+        0, (sum, inv) => sum + (inv['amount_total'] ?? 0));
 
     // Calculate trend (compare with last month)
     final lastMonthInvoices = await remoteDataSource.searchRead(
@@ -79,13 +79,19 @@ class DashboardRepositoryImpl extends BaseRepository
         ['move_type', '=', 'out_invoice'],
         ['state', '=', 'posted'],
         ['date', '<', DateTime.now().toIso8601String()],
-        ['date', '>=', DateTime.now().subtract(const Duration(days: 30)).toIso8601String()],
+        [
+          'date',
+          '>=',
+          DateTime.now().subtract(const Duration(days: 30)).toIso8601String()
+        ],
       ],
       fields: ['amount_total'],
     );
 
     final lastMonthTotal = lastMonthInvoices.fold<double>(
-        0, (sum, inv) => sum + (inv['amount_total'] ?? 0));
+      0,
+      (sum, inv) => sum + (inv['amount_total'] ?? 0),
+    );
 
     final trend = lastMonthTotal > 0
         ? ((total - lastMonthTotal) / lastMonthTotal * 100)
@@ -104,7 +110,13 @@ class DashboardRepositoryImpl extends BaseRepository
   Future<KPI> _calculateOrders() async {
     final orders = await remoteDataSource.searchCount(
       model: 'sale.order',
-      domain: [['state', 'in', ['sale', 'done']]],
+      domain: [
+        [
+          'state',
+          'in',
+          ['sale', 'done']
+        ]
+      ],
     );
 
     return KPI(
@@ -120,7 +132,9 @@ class DashboardRepositoryImpl extends BaseRepository
   Future<KPI> _calculateCustomers() async {
     final customers = await remoteDataSource.searchCount(
       model: 'res.partner',
-      domain: [['customer_rank', '>', 0]],
+      domain: [
+        ['customer_rank', '>', 0]
+      ],
     );
 
     return KPI(
@@ -136,7 +150,9 @@ class DashboardRepositoryImpl extends BaseRepository
   Future<KPI> _calculatePending() async {
     final pending = await remoteDataSource.searchCount(
       model: 'sale.order',
-      domain: [['state', '=', 'draft']],
+      domain: [
+        ['state', '=', 'draft']
+      ],
     );
 
     return KPI(
@@ -170,7 +186,11 @@ class DashboardRepositoryImpl extends BaseRepository
         domain: [
           ['date_order', '>=', startDate.toIso8601String()],
           ['date_order', '<=', endDate.toIso8601String()],
-          ['state', 'in', ['sale', 'done']],
+          [
+            'state',
+            'in',
+            ['sale', 'done']
+          ],
         ],
         fields: ['date_order', 'amount_total'],
       );
@@ -187,11 +207,13 @@ class DashboardRepositoryImpl extends BaseRepository
       }
 
       groupedData.forEach((date, value) {
-        dataPoints.add(ChartDataPoint(
-          x: date.millisecondsSinceEpoch.toDouble(),
-          y: value,
-          label: '${date.day}/${date.month}',
-        ));
+        dataPoints.add(
+          ChartDataPoint(
+            x: date.millisecondsSinceEpoch.toDouble(),
+            y: value,
+            label: '${date.day}/${date.month}',
+          ),
+        );
       });
 
       dataPoints.sort((a, b) => a.x.compareTo(b.x));
@@ -230,14 +252,18 @@ class DashboardRepositoryImpl extends BaseRepository
       for (final status in statuses) {
         final count = await remoteDataSource.searchCount(
           model: 'sale.order',
-          domain: [['state', '=', status]],
+          domain: [
+            ['state', '=', status]
+          ],
         );
 
-        dataPoints.add(ChartDataPoint(
-          x: statuses.indexOf(status).toDouble(),
-          y: count.toDouble(),
-          label: status.toUpperCase(),
-        ));
+        dataPoints.add(
+          ChartDataPoint(
+            x: statuses.indexOf(status).toDouble(),
+            y: count.toDouble(),
+            label: status.toUpperCase(),
+          ),
+        );
       }
 
       final chartData = ChartData(

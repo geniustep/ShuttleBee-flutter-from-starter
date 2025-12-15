@@ -55,7 +55,9 @@ class NotificationActionButtons extends ConsumerWidget {
           isLoading: state.isApproachingLoading,
           isNotified: state.approachingNotified,
           color: Colors.orange,
-          tooltip: state.approachingNotified ? 'تم إرسال إشعار الاقتراب' : 'إرسال إشعار اقتراب',
+          tooltip: state.approachingNotified
+              ? 'تم إرسال إشعار الاقتراب'
+              : 'إرسال إشعار اقتراب',
           onPressed: state.approachingNotified || state.isApproachingLoading
               ? null
               : () => _sendApproaching(context, ref),
@@ -67,7 +69,9 @@ class NotificationActionButtons extends ConsumerWidget {
           isLoading: state.isArrivedLoading,
           isNotified: state.arrivedNotified,
           color: Colors.green,
-          tooltip: state.arrivedNotified ? 'تم إرسال إشعار الوصول' : 'إرسال إشعار وصول',
+          tooltip: state.arrivedNotified
+              ? 'تم إرسال إشعار الوصول'
+              : 'إرسال إشعار وصول',
           onPressed: state.arrivedNotified || state.isArrivedLoading
               ? null
               : () => _sendArrived(context, ref),
@@ -131,7 +135,8 @@ class NotificationActionButtons extends ConsumerWidget {
 
     if (context.mounted) {
       if (success) {
-        _showSuccessSnackBar(context, 'تم إرسال إشعار الاقتراب لـ ${tripLine.passengerName}');
+        _showSuccessSnackBar(
+            context, 'تم إرسال إشعار الاقتراب لـ ${tripLine.passengerName}');
         onApproachingSent?.call();
       } else {
         final state = ref.read(
@@ -161,7 +166,8 @@ class NotificationActionButtons extends ConsumerWidget {
 
     if (context.mounted) {
       if (success) {
-        _showSuccessSnackBar(context, 'تم إرسال إشعار الوصول لـ ${tripLine.passengerName}');
+        _showSuccessSnackBar(
+            context, 'تم إرسال إشعار الوصول لـ ${tripLine.passengerName}');
         onArrivedSent?.call();
       } else {
         final state = ref.read(
@@ -374,9 +380,7 @@ class SendAllNotificationButton extends ConsumerWidget {
     final state = ref.watch(notificationActionsProvider);
 
     return ElevatedButton.icon(
-      onPressed: state.isLoading
-          ? null
-          : () => _sendToAll(context, ref),
+      onPressed: state.isLoading ? null : () => _sendToAll(context, ref),
       icon: state.isLoading
           ? const SizedBox(
               width: 16,
@@ -419,7 +423,8 @@ class SendAllNotificationButton extends ConsumerWidget {
             const SizedBox(width: 12),
             const Text(
               'تأكيد الإرسال',
-              style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+              style:
+                  TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -475,7 +480,8 @@ class SendAllNotificationButton extends ConsumerWidget {
           ),
           backgroundColor: success ? Colors.green : AppColors.error,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
 
@@ -667,4 +673,3 @@ class _ChannelConfig {
 
   const _ChannelConfig({required this.emoji, required this.label});
 }
-

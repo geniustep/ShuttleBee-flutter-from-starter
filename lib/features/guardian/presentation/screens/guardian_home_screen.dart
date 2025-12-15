@@ -149,7 +149,8 @@ class _GuardianHomeScreenState extends ConsumerState<GuardianHomeScreen> {
   }
 
   Widget _buildDependentSelector(
-      AsyncValue<List<DependentPassenger>> dependentsAsync) {
+    AsyncValue<List<DependentPassenger>> dependentsAsync,
+  ) {
     return Container(
       margin: const EdgeInsets.all(16),
       child: Column(
@@ -201,7 +202,10 @@ class _GuardianHomeScreenState extends ConsumerState<GuardianHomeScreen> {
   }
 
   Widget _buildDependentCard(
-      DependentPassenger dependent, bool isSelected, int index) {
+    DependentPassenger dependent,
+    bool isSelected,
+    int index,
+  ) {
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
@@ -332,10 +336,8 @@ class _GuardianHomeScreenState extends ConsumerState<GuardianHomeScreen> {
               }
 
               return Column(
-                children: trips
-                    .take(3)
-                    .map((trip) => _buildTripCard(trip))
-                    .toList(),
+                children:
+                    trips.take(3).map((trip) => _buildTripCard(trip)).toList(),
               );
             },
             loading: () => const Center(
@@ -356,7 +358,10 @@ class _GuardianHomeScreenState extends ConsumerState<GuardianHomeScreen> {
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0);
+    )
+        .animate()
+        .fadeIn(duration: 400.ms, delay: 100.ms)
+        .slideY(begin: 0.1, end: 0);
   }
 
   Widget _buildNoTripsToday() {
@@ -439,8 +444,11 @@ class _GuardianHomeScreenState extends ConsumerState<GuardianHomeScreen> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.access_time_rounded,
-                            size: 14, color: Colors.grey[500]),
+                        Icon(
+                          Icons.access_time_rounded,
+                          size: 14,
+                          color: Colors.grey[500],
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           trip.plannedStartTime != null
@@ -459,7 +467,8 @@ class _GuardianHomeScreenState extends ConsumerState<GuardianHomeScreen> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: _getStateColor(trip.state).withValues(alpha: 0.1),
+                            color: _getStateColor(trip.state)
+                                .withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
@@ -544,7 +553,10 @@ class _GuardianHomeScreenState extends ConsumerState<GuardianHomeScreen> {
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: 200.ms).slideY(begin: 0.1, end: 0);
+    )
+        .animate()
+        .fadeIn(duration: 400.ms, delay: 200.ms)
+        .slideY(begin: 0.1, end: 0);
   }
 
   Widget _buildActionCard(
@@ -591,85 +603,90 @@ class _GuardianHomeScreenState extends ConsumerState<GuardianHomeScreen> {
 
     final dependentsAsync = ref.watch(dependentsProvider);
 
-    return dependentsAsync.when(
-      data: (dependents) {
-        final dependent = dependents.firstWhere(
-          (d) => d.id == _selectedDependentId,
-          orElse: () => dependents.first,
-        );
+    return dependentsAsync
+        .when(
+          data: (dependents) {
+            final dependent = dependents.firstWhere(
+              (d) => d.id == _selectedDependentId,
+              orElse: () => dependents.first,
+            );
 
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'إحصائيات ${dependent.name}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Cairo',
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatItem(
-                      'إجمالي الرحلات',
-                      '${dependent.stats.totalTrips}',
-                      Icons.route_rounded,
-                      Colors.blue,
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildStatItem(
-                      'الحضور',
-                      '${dependent.stats.presentTrips}',
-                      Icons.check_circle_rounded,
-                      Colors.green,
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildStatItem(
-                      'الغياب',
-                      '${dependent.stats.absentTrips}',
-                      Icons.cancel_rounded,
-                      Colors.red,
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildStatItem(
-                      'نسبة الحضور',
-                      '${dependent.stats.attendanceRate.toStringAsFixed(0)}%',
-                      Icons.trending_up_rounded,
-                      const Color(0xFF7C3AED),
-                    ),
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
-            ],
-          ),
-        );
-      },
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-    ).animate().fadeIn(duration: 400.ms, delay: 300.ms).slideY(begin: 0.1, end: 0);
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'إحصائيات ${dependent.name}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Cairo',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatItem(
+                          'إجمالي الرحلات',
+                          '${dependent.stats.totalTrips}',
+                          Icons.route_rounded,
+                          Colors.blue,
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildStatItem(
+                          'الحضور',
+                          '${dependent.stats.presentTrips}',
+                          Icons.check_circle_rounded,
+                          Colors.green,
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildStatItem(
+                          'الغياب',
+                          '${dependent.stats.absentTrips}',
+                          Icons.cancel_rounded,
+                          Colors.red,
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildStatItem(
+                          'نسبة الحضور',
+                          '${dependent.stats.attendanceRate.toStringAsFixed(0)}%',
+                          Icons.trending_up_rounded,
+                          const Color(0xFF7C3AED),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+        )
+        .animate()
+        .fadeIn(duration: 400.ms, delay: 300.ms)
+        .slideY(begin: 0.1, end: 0);
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(
+      String label, String value, IconData icon, Color color) {
     return Column(
       children: [
         Icon(icon, color: color, size: 24),
@@ -758,4 +775,3 @@ class _GuardianHomeScreenState extends ConsumerState<GuardianHomeScreen> {
     });
   }
 }
-

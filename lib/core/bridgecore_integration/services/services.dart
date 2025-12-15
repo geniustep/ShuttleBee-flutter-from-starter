@@ -19,6 +19,7 @@
 /// final notificationService = BridgeCoreNotificationService();
 /// final eventBridge = EventBusBridge();
 /// ```
+library;
 
 export 'bridgecore_sync_service.dart';
 export 'bridgecore_trigger_service.dart';

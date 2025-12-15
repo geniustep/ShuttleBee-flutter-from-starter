@@ -33,7 +33,12 @@ Future<void> bootstrap() async {
   );
 
   // Load environment variables
-  await dotenv.load(fileName: '.env');
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (_) {
+    // Non-fatal: the app has safe defaults in EnvConfig.
+    // This also helps in dev setups where `.env` isn't present as an asset yet.
+  }
 
   // Initialize Hive for local storage
   await Hive.initFlutter();

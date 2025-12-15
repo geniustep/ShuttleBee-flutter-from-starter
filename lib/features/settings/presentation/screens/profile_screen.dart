@@ -120,7 +120,7 @@ class _ProfileField extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(AppDimensions.sm),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.surfaceVariant,
               borderRadius: AppDimensions.borderRadiusSm,
             ),

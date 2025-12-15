@@ -53,8 +53,11 @@ class _ManagerAnalyticsScreenState
         children: [
           const Icon(Icons.error_outline, size: 64, color: AppColors.error),
           const SizedBox(height: AppDimensions.md),
-          Text(error,
-              style: AppTypography.bodyMedium, textAlign: TextAlign.center),
+          Text(
+            error,
+            style: AppTypography.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: AppDimensions.md),
           ElevatedButton(
             onPressed: () => ref.invalidate(managerAnalyticsProvider),
@@ -82,35 +85,35 @@ class _ManagerAnalyticsScreenState
             const SizedBox(height: AppDimensions.lg),
 
             // Key Performance Indicators
-            Text('مؤشرات الأداء الرئيسية', style: AppTypography.h4),
+            const Text('مؤشرات الأداء الرئيسية', style: AppTypography.h4),
             const SizedBox(height: AppDimensions.md),
             _buildKPICards(analytics),
 
             const SizedBox(height: AppDimensions.xl),
 
             // Trip Trend Chart
-            Text('اتجاه الرحلات', style: AppTypography.h4),
+            const Text('اتجاه الرحلات', style: AppTypography.h4),
             const SizedBox(height: AppDimensions.md),
             _buildTripTrendChart(analytics),
 
             const SizedBox(height: AppDimensions.xl),
 
             // Performance Distribution
-            Text('توزيع الأداء', style: AppTypography.h4),
+            const Text('توزيع الأداء', style: AppTypography.h4),
             const SizedBox(height: AppDimensions.md),
             _buildPerformanceDistribution(analytics),
 
             const SizedBox(height: AppDimensions.xl),
 
             // Resource Utilization Chart
-            Text('استخدام الموارد', style: AppTypography.h4),
+            const Text('استخدام الموارد', style: AppTypography.h4),
             const SizedBox(height: AppDimensions.md),
             _buildResourceUtilizationChart(analytics),
 
             const SizedBox(height: AppDimensions.xl),
 
             // Weekly Comparison
-            Text('المقارنة الأسبوعية', style: AppTypography.h4),
+            const Text('المقارنة الأسبوعية', style: AppTypography.h4),
             const SizedBox(height: AppDimensions.md),
             _buildWeeklyComparison(),
           ],
@@ -226,9 +229,7 @@ class _ManagerAnalyticsScreenState
                 const SizedBox(width: 8),
                 if (trend != null)
                   Icon(
-                    isTrendPositive
-                        ? Icons.trending_up
-                        : Icons.trending_down,
+                    isTrendPositive ? Icons.trending_up : Icons.trending_down,
                     size: 16,
                     color: trendColor,
                   ),
@@ -340,7 +341,7 @@ class _ManagerAnalyticsScreenState
                             'الثلاثاء',
                             'الأربعاء',
                             'الخميس',
-                            'الجمعة'
+                            'الجمعة',
                           ];
                           if (value.toInt() >= 0 &&
                               value.toInt() < days.length) {
@@ -418,8 +419,7 @@ class _ManagerAnalyticsScreenState
                   sections: [
                     PieChartSectionData(
                       value: analytics.completedTripsThisMonth.toDouble(),
-                      title:
-                          '${analytics.completedTripsThisMonth}\nمنجزة',
+                      title: '${analytics.completedTripsThisMonth}\nمنجزة',
                       color: AppColors.success,
                       radius: 80,
                       titleStyle: AppTypography.bodySmall.copyWith(
@@ -499,7 +499,7 @@ class _ManagerAnalyticsScreenState
                           const labels = [
                             'المسافة\n(كم)',
                             'الوقود\n(ريال)',
-                            'الركاب'
+                            'الركاب',
                           ];
                           if (value.toInt() >= 0 &&
                               value.toInt() < labels.length) {
@@ -590,15 +590,18 @@ class _ManagerAnalyticsScreenState
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('الأسبوع الحالي مقابل السابق',
-                    style: AppTypography.bodyMedium),
+                const Text(
+                  'الأسبوع الحالي مقابل السابق',
+                  style: AppTypography.bodyMedium,
+                ),
                 IconButton(
                   icon: const Icon(Icons.info_outline, size: 20),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
-                            'مقارنة بين أداء الأسبوع الحالي والأسبوع السابق'),
+                          'مقارنة بين أداء الأسبوع الحالي والأسبوع السابق',
+                        ),
                       ),
                     );
                   },

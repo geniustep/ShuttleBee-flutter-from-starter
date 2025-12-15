@@ -150,4 +150,3 @@ final stopActionsProvider =
     NotifierProvider<StopActionsNotifier, AsyncValue<void>>(() {
   return StopActionsNotifier();
 });
-

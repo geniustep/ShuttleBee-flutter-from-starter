@@ -148,4 +148,3 @@ final vehicleActionsProvider =
     NotifierProvider<VehicleActionsNotifier, AsyncValue<void>>(() {
   return VehicleActionsNotifier();
 });
-

@@ -13,12 +13,15 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/enums/enums.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/services/map_service.dart';
+import '../../../../core/services/live_tracking_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/role_switcher_widget.dart';
 import '../../../notifications/data/repositories/notification_repository.dart';
 import '../../../trips/domain/entities/trip.dart';
 import '../../../trips/presentation/providers/cached_trip_provider.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
+import '../../../trips/presentation/providers/trip_gps_path_provider.dart';
 import '../widgets/passenger_notification_widget.dart';
 
 /// 🐝 ShuttleBee Driver Trip Detail Screen
@@ -203,7 +206,11 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
   }
 
   double _calculateDistance(
-      double lat1, double lon1, double lat2, double lon2) {
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
     return geo.Geolocator.distanceBetween(lat1, lon1, lat2, lon2);
   }
 
@@ -305,7 +312,7 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
     super.build(context);
     // Use smartTripProvider for optimistic updates and caching
     final tripState = ref.watch(smartTripProvider);
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: _buildBodyFromSmartState(tripState),
@@ -372,8 +379,11 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.cloud_upload,
-                        color: Colors.white, size: 16),
+                    const Icon(
+                      Icons.cloud_upload,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       '${tripState.pendingActionsCount}',
@@ -795,6 +805,7 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
       backgroundColor: AppColors.primary,
       leading: _buildBackButton(),
       actions: [
+        const RoleSwitcherButton(),
         _buildRefreshButton(),
         if (trip.state.isOngoing) _buildExpandMapButton(),
       ],
@@ -859,8 +870,11 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.calendar_today,
-                          color: Colors.white70, size: 14),
+                      const Icon(
+                        Icons.calendar_today,
+                        color: Colors.white70,
+                        size: 14,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         DateFormat('EEEE، d MMMM', 'ar').format(trip.date),
@@ -871,8 +885,11 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Icon(Icons.access_time,
-                          color: Colors.white70, size: 14),
+                      const Icon(
+                        Icons.access_time,
+                        color: Colors.white70,
+                        size: 14,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         _getTimeRange(trip),
@@ -906,6 +923,9 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
   }
 
   Widget _buildMapWidget(Trip trip) {
+    final gpsPathState = ref.watch(tripGpsPathProvider(trip.id));
+    final gpsLatLngs = gpsPathState.points;
+
     return ClipRRect(
       child: GoogleMap(
         onMapCreated: (controller) {
@@ -919,7 +939,7 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
           zoom: 13,
         ),
         markers: _buildMarkers(trip),
-        polylines: _buildPolylines(trip),
+        polylines: _buildPolylines(trip, gpsPathPoints: gpsLatLngs),
         circles: _buildProximityCircles(trip),
         myLocationEnabled: true,
         myLocationButtonEnabled: false,
@@ -1038,16 +1058,21 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
     return circles;
   }
 
-  Set<Polyline> _buildPolylines(Trip trip) {
+  Set<Polyline> _buildPolylines(
+    Trip trip, {
+    List<LatLng> gpsPathPoints = const [],
+  }) {
     final polylines = <Polyline>{};
     final points = <LatLng>[];
 
     // Add driver position first
     if (_currentPosition != null) {
-      points.add(LatLng(
-        _currentPosition!.latitude,
-        _currentPosition!.longitude,
-      ));
+      points.add(
+        LatLng(
+          _currentPosition!.latitude,
+          _currentPosition!.longitude,
+        ),
+      );
     }
 
     // Add passenger locations in sequence (only pending ones)
@@ -1077,6 +1102,17 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
       );
     }
 
+    if (gpsPathPoints.length >= 2) {
+      polylines.add(
+        Polyline(
+          polylineId: const PolylineId('gps_path'),
+          points: gpsPathPoints,
+          color: AppColors.success,
+          width: 4,
+        ),
+      );
+    }
+
     return polylines;
   }
 
@@ -1099,10 +1135,12 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
     final points = <LatLng>[];
 
     if (_currentPosition != null) {
-      points.add(LatLng(
-        _currentPosition!.latitude,
-        _currentPosition!.longitude,
-      ));
+      points.add(
+        LatLng(
+          _currentPosition!.latitude,
+          _currentPosition!.longitude,
+        ),
+      );
     }
 
     for (final line in trip.lines) {
@@ -1848,8 +1886,11 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.straighten,
-                    size: 14, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.straighten,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '${trip.plannedDistance!.toStringAsFixed(1)} كم',
@@ -1883,8 +1924,11 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
               ),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.people_alt_rounded,
-                color: Colors.white, size: 20),
+            child: const Icon(
+              Icons.people_alt_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Text(
@@ -2043,7 +2087,7 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
                         gradient: LinearGradient(
                           colors: [
                             statusColor,
-                            statusColor.withValues(alpha: 0.7)
+                            statusColor.withValues(alpha: 0.7),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(10),
@@ -2659,9 +2703,11 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
     // Count pending passengers (only for pickup trips)
     final pendingCount = isPickup
         ? trip.lines
-            .where((l) =>
-                l.status == TripLineStatus.notStarted ||
-                l.status == TripLineStatus.pending)
+            .where(
+              (l) =>
+                  l.status == TripLineStatus.notStarted ||
+                  l.status == TripLineStatus.pending,
+            )
             .length
         : 0;
 
@@ -2817,14 +2863,61 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
     context.go('${RoutePaths.driverHome}/trip/${trip.id}/live-map');
   }
 
+  Future<String?> _promptConfirmTripNote() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title:
+              const Text('تأكيد الرحلة', style: TextStyle(fontFamily: 'Cairo')),
+          content: TextField(
+            controller: controller,
+            maxLines: 2,
+            decoration: const InputDecoration(
+              hintText: 'ملاحظة (اختياري)...',
+              hintStyle: TextStyle(fontFamily: 'Cairo'),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(''),
+              child: const Text(
+                'بدون ملاحظة',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(controller.text),
+              child: const Text('تأكيد', style: TextStyle(fontFamily: 'Cairo')),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+    return result;
+  }
+
   Future<void> _confirmTrip(Trip trip) async {
     if (!mounted) return;
+
+    final note = await _promptConfirmTripNote();
+    if (note == null || !mounted) return; // cancelled
 
     setState(() => _isLoading = true);
 
     // استخدام smartTripProvider للتحديث الفوري والمتفائل
     // smartTripProvider يقوم بتحديث smartDriverTripsProvider تلقائياً
-    final success = await ref.read(smartTripProvider.notifier).confirmTrip();
+    final success = await ref.read(smartTripProvider.notifier).confirmTrip(
+          latitude: _currentPosition?.latitude,
+          longitude: _currentPosition?.longitude,
+          note: note,
+        );
 
     if (mounted) {
       setState(() => _isLoading = false);
@@ -2849,6 +2942,17 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
       setState(() => _isLoading = false);
       if (success) {
         _showSuccessSnackBar('تم بدء الرحلة بنجاح! 🚌');
+
+        // 🚀 بدء التتبع التلقائي عبر WebSocket
+        if (trip.vehicleId != null) {
+          ref.read(driverLiveTrackingProvider.notifier).startAutoTrackingManual(
+                tripId: trip.id,
+                vehicleId: trip.vehicleId!,
+              );
+          debugPrint(
+            '📡 [TripDetail] Started auto-tracking for trip ${trip.id}',
+          );
+        }
       } else {
         _showErrorSnackBar('فشل بدء الرحلة');
       }
@@ -2874,6 +2978,12 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
         setState(() => _isLoading = false);
         if (success) {
           _showSuccessSnackBar('تم إنهاء الرحلة بنجاح! ✅');
+
+          // 🚀 إيقاف التتبع التلقائي
+          ref
+              .read(driverLiveTrackingProvider.notifier)
+              .stopAutoTrackingManual();
+          debugPrint('📡 [TripDetail] Stopped auto-tracking');
         } else {
           _showErrorSnackBar('فشل إنهاء الرحلة');
         }
@@ -2982,7 +3092,8 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
     if (mounted) {
       if (success) {
         _showSuccessSnackBar(
-            '🔄 تم إعادة حالة ${passenger.passengerName ?? 'الراكب'}');
+          '🔄 تم إعادة حالة ${passenger.passengerName ?? 'الراكب'}',
+        );
         _checkNearbyPassengers(); // Update nearest passenger
       } else {
         _showErrorSnackBar('فشل إعادة الحالة');
@@ -2993,9 +3104,11 @@ class _DriverTripDetailScreenState extends ConsumerState<DriverTripDetailScreen>
   /// 🎮 تسجيل صعود جميع الركاب - تحديثات متتالية فورية
   Future<void> _markAllBoarded(Trip trip) async {
     final pendingCount = trip.lines
-        .where((l) =>
-            l.status == TripLineStatus.notStarted ||
-            l.status == TripLineStatus.pending)
+        .where(
+          (l) =>
+              l.status == TripLineStatus.notStarted ||
+              l.status == TripLineStatus.pending,
+        )
         .length;
 
     final confirmed = await _showConfirmDialog(

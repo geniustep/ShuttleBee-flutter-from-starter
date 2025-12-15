@@ -62,18 +62,18 @@ class ShimmerListTile extends StatelessWidget {
     return Shimmer.fromColors(
       baseColor: AppColors.shimmerBase,
       highlightColor: AppColors.shimmerHighlight,
-      child: Padding(
+      child: const Padding(
         padding: AppDimensions.paddingMd,
         child: Row(
           children: [
-            const ShimmerBox(width: 48, height: 48),
-            const SizedBox(width: AppDimensions.md),
+            ShimmerBox(width: 48, height: 48),
+            SizedBox(width: AppDimensions.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ShimmerBox(width: 150, height: 14),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   ShimmerBox(width: 100, height: 12),
                 ],
               ),
@@ -99,7 +99,7 @@ class ShimmerCard extends StatelessWidget {
       child: Container(
         height: height ?? 120,
         margin: const EdgeInsets.only(bottom: AppDimensions.md),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: AppDimensions.borderRadiusMd,
         ),

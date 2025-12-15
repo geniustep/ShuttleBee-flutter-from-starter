@@ -67,7 +67,8 @@ class _GroupSchedulesScreenState extends ConsumerState<GroupSchedulesScreen>
     return AppBar(
       title: Text(
         widget.groupName ?? 'جداول المجموعة',
-        style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+        style:
+            const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
       ),
       backgroundColor: AppColors.primary,
       foregroundColor: Colors.white,
@@ -167,9 +168,8 @@ class _GroupSchedulesScreenState extends ConsumerState<GroupSchedulesScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: group.autoScheduleEnabled
-                      ? Colors.green
-                      : Colors.orange,
+                  color:
+                      group.autoScheduleEnabled ? Colors.green : Colors.orange,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -630,7 +630,7 @@ class _GroupSchedulesScreenState extends ConsumerState<GroupSchedulesScreen>
     return FloatingActionButton.extended(
       onPressed: () {
         if (_tabController.index == 0) {
-          _showAddScheduleDialog(Weekday.sunday);
+          _showChooseWeekdayDialog();
         } else {
           _showAddHolidayDialog();
         }
@@ -639,7 +639,8 @@ class _GroupSchedulesScreenState extends ConsumerState<GroupSchedulesScreen>
       icon: const Icon(Icons.add_rounded),
       label: Text(
         _tabController.index == 0 ? 'إضافة جدول' : 'إضافة عطلة',
-        style: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+        style:
+            const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -668,33 +669,542 @@ class _GroupSchedulesScreenState extends ConsumerState<GroupSchedulesScreen>
   }
 
   void _showAddScheduleDialog(Weekday weekday) {
-    // TODO: Implement add schedule dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('سيتم إضافة نموذج إنشاء جدول قريباً'),
+    HapticFeedback.mediumImpact();
+
+    final rootContext = context;
+    final formKey = GlobalKey<FormState>();
+    final today = DateTime.now();
+
+    bool createPickup = true;
+    bool createDropoff = true;
+    bool active = true;
+
+    TimeOfDay? pickupTime = const TimeOfDay(hour: 7, minute: 0);
+    TimeOfDay? dropoffTime = const TimeOfDay(hour: 14, minute: 45);
+
+    Future<TimeOfDay?> pickTime(TimeOfDay initial) async {
+      return await showTimePicker(
+        context: context,
+        initialTime: initial,
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: AppColors.primary,
+                onPrimary: Colors.white,
+                surface: Colors.white,
+                onSurface: AppColors.textPrimary,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+    }
+
+    DateTime toDateTime(TimeOfDay t) =>
+        DateTime(today.year, today.month, today.day, t.hour, t.minute);
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text(
+            'إضافة جدول - ${weekday.arabicLabel}',
+            style: const TextStyle(
+                fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+          ),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: active,
+                    onChanged: (v) => setLocal(() => active = v),
+                    title: const Text('نشط',
+                        style: TextStyle(fontFamily: 'Cairo')),
+                  ),
+                  const Divider(),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: createPickup,
+                    onChanged: (v) => setLocal(() => createPickup = v),
+                    title: const Text('توليد رحلة صعود',
+                        style: TextStyle(fontFamily: 'Cairo')),
+                  ),
+                  if (createPickup)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.arrow_upward_rounded,
+                          color: Colors.blue),
+                      title: const Text('وقت الصعود',
+                          style: TextStyle(fontFamily: 'Cairo')),
+                      subtitle: Text(
+                        pickupTime?.format(context) ?? '--:--',
+                        style: const TextStyle(fontFamily: 'Cairo'),
+                      ),
+                      trailing: const Icon(Icons.access_time_rounded),
+                      onTap: () async {
+                        final picked = await pickTime(
+                            pickupTime ?? const TimeOfDay(hour: 7, minute: 0));
+                        if (picked != null) setLocal(() => pickupTime = picked);
+                      },
+                    ),
+                  const Divider(),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: createDropoff,
+                    onChanged: (v) => setLocal(() => createDropoff = v),
+                    title: const Text('توليد رحلة نزول',
+                        style: TextStyle(fontFamily: 'Cairo')),
+                  ),
+                  if (createDropoff)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.arrow_downward_rounded,
+                          color: Colors.green),
+                      title: const Text('وقت النزول',
+                          style: TextStyle(fontFamily: 'Cairo')),
+                      subtitle: Text(
+                        dropoffTime?.format(context) ?? '--:--',
+                        style: const TextStyle(fontFamily: 'Cairo'),
+                      ),
+                      trailing: const Icon(Icons.access_time_rounded),
+                      onTap: () async {
+                        final picked = await pickTime(dropoffTime ??
+                            const TimeOfDay(hour: 14, minute: 45));
+                        if (picked != null)
+                          setLocal(() => dropoffTime = picked);
+                      },
+                    ),
+                  if (!createPickup && !createDropoff)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text(
+                        'اختر على الأقل صعود أو نزول',
+                        style: TextStyle(
+                            fontFamily: 'Cairo', color: AppColors.error),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+            ),
+            ElevatedButton(
+              style:
+                  ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              onPressed: () async {
+                if (!createPickup && !createDropoff) return;
+                Navigator.pop(context);
+
+                final schedule = await ref
+                    .read(groupActionsProvider.notifier)
+                    .createSchedule(
+                      groupId: widget.groupId,
+                      weekday: weekday,
+                      pickupTime: (createPickup && pickupTime != null)
+                          ? toDateTime(pickupTime!)
+                          : null,
+                      dropoffTime: (createDropoff && dropoffTime != null)
+                          ? toDateTime(dropoffTime!)
+                          : null,
+                      createPickup: createPickup,
+                      createDropoff: createDropoff,
+                      active: active,
+                    );
+
+                if (!mounted) return;
+                ScaffoldMessenger.of(rootContext).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      schedule != null ? 'تم حفظ الجدول' : 'فشل في حفظ الجدول',
+                      style: const TextStyle(fontFamily: 'Cairo'),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('حفظ', style: TextStyle(fontFamily: 'Cairo')),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   void _showEditScheduleDialog(GroupSchedule schedule) {
-    // TODO: Implement edit schedule dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('سيتم إضافة نموذج تعديل جدول قريباً'),
+    HapticFeedback.mediumImpact();
+
+    final rootContext = context;
+    final today = DateTime.now();
+
+    TimeOfDay? parseDisplay(String? hhmm) {
+      final v = hhmm?.trim();
+      if (v == null || v.isEmpty) return null;
+      final parts = v.split(':');
+      if (parts.length != 2) return null;
+      final h = int.tryParse(parts[0]);
+      final m = int.tryParse(parts[1]);
+      if (h == null || m == null) return null;
+      return TimeOfDay(hour: h, minute: m);
+    }
+
+    DateTime toDateTime(TimeOfDay t) =>
+        DateTime(today.year, today.month, today.day, t.hour, t.minute);
+
+    bool createPickup = schedule.createPickup;
+    bool createDropoff = schedule.createDropoff;
+    bool active = schedule.active;
+
+    TimeOfDay? pickupTime = parseDisplay(schedule.pickupTimeDisplay) ??
+        (schedule.pickupTime != null
+            ? TimeOfDay(
+                hour: schedule.pickupTime!.hour,
+                minute: schedule.pickupTime!.minute)
+            : const TimeOfDay(hour: 7, minute: 0));
+    TimeOfDay? dropoffTime = parseDisplay(schedule.dropoffTimeDisplay) ??
+        (schedule.dropoffTime != null
+            ? TimeOfDay(
+                hour: schedule.dropoffTime!.hour,
+                minute: schedule.dropoffTime!.minute)
+            : const TimeOfDay(hour: 14, minute: 45));
+
+    Future<TimeOfDay?> pickTime(TimeOfDay initial) async {
+      return await showTimePicker(
+        context: context,
+        initialTime: initial,
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: AppColors.primary,
+                onPrimary: Colors.white,
+                surface: Colors.white,
+                onSurface: AppColors.textPrimary,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text(
+            'تعديل جدول - ${schedule.weekday.arabicLabel}',
+            style: const TextStyle(
+                fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: active,
+                  onChanged: (v) => setLocal(() => active = v),
+                  title:
+                      const Text('نشط', style: TextStyle(fontFamily: 'Cairo')),
+                ),
+                const Divider(),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: createPickup,
+                  onChanged: (v) => setLocal(() => createPickup = v),
+                  title: const Text('توليد رحلة صعود',
+                      style: TextStyle(fontFamily: 'Cairo')),
+                ),
+                if (createPickup)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.arrow_upward_rounded,
+                        color: Colors.blue),
+                    title: const Text('وقت الصعود',
+                        style: TextStyle(fontFamily: 'Cairo')),
+                    subtitle: Text(
+                      pickupTime?.format(context) ?? '--:--',
+                      style: const TextStyle(fontFamily: 'Cairo'),
+                    ),
+                    trailing: const Icon(Icons.access_time_rounded),
+                    onTap: () async {
+                      final picked = await pickTime(
+                          pickupTime ?? const TimeOfDay(hour: 7, minute: 0));
+                      if (picked != null) setLocal(() => pickupTime = picked);
+                    },
+                  ),
+                const Divider(),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: createDropoff,
+                  onChanged: (v) => setLocal(() => createDropoff = v),
+                  title: const Text('توليد رحلة نزول',
+                      style: TextStyle(fontFamily: 'Cairo')),
+                ),
+                if (createDropoff)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.arrow_downward_rounded,
+                        color: Colors.green),
+                    title: const Text('وقت النزول',
+                        style: TextStyle(fontFamily: 'Cairo')),
+                    subtitle: Text(
+                      dropoffTime?.format(context) ?? '--:--',
+                      style: const TextStyle(fontFamily: 'Cairo'),
+                    ),
+                    trailing: const Icon(Icons.access_time_rounded),
+                    onTap: () async {
+                      final picked = await pickTime(
+                          dropoffTime ?? const TimeOfDay(hour: 14, minute: 45));
+                      if (picked != null) setLocal(() => dropoffTime = picked);
+                    },
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+            ),
+            ElevatedButton(
+              style:
+                  ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              onPressed: () async {
+                Navigator.pop(context);
+                final updated = GroupSchedule(
+                  id: schedule.id,
+                  groupId: schedule.groupId,
+                  weekday: schedule.weekday,
+                  pickupTime: (createPickup && pickupTime != null)
+                      ? toDateTime(pickupTime!)
+                      : null,
+                  dropoffTime: (createDropoff && dropoffTime != null)
+                      ? toDateTime(dropoffTime!)
+                      : null,
+                  createPickup: createPickup,
+                  createDropoff: createDropoff,
+                  active: active,
+                  // Displays are computed by server; keep as-is.
+                  pickupTimeDisplay: schedule.pickupTimeDisplay,
+                  dropoffTimeDisplay: schedule.dropoffTimeDisplay,
+                );
+
+                final ok = await ref
+                    .read(groupActionsProvider.notifier)
+                    .updateSchedule(updated);
+                if (!mounted) return;
+                ScaffoldMessenger.of(rootContext).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      ok ? 'تم تحديث الجدول' : 'فشل في تحديث الجدول',
+                      style: const TextStyle(fontFamily: 'Cairo'),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('حفظ', style: TextStyle(fontFamily: 'Cairo')),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   void _showAddHolidayDialog() {
-    // TODO: Implement add holiday dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('سيتم إضافة نموذج إنشاء عطلة قريباً'),
+    HapticFeedback.mediumImpact();
+
+    final rootContext = context;
+    final nameController = TextEditingController();
+    DateTime? startDate;
+    DateTime? endDate;
+
+    Future<DateTime?> pickDate(DateTime? initial) async {
+      final now = DateTime.now();
+      final init = initial ?? DateTime(now.year, now.month, now.day);
+      return await showDatePicker(
+        context: context,
+        initialDate: init,
+        firstDate: DateTime(now.year - 1),
+        lastDate: DateTime(now.year + 2),
+        locale: const Locale('ar'),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: AppColors.primary,
+                onPrimary: Colors.white,
+                surface: Colors.white,
+                onSurface: AppColors.textPrimary,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+    }
+
+    String fmt(DateTime? d) =>
+        d == null ? '--/--/----' : '${d.day}/${d.month}/${d.year}';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: const Text(
+            'إضافة عطلة',
+            style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'اسم العطلة',
+                    labelStyle: TextStyle(fontFamily: 'Cairo'),
+                    border: OutlineInputBorder(),
+                  ),
+                  style: const TextStyle(fontFamily: 'Cairo'),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading:
+                      const Icon(Icons.event_rounded, color: Colors.orange),
+                  title: const Text('تاريخ البداية',
+                      style: TextStyle(fontFamily: 'Cairo')),
+                  subtitle: Text(fmt(startDate),
+                      style: const TextStyle(fontFamily: 'Cairo')),
+                  trailing: const Icon(Icons.calendar_month_rounded),
+                  onTap: () async {
+                    final picked = await pickDate(startDate);
+                    if (picked != null) {
+                      setLocal(() => startDate = picked);
+                      if (endDate != null && endDate!.isBefore(picked)) {
+                        setLocal(() => endDate = picked);
+                      }
+                    }
+                  },
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading:
+                      const Icon(Icons.event_busy_rounded, color: Colors.red),
+                  title: const Text('تاريخ النهاية',
+                      style: TextStyle(fontFamily: 'Cairo')),
+                  subtitle: Text(fmt(endDate),
+                      style: const TextStyle(fontFamily: 'Cairo')),
+                  trailing: const Icon(Icons.calendar_month_rounded),
+                  onTap: () async {
+                    final picked = await pickDate(endDate ?? startDate);
+                    if (picked != null) {
+                      setLocal(() => endDate = picked);
+                      if (startDate != null && picked.isBefore(startDate!)) {
+                        setLocal(() => startDate = picked);
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                nameController.dispose();
+                Navigator.pop(context);
+              },
+              child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+            ),
+            ElevatedButton(
+              style:
+                  ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              onPressed: () async {
+                final name = nameController.text.trim();
+                if (name.isEmpty || startDate == null || endDate == null)
+                  return;
+                nameController.dispose();
+                Navigator.pop(context);
+
+                final holiday =
+                    await ref.read(groupActionsProvider.notifier).createHoliday(
+                          groupId: widget.groupId,
+                          name: name,
+                          startDate: startDate!,
+                          endDate: endDate!,
+                        );
+                if (!mounted) return;
+                ScaffoldMessenger.of(rootContext).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      holiday != null
+                          ? 'تمت إضافة العطلة'
+                          : 'فشل في إضافة العطلة',
+                      style: const TextStyle(fontFamily: 'Cairo'),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('حفظ', style: TextStyle(fontFamily: 'Cairo')),
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  void _showChooseWeekdayDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'اختر يوم الأسبوع',
+                  style: TextStyle(
+                      fontFamily: 'Cairo',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16),
+                ),
+              ),
+              ...Weekday.values.map((d) {
+                return ListTile(
+                  leading: const Icon(Icons.calendar_today_rounded),
+                  title: Text(d.arabicLabel,
+                      style: const TextStyle(fontFamily: 'Cairo')),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showAddScheduleDialog(d);
+                  },
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _confirmDeleteHoliday(GroupHoliday holiday) {
+    final rootContext = context;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -715,7 +1225,7 @@ class _GroupSchedulesScreenState extends ConsumerState<GroupSchedulesScreen>
                   .read(groupActionsProvider.notifier)
                   .deleteHoliday(holiday.id, widget.groupId);
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                ScaffoldMessenger.of(rootContext).showSnackBar(
                   SnackBar(
                     content: Text(
                       success ? 'تم حذف العطلة بنجاح' : 'فشل في حذف العطلة',
@@ -733,11 +1243,14 @@ class _GroupSchedulesScreenState extends ConsumerState<GroupSchedulesScreen>
   }
 
   void _showGenerateTripsDialog() {
+    final rootContext = context;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('توليد رحلات',
-            style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold)),
+        title: const Text(
+          'توليد رحلات',
+          style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+        ),
         content: const Text(
           'سيتم توليد رحلات للأسبوع القادم بناءً على الجدول المحدد.\nهل تريد المتابعة؟',
           style: TextStyle(fontFamily: 'Cairo'),
@@ -754,7 +1267,7 @@ class _GroupSchedulesScreenState extends ConsumerState<GroupSchedulesScreen>
                   .read(groupActionsProvider.notifier)
                   .generateTrips(widget.groupId);
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                ScaffoldMessenger.of(rootContext).showSnackBar(
                   SnackBar(
                     content: Text(
                       count > 0
@@ -773,4 +1286,3 @@ class _GroupSchedulesScreenState extends ConsumerState<GroupSchedulesScreen>
     );
   }
 }
-

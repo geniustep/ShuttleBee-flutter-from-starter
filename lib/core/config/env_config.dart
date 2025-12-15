@@ -4,9 +4,28 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class EnvConfig {
   EnvConfig._();
 
-  /// Odoo server URL
+  /// Main Odoo/BridgeCore server URL (used for login + JSON-RPC via BridgeCore).
   static String get odooUrl =>
       dotenv.env['ODOO_URL'] ?? 'https://bridgecore.geniura.com';
+
+  /// ShuttleBee REST API base URL (used ONLY for `/api/v1/shuttle/*` endpoints).
+  ///
+  /// If not set, it falls back to [odooUrl].
+  static String get shuttleBeeApiUrl =>
+      (dotenv.env['SHUTTLEBEE_API_URL'] ?? '').trim();
+
+  /// Database for ShuttleBee REST API authentication (`/web/session/authenticate`).
+  /// If not set, it falls back to [odooDatabase].
+  static String get shuttleBeeApiDatabase =>
+      (dotenv.env['SHUTTLEBEE_API_DATABASE'] ?? '').trim();
+
+  /// Effective base URL for ShuttleBee REST calls.
+  static String get shuttleBeeApiBaseUrl =>
+      shuttleBeeApiUrl.isNotEmpty ? shuttleBeeApiUrl : odooUrl;
+
+  /// Effective database for ShuttleBee REST calls.
+  static String get shuttleBeeApiDb =>
+      shuttleBeeApiDatabase.isNotEmpty ? shuttleBeeApiDatabase : odooDatabase;
 
   /// Odoo database name
   static String get odooDatabase => dotenv.env['ODOO_DATABASE'] ?? '';

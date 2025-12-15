@@ -41,7 +41,13 @@ abstract class TripRepository {
   Future<Either<Failure, Trip>> updateTrip(Trip trip);
 
   /// Confirm trip (draft → planned)
-  Future<Either<Failure, Trip>> confirmTrip(int tripId);
+  Future<Either<Failure, Trip>> confirmTrip(
+    int tripId, {
+    double? latitude,
+    double? longitude,
+    int? stopId,
+    String? note,
+  });
 
   /// Start trip (planned → ongoing)
   Future<Either<Failure, Trip>> startTrip(int tripId);
@@ -123,6 +129,21 @@ class TripDashboardStats {
       activeDrivers: json['active_drivers'] as int? ?? 0,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'total_trips_today': totalTripsToday,
+        'ongoing_trips': ongoingTrips,
+        'completed_trips': completedTrips,
+        'cancelled_trips': cancelledTrips,
+        'planned_trips': plannedTrips,
+        'total_passengers': totalPassengers,
+        'boarded_passengers': boardedPassengers,
+        'absent_passengers': absentPassengers,
+        'total_vehicles': totalVehicles,
+        'active_vehicles': activeVehicles,
+        'total_drivers': totalDrivers,
+        'active_drivers': activeDrivers,
+      };
 }
 
 /// Manager Analytics Data

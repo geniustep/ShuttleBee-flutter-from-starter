@@ -22,7 +22,8 @@ class AppNotificationModel {
   final NotificationTypeDef type;
   final bool isRead;
   final DateTime createdAt;
-  final Map<String, dynamic>? extraData; // Renamed from data to extraData to match BridgeCore
+  final Map<String, dynamic>?
+      extraData; // Renamed from data to extraData to match BridgeCore
 
   AppNotificationModel({
     required this.id,
@@ -34,8 +35,8 @@ class AppNotificationModel {
     Map<String, dynamic>? extraData,
     // Backward compatibility: support both data and extraData
     @Deprecated('Use extraData instead') Map<String, dynamic>? data,
-  }) : createdAt = createdAt ?? DateTime.now(),
-       extraData = extraData ?? data;
+  })  : createdAt = createdAt ?? DateTime.now(),
+        extraData = extraData ?? data;
 
   AppNotificationModel copyWith({
     String? id,
@@ -223,14 +224,16 @@ class BridgeCoreNotificationService {
       _messageController.add(message);
       _showLocalNotificationFromRemote(message);
 
-      _eventBus.emit(BusEvent(
-        type: EventType.notificationReceived,
-        data: {
-          'message_id': message.messageId,
-          'title': message.notification?.title,
-          'body': message.notification?.body,
-        },
-      ));
+      _eventBus.emit(
+        BusEvent(
+          type: EventType.notificationReceived,
+          data: {
+            'message_id': message.messageId,
+            'title': message.notification?.title,
+            'body': message.notification?.body,
+          },
+        ),
+      );
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
@@ -261,11 +264,13 @@ class BridgeCoreNotificationService {
   /// Handle notification tap
   void _onNotificationTap(NotificationResponse response) {
     AppLogger.info('Notification tapped: ${response.payload}');
-    _eventBus.emit(BusEvent(
-      type: EventType.custom,
-      customEventName: 'notification.tapped',
-      data: {'payload': response.payload},
-    ));
+    _eventBus.emit(
+      BusEvent(
+        type: EventType.custom,
+        customEventName: 'notification.tapped',
+        data: {'payload': response.payload},
+      ),
+    );
   }
 
   // ════════════════════════════════════════════════════════════
@@ -315,10 +320,12 @@ class BridgeCoreNotificationService {
 
     _notifications[notificationId] = notification.copyWith(isRead: true);
 
-    _eventBus.emit(BusEvent(
-      type: EventType.notificationRead,
-      data: {'notification_id': notificationId},
-    ));
+    _eventBus.emit(
+      BusEvent(
+        type: EventType.notificationRead,
+        data: {'notification_id': notificationId},
+      ),
+    );
 
     return true;
   }
@@ -336,11 +343,13 @@ class BridgeCoreNotificationService {
       }
     }
 
-    _eventBus.emit(BusEvent(
-      type: EventType.custom,
-      customEventName: 'notifications.all_read',
-      data: {'count': count},
-    ));
+    _eventBus.emit(
+      BusEvent(
+        type: EventType.custom,
+        customEventName: 'notifications.all_read',
+        data: {'count': count},
+      ),
+    );
 
     return count;
   }

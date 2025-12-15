@@ -53,8 +53,11 @@ class _ManagerReportsScreenState extends ConsumerState<ManagerReportsScreen> {
         children: [
           const Icon(Icons.error_outline, size: 64, color: AppColors.error),
           const SizedBox(height: AppDimensions.md),
-          Text(error,
-              style: AppTypography.bodyMedium, textAlign: TextAlign.center),
+          Text(
+            error,
+            style: AppTypography.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: AppDimensions.md),
           ElevatedButton(
             onPressed: () => ref.invalidate(managerAnalyticsProvider),
@@ -82,21 +85,21 @@ class _ManagerReportsScreenState extends ConsumerState<ManagerReportsScreen> {
             const SizedBox(height: AppDimensions.lg),
 
             // Quick Report Types
-            Text('أنواع التقارير المتاحة', style: AppTypography.h4),
+            const Text('أنواع التقارير المتاحة', style: AppTypography.h4),
             const SizedBox(height: AppDimensions.md),
             _buildReportTypes(),
 
             const SizedBox(height: AppDimensions.xl),
 
             // Recent Reports
-            Text('التقارير الأخيرة', style: AppTypography.h4),
+            const Text('التقارير الأخيرة', style: AppTypography.h4),
             const SizedBox(height: AppDimensions.md),
             _buildRecentReports(),
 
             const SizedBox(height: AppDimensions.xl),
 
             // Summary Statistics
-            Text('ملخص الإحصائيات', style: AppTypography.h4),
+            const Text('ملخص الإحصائيات', style: AppTypography.h4),
             const SizedBox(height: AppDimensions.md),
             _buildSummaryStats(analytics),
           ],
@@ -112,10 +115,10 @@ class _ManagerReportsScreenState extends ConsumerState<ManagerReportsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.settings, color: AppColors.primary),
-                const SizedBox(width: AppDimensions.sm),
+                Icon(Icons.settings, color: AppColors.primary),
+                SizedBox(width: AppDimensions.sm),
                 Text('إعدادات التقرير', style: AppTypography.h5),
               ],
             ),
@@ -125,7 +128,7 @@ class _ManagerReportsScreenState extends ConsumerState<ManagerReportsScreen> {
             const Text('نوع التقرير', style: AppTypography.bodySmall),
             const SizedBox(height: AppDimensions.xs),
             DropdownButtonFormField<String>(
-              value: _selectedReportType,
+              initialValue: _selectedReportType,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(
@@ -286,7 +289,8 @@ class _ManagerReportsScreenState extends ConsumerState<ManagerReportsScreen> {
     // Sample data - in real app, this would come from a provider
     final recentReports = [
       {
-        'title': 'التقرير اليومي - ${DateFormat('yyyy/MM/dd', 'ar').format(DateTime.now())}',
+        'title':
+            'التقرير اليومي - ${DateFormat('yyyy/MM/dd', 'ar').format(DateTime.now())}',
         'type': 'يومي',
         'date': DateTime.now(),
         'status': 'مكتمل',
@@ -530,7 +534,8 @@ class _ManagerReportsScreenState extends ConsumerState<ManagerReportsScreen> {
             const SizedBox(height: 8),
             Text('الحالة: ${report['status']}'),
             const SizedBox(height: 16),
-            const Text('هذا معاينة للتقرير. في التطبيق الحقيقي، سيتم عرض محتوى التقرير الكامل هنا.'),
+            const Text(
+                'هذا معاينة للتقرير. في التطبيق الحقيقي، سيتم عرض محتوى التقرير الكامل هنا.'),
           ],
         ),
         actions: [

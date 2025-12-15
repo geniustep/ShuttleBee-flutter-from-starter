@@ -5,16 +5,23 @@ import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import '../config/app_config.dart';
 import '../config/env_config.dart';
 import '../constants/api_constants.dart';
+import '../constants/storage_keys.dart';
+import '../storage/secure_storage_service.dart';
 
 /// Dio HTTP client configuration
 class DioClient {
   final Logger _logger = Logger();
   late final Dio _dio;
+  final SecureStorageService _secureStorage = SecureStorageService();
+  final String _sessionStorageKey;
 
   /// Dio instance
   Dio get dio => _dio;
 
-  DioClient({String? baseUrl}) {
+  DioClient({
+    String? baseUrl,
+    String sessionStorageKey = StorageKeys.sessionId,
+  }) : _sessionStorageKey = sessionStorageKey {
     _dio = Dio(
       BaseOptions(
         baseUrl: baseUrl ?? EnvConfig.odooUrl,
@@ -51,19 +58,47 @@ class DioClient {
     // Error handling interceptor
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
-          // Add any additional headers here
+        onRequest: (options, handler) async {
+          // ✅ ShuttleBee backend uses ONLY the Odoo session cookie (session_id).
+          // Ensure it's present on every request.
+          try {
+            final hasCookieHeader =
+                (options.headers[ApiConstants.headerCookie] as String?)
+                        ?.isNotEmpty ==
+                    true;
+            if (!hasCookieHeader) {
+              final sessionId = await _secureStorage.read(_sessionStorageKey);
+              if (sessionId != null && sessionId.isNotEmpty) {
+                options.headers[ApiConstants.headerCookie] =
+                    'session_id=$sessionId';
+              }
+            }
+          } catch (_) {
+            // Non-fatal: request may still succeed if server doesn't require auth.
+          }
           return handler.next(options);
         },
         onResponse: (response, handler) {
           return handler.next(response);
         },
         onError: (error, handler) {
+          final req = error.requestOptions;
+          final status = error.response?.statusCode;
+          final uri = req.uri;
           _logger.e(
-            'DIO Error: ${error.message}',
+            'DIO Error: ${req.method} $uri (status: $status) - ${error.message}',
             error: error.error,
             stackTrace: error.stackTrace,
           );
+
+          // Extra diagnostic details (avoid noisy logs in production).
+          if (EnvConfig.debugMode) {
+            try {
+              _logger.d('DIO Response data: ${error.response?.data}');
+            } catch (_) {
+              // ignore
+            }
+          }
           return handler.next(error);
         },
       ),

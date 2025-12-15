@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/enums/enums.dart';
 import '../../../../core/utils/error_translator.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../shuttlebee/presentation/providers/shuttlebee_api_providers.dart';
 import '../../data/datasources/trip_remote_data_source.dart';
 import '../../data/repositories/trip_repository_impl.dart';
 import '../../domain/entities/trip.dart';
@@ -38,7 +39,8 @@ class DriverTripsQuery {
 final tripRemoteDataSourceProvider = Provider<TripRemoteDataSource?>((ref) {
   final client = ref.watch(bridgecoreClientProvider);
   if (client == null) return null;
-  return TripRemoteDataSource(client);
+  final shuttleApi = ref.watch(shuttleBeeApiServiceProvider);
+  return TripRemoteDataSource(client, shuttleBeeApi: shuttleApi);
 });
 
 /// Trip Repository Provider
@@ -49,53 +51,80 @@ final tripRepositoryProvider = Provider<TripRepository?>((ref) {
 });
 
 /// Driver Daily Trips Provider
-final driverDailyTripsProvider =
-    FutureProvider.autoDispose.family<List<Trip>, DriverTripsQuery>(
-        (ref, query) async {
+final driverDailyTripsProvider = FutureProvider.autoDispose
+    .family<List<Trip>, DriverTripsQuery>((ref, query) async {
   try {
     final date = query.date;
     final driverId = query.driverId;
     print(
-        '🚗 [driverDailyTripsProvider] Fetching trips for driverId: $driverId, date: $date');
+      '🚗 [driverDailyTripsProvider] Fetching trips for driverId: $driverId, date: $date',
+    );
 
     final client = ref.watch(bridgecoreClientProvider);
     print(
-        '🚗 [driverDailyTripsProvider] BridgecoreClient: ${client != null ? "exists" : "NULL"}');
+      '🚗 [driverDailyTripsProvider] BridgecoreClient: ${client != null ? "exists" : "NULL"}',
+    );
 
-    final repository = ref.watch(tripRepositoryProvider);
-    print(
-        '🚗 [driverDailyTripsProvider] Repository: ${repository != null ? "exists" : "NULL"}');
-
-    if (repository == null) {
-      print(
-          '❌ [driverDailyTripsProvider] Repository is null - client might not be ready');
-      throw Exception('خطأ في الاتصال. يرجى التحقق من الاتصال بالخادم');
-    }
+    // Prefer the new "My Trips" REST endpoint (server computes current driver).
+    final shuttleApi = ref.watch(shuttleBeeApiServiceProvider);
+    final authUserId = ref.watch(authStateProvider).asData?.value.user?.id;
 
     if (driverId == 0) {
       print('❌ [driverDailyTripsProvider] userId is 0');
       throw Exception('معلومات السائق غير مكتملة. يرجى التواصل مع الإدارة');
     }
 
-    print(
-        '🚗 [driverDailyTripsProvider] Calling getDriverTrips with driverId (user.id): $driverId');
-    final result = await repository.getDriverTrips(driverId, date);
-    return result.fold(
-      (failure) {
-        print('❌ [driverDailyTripsProvider] API Error: ${failure.message}');
-        final errorMessage = ErrorTranslator.translateFailure(failure.message);
-        throw Exception(errorMessage);
-      },
-      (trips) {
-        print('✅ [driverDailyTripsProvider] Got ${trips.length} trips');
-        return trips;
-      },
-    );
+    // Safety: prevent cross-driver bleed.
+    if (authUserId != null && authUserId != driverId) {
+      print(
+        '⚠️ [driverDailyTripsProvider] driverId mismatch (query=$driverId, auth=$authUserId) - returning empty',
+      );
+      return [];
+    }
+
+    try {
+      final trips = await shuttleApi.getMyTrips();
+      final filtered = trips.where((t) {
+        final d = DateTime(t.date.year, t.date.month, t.date.day);
+        return d == date;
+      }).toList();
+      print(
+          '✅ [driverDailyTripsProvider] Got ${filtered.length} trips from /trips/my');
+      return filtered;
+    } catch (e) {
+      // Fallback to RPC repository for older servers or temporary failures.
+      final repository = ref.watch(tripRepositoryProvider);
+      print(
+        '🚗 [driverDailyTripsProvider] Repository: ${repository != null ? "exists" : "NULL"}',
+      );
+      if (repository == null) {
+        throw Exception('خطأ في الاتصال. يرجى التحقق من الاتصال بالخادم');
+      }
+
+      print(
+        '🚗 [driverDailyTripsProvider] Fallback to getDriverTrips with driverId (user.id): $driverId',
+      );
+      final result = await repository.getDriverTrips(driverId, date);
+      return result.fold(
+        (failure) {
+          print('❌ [driverDailyTripsProvider] API Error: ${failure.message}');
+          final errorMessage =
+              ErrorTranslator.translateFailure(failure.message);
+          throw Exception(errorMessage);
+        },
+        (trips) {
+          print(
+              '✅ [driverDailyTripsProvider] Got ${trips.length} trips (fallback)');
+          return trips;
+        },
+      );
+    }
   } on MissingOdooCredentialsException catch (e) {
     // Token doesn't have tenant info - user needs to re-login
     print('❌ [driverDailyTripsProvider] MissingOdooCredentialsException: $e');
     throw Exception(
-        'انتهت صلاحية الجلسة. يرجى تسجيل الخروج وإعادة تسجيل الدخول');
+      'انتهت صلاحية الجلسة. يرجى تسجيل الخروج وإعادة تسجيل الدخول',
+    );
   } catch (e) {
     print('❌ [driverDailyTripsProvider] Exception: $e');
     // Re-throw with better error message
@@ -186,6 +215,10 @@ final allTripsProvider = FutureProvider.autoDispose
 /// Uses the generic [allTripsProvider] with a fixed filter (ongoing only).
 final ongoingTripsProvider =
     allTripsProvider(const TripFilters(state: TripState.ongoing, limit: 200));
+
+/// Trip GPS path points provider (REST `/api/v1/shuttle/trips/<id>/gps`).
+// Note: incremental GPS path polling is implemented in
+// `trip_gps_path_provider.dart` (autoDispose notifier with `since`).
 
 /// Trip Filters
 class TripFilters {
@@ -302,7 +335,8 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
           );
         }
         print(
-            '🔄 [State Sync] Invalidated driverDailyTripsProvider for date: $tripDate');
+          '🔄 [State Sync] Invalidated driverDailyTripsProvider for date: $tripDate',
+        );
       } else {
         // If we don't have the trip date, try to invalidate today's date as fallback
         final today = DateTime.now();
@@ -317,11 +351,13 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
           );
         }
         print(
-            '🔄 [State Sync] Invalidated driverDailyTripsProvider for today: $todayDate');
+          '🔄 [State Sync] Invalidated driverDailyTripsProvider for today: $todayDate',
+        );
       }
     } catch (e) {
       print(
-          '⚠️ [State Sync] Failed to invalidate driverDailyTripsProvider: $e');
+        '⚠️ [State Sync] Failed to invalidate driverDailyTripsProvider: $e',
+      );
     }
   }
 

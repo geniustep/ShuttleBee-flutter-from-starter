@@ -12,7 +12,7 @@ import '../../domain/entities/shuttle_notification.dart';
 final tripNotificationsProvider = FutureProvider.autoDispose
     .family<List<ShuttleNotification>, int>((ref, tripId) async {
   final repository = ref.watch(notificationRepositoryProvider);
-  
+
   final result = await repository.getTripNotifications(tripId);
   return result.fold(
     (failure) => [],
@@ -194,7 +194,8 @@ class NotificationActionsNotifier extends StateNotifier<NotificationSendState> {
     int? eta,
   }) async {
     state = const NotificationSendState.loading();
-    AppLogger.info('📤 Sending approaching notification for trip_line: $tripLineId');
+    AppLogger.info(
+        '📤 Sending approaching notification for trip_line: $tripLineId');
 
     final result = await _repository.sendApproachingNotification(
       tripLineId,
@@ -228,7 +229,8 @@ class NotificationActionsNotifier extends StateNotifier<NotificationSendState> {
   /// إرسال إشعار وصول السائق
   Future<bool> sendArrivedNotification(int tripLineId) async {
     state = const NotificationSendState.loading();
-    AppLogger.info('📤 Sending arrived notification for trip_line: $tripLineId');
+    AppLogger.info(
+        '📤 Sending arrived notification for trip_line: $tripLineId');
 
     final result = await _repository.sendArrivedNotification(tripLineId);
 
@@ -304,7 +306,8 @@ class NotificationActionsNotifier extends StateNotifier<NotificationSendState> {
     String? message,
   }) async {
     state = const NotificationSendState.loading();
-    AppLogger.info('📤 Sending notification to all passengers in trip: $tripId');
+    AppLogger.info(
+        '📤 Sending notification to all passengers in trip: $tripId');
 
     final result = await _repository.sendNotificationToAllPassengers(
       tripId: tripId,
@@ -326,7 +329,8 @@ class NotificationActionsNotifier extends StateNotifier<NotificationSendState> {
         state = NotificationSendState(
           isLoading: false,
           isSuccess: true,
-          successMessage: sendResult.message ?? 'تم إرسال الإشعارات لجميع الركاب',
+          successMessage:
+              sendResult.message ?? 'تم إرسال الإشعارات لجميع الركاب',
         );
         AppLogger.info('✅ Success: ${sendResult.message}');
         _invalidateNotifications();
@@ -397,7 +401,8 @@ class NotificationActionsNotifier extends StateNotifier<NotificationSendState> {
 
 /// Notification Actions Provider
 final notificationActionsProvider =
-    StateNotifierProvider<NotificationActionsNotifier, NotificationSendState>((ref) {
+    StateNotifierProvider<NotificationActionsNotifier, NotificationSendState>(
+        (ref) {
   final repository = ref.watch(notificationRepositoryProvider);
   return NotificationActionsNotifier(repository, ref);
 });
@@ -444,7 +449,8 @@ class TripLineNotificationState {
 }
 
 /// Notifier لحالة إشعارات سطر الرحلة
-class TripLineNotificationNotifier extends StateNotifier<TripLineNotificationState> {
+class TripLineNotificationNotifier
+    extends StateNotifier<TripLineNotificationState> {
   final NotificationRepository _repository;
 
   TripLineNotificationNotifier(
@@ -452,11 +458,13 @@ class TripLineNotificationNotifier extends StateNotifier<TripLineNotificationSta
     this._repository, {
     bool initialApproachingNotified = false,
     bool initialArrivedNotified = false,
-  }) : super(TripLineNotificationState(
-          tripLineId: tripLineId,
-          approachingNotified: initialApproachingNotified,
-          arrivedNotified: initialArrivedNotified,
-        ));
+  }) : super(
+          TripLineNotificationState(
+            tripLineId: tripLineId,
+            approachingNotified: initialApproachingNotified,
+            arrivedNotified: initialArrivedNotified,
+          ),
+        );
 
   /// إرسال إشعار اقتراب
   Future<bool> sendApproaching({int? eta}) async {
@@ -530,8 +538,10 @@ class TripLineNotificationNotifier extends StateNotifier<TripLineNotificationSta
 }
 
 /// Provider لحالة إشعارات سطر رحلة معين
-final tripLineNotificationProvider = StateNotifierProvider.autoDispose
-    .family<TripLineNotificationNotifier, TripLineNotificationState, TripLineNotificationParams>(
+final tripLineNotificationProvider = StateNotifierProvider.autoDispose.family<
+    TripLineNotificationNotifier,
+    TripLineNotificationState,
+    TripLineNotificationParams>(
   (ref, params) {
     final repository = ref.watch(notificationRepositoryProvider);
     return TripLineNotificationNotifier(

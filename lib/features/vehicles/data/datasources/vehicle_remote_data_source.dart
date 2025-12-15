@@ -38,7 +38,7 @@ class VehicleRemoteDataSource {
     final result = await _client.searchRead(
       model: _vehicleModel,
       domain: [
-        ['id', '=', vehicleId]
+        ['id', '=', vehicleId],
       ],
       fields: _vehicleFields,
       limit: 1,
@@ -217,4 +217,3 @@ class VehicleStats {
     );
   }
 }
-

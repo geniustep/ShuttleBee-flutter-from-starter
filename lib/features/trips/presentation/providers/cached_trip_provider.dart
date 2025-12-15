@@ -1,10 +1,15 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dartz/dartz.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 
+import '../../../../core/error/failures.dart';
+import '../../../../core/constants/storage_keys.dart';
+import '../../../../core/storage/prefs_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../shuttlebee/presentation/providers/shuttlebee_api_providers.dart';
 import '../../data/cache/trip_cache_service.dart';
 import '../../domain/entities/trip.dart';
 import '../../domain/repositories/trip_repository.dart';
@@ -114,7 +119,7 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
   bool get _isOnline => ref.read(isOnlineProvider);
 
   int? _currentTripId;
-  
+
   /// فحص إذا كان الـ provider لا يزال موجوداً
   bool get _isMounted {
     try {
@@ -146,7 +151,8 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
         if (previous != next) {
           _currentTripId = null;
           state = const SmartTripState();
-          _logger.d('🧹 SmartTripNotifier reset due to user change: $previous -> $next');
+          _logger.d(
+              '🧹 SmartTripNotifier reset due to user change: $previous -> $next');
         }
       },
     );
@@ -171,9 +177,9 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
 
     // 1. أظهر البيانات المخزنة مباشرة (إن وجدت)
     final cachedTrip = await _cache.getCachedTrip(tripId);
-    
+
     if (!_isMounted) return; // تحقق قبل تحديث الحالة
-    
+
     if (cachedTrip != null) {
       // البيانات موجودة في الكاش - استخدمها مباشرة بدون جلب من السيرفر
       state = SmartTripState(
@@ -182,11 +188,12 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
         lastUpdated: DateTime.now(),
         isSyncing: false, // لا نحتاج جلب من السيرفر
       );
-      _logger.d('📦 Loaded trip $tripId from cache (${cachedTrip.lines.length} passengers)');
+      _logger.d(
+          '📦 Loaded trip $tripId from cache (${cachedTrip.lines.length} passengers)');
     } else {
       // البيانات غير موجودة في الكاش - نجلب من السيرفر
       state = state.copyWith(isLoading: true);
-      
+
       if (_isOnline) {
         await _refreshFromServer(tripId);
       } else {
@@ -211,9 +218,9 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
 
     try {
       final result = await repository.getTripById(tripId);
-      
+
       if (!_isMounted) return; // تحقق قبل تحديث الحالة
-      
+
       result.fold(
         (failure) {
           if (!_isMounted) return;
@@ -259,7 +266,7 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
   /// تحديث يدوي من الخادم
   Future<void> refresh() async {
     if (_currentTripId == null) return;
-    
+
     state = state.copyWith(isSyncing: true);
     await _refreshFromServer(_currentTripId!);
   }
@@ -353,7 +360,7 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
     // 3. تنفيذ على الخادم
     try {
       final result = await apiCall();
-      
+
       if (result == null) {
         // Repository غير متوفر
         await _cache.addPendingAction(
@@ -421,7 +428,8 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
       newState: 'ongoing',
     );
     if (optimisticTrip != null) {
-      _logger.d('✅ startTrip: Optimistic update applied, new state: ${optimisticTrip.state.value}');
+      _logger.d(
+          '✅ startTrip: Optimistic update applied, new state: ${optimisticTrip.state.value}');
       state = state.copyWith(trip: optimisticTrip);
     } else {
       _logger.w('⚠️ startTrip: Optimistic update returned null');
@@ -451,15 +459,17 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
         },
         (trip) async {
           _logger.d('✅ startTrip: API success! New state: ${trip.state.value}');
-          
+
           // Merge with cached lines (API returns minimal data to avoid rate limiting)
           final cachedTrip = state.trip;
           final mergedTrip = trip.copyWith(
             lines: cachedTrip?.lines ?? trip.lines,
-            companyLatitude: trip.companyLatitude ?? cachedTrip?.companyLatitude,
-            companyLongitude: trip.companyLongitude ?? cachedTrip?.companyLongitude,
+            companyLatitude:
+                trip.companyLatitude ?? cachedTrip?.companyLatitude,
+            companyLongitude:
+                trip.companyLongitude ?? cachedTrip?.companyLongitude,
           );
-          
+
           if (_shouldCacheTrip(mergedTrip)) {
             await _cache.cacheTrip(mergedTrip);
           }
@@ -495,7 +505,8 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
       newState: 'done',
     );
     if (optimisticTrip != null) {
-      _logger.d('✅ completeTrip: Optimistic update applied, new state: ${optimisticTrip.state.value}');
+      _logger.d(
+          '✅ completeTrip: Optimistic update applied, new state: ${optimisticTrip.state.value}');
       state = state.copyWith(trip: optimisticTrip);
     } else {
       _logger.w('⚠️ completeTrip: Optimistic update returned null');
@@ -524,16 +535,19 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
           return false;
         },
         (trip) async {
-          _logger.d('✅ completeTrip: API success! New state: ${trip.state.value}');
-          
+          _logger
+              .d('✅ completeTrip: API success! New state: ${trip.state.value}');
+
           // Merge with cached lines (API returns minimal data to avoid rate limiting)
           final cachedTrip = state.trip;
           final mergedTrip = trip.copyWith(
             lines: cachedTrip?.lines ?? trip.lines,
-            companyLatitude: trip.companyLatitude ?? cachedTrip?.companyLatitude,
-            companyLongitude: trip.companyLongitude ?? cachedTrip?.companyLongitude,
+            companyLatitude:
+                trip.companyLatitude ?? cachedTrip?.companyLatitude,
+            companyLongitude:
+                trip.companyLongitude ?? cachedTrip?.companyLongitude,
           );
-          
+
           if (_shouldCacheTrip(mergedTrip)) {
             await _cache.cacheTrip(mergedTrip);
           }
@@ -554,7 +568,12 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
   }
 
   /// تأكيد الرحلة
-  Future<bool> confirmTrip() async {
+  Future<bool> confirmTrip({
+    double? latitude,
+    double? longitude,
+    int? stopId,
+    String? note,
+  }) async {
     final tripId = _currentTripId;
     if (tripId == null) {
       _logger.w('❌ confirmTrip: _currentTripId is null');
@@ -569,23 +588,37 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
       newState: 'planned',
     );
     if (optimisticTrip != null) {
-      _logger.d('✅ confirmTrip: Optimistic update applied, new state: ${optimisticTrip.state.value}');
+      _logger.d(
+          '✅ confirmTrip: Optimistic update applied, new state: ${optimisticTrip.state.value}');
       state = state.copyWith(trip: optimisticTrip);
     } else {
-      _logger.w('⚠️ confirmTrip: Optimistic update returned null (trip not in cache?)');
+      _logger.w(
+          '⚠️ confirmTrip: Optimistic update returned null (trip not in cache?)');
     }
 
     if (!_isOnline) {
       await _cache.addPendingAction(
         actionType: 'confirm_trip',
         tripId: tripId,
+        data: {
+          if (latitude != null) 'latitude': latitude,
+          if (longitude != null) 'longitude': longitude,
+          if (stopId != null) 'stopId': stopId,
+          if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+        },
       );
       _logger.d('📤 confirmTrip: Offline - action queued');
       return true;
     }
 
     try {
-      final result = await _repository?.confirmTrip(tripId);
+      final result = await _repository?.confirmTrip(
+        tripId,
+        latitude: latitude,
+        longitude: longitude,
+        stopId: stopId,
+        note: note,
+      );
       if (result == null) {
         _logger.w('❌ confirmTrip: Repository returned null');
         return false;
@@ -598,16 +631,19 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
           return false;
         },
         (trip) async {
-          _logger.d('✅ confirmTrip: API success! New state: ${trip.state.value}');
-          
+          _logger
+              .d('✅ confirmTrip: API success! New state: ${trip.state.value}');
+
           // Merge with cached lines (API returns minimal data to avoid rate limiting)
           final cachedTrip = state.trip;
           final mergedTrip = trip.copyWith(
             lines: cachedTrip?.lines ?? trip.lines,
-            companyLatitude: trip.companyLatitude ?? cachedTrip?.companyLatitude,
-            companyLongitude: trip.companyLongitude ?? cachedTrip?.companyLongitude,
+            companyLatitude:
+                trip.companyLatitude ?? cachedTrip?.companyLatitude,
+            companyLongitude:
+                trip.companyLongitude ?? cachedTrip?.companyLongitude,
           );
-          
+
           if (_shouldCacheTrip(mergedTrip)) {
             await _cache.cacheTrip(mergedTrip);
           }
@@ -683,7 +719,16 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
             success = result?.isRight() ?? false;
             break;
           case 'confirm_trip':
-            final result = await _repository?.confirmTrip(tripId);
+            final data = action['data'];
+            final map = data is Map ? Map<String, dynamic>.from(data) : null;
+
+            final result = await _repository?.confirmTrip(
+              tripId,
+              latitude: (map?['latitude'] as num?)?.toDouble(),
+              longitude: (map?['longitude'] as num?)?.toDouble(),
+              stopId: map?['stopId'] as int?,
+              note: map?['note'] as String?,
+            );
             success = result?.isRight() ?? false;
             break;
         }
@@ -715,13 +760,14 @@ class SmartTripNotifier extends Notifier<SmartTripState> {
     try {
       final currentTrip = state.trip;
       if (currentTrip == null) return;
-      
+
       // تحديث فوري في smartDriverTripsProvider فقط
       // لا نستخدم invalidate لـ driverDailyTripsProvider لتجنب race condition
       // حيث قد يجلب البيانات القديمة من الخادم قبل اكتمال التحديث
       ref.read(smartDriverTripsProvider.notifier).updateTripInList(currentTrip);
-      
-      _logger.d('🔄 Updated trip ${currentTrip.id} in driver trips list (state: ${currentTrip.state.value})');
+
+      _logger.d(
+          '🔄 Updated trip ${currentTrip.id} in driver trips list (state: ${currentTrip.state.value})');
     } catch (e) {
       _logger.w('Failed to update driver trips list: $e');
     }
@@ -742,7 +788,7 @@ final cachedTripProvider =
 
   // Try cache first
   final cachedTrip = await cache.getCachedTrip(tripId);
-  
+
   // If online, fetch from server
   final isOnline = ref.watch(isOnlineProvider);
   if (isOnline) {
@@ -755,7 +801,8 @@ final cachedTripProvider =
           // شرط المنتج: حفظ الرحلات والركاب محلياً لليوم فقط
           final now = DateTime.now();
           final today = DateTime(now.year, now.month, now.day);
-          final tripDate = DateTime(trip.date.year, trip.date.month, trip.date.day);
+          final tripDate =
+              DateTime(trip.date.year, trip.date.month, trip.date.day);
           if (tripDate.isAtSameMomentAs(today)) {
             await cache.cacheTrip(trip);
           }
@@ -873,6 +920,7 @@ class SmartDriverTripsState {
 class SmartDriverTripsNotifier extends Notifier<SmartDriverTripsState> {
   TripCacheService get _cache => ref.read(tripCacheServiceProvider);
   bool get _isOnline => ref.read(isOnlineProvider);
+  final PrefsService _prefs = PrefsService();
 
   int get _driverId => _driverIdFromAuth(ref);
   TripRepository? get _repository => ref.read(tripRepositoryProvider);
@@ -892,8 +940,8 @@ class SmartDriverTripsNotifier extends Notifier<SmartDriverTripsState> {
       (previous, next) {
         if (previous != next) {
           state = const SmartDriverTripsState();
-          _logger
-              .d('🧹 SmartDriverTripsNotifier reset due to user change: $previous -> $next');
+          _logger.d(
+              '🧹 SmartDriverTripsNotifier reset due to user change: $previous -> $next');
         }
       },
     );
@@ -944,7 +992,8 @@ class SmartDriverTripsNotifier extends Notifier<SmartDriverTripsState> {
       }
 
       // No cached data for today: show error only if offline.
-      state = state.copyWith(isLoading: false, isSyncing: false, isFromCache: true);
+      state =
+          state.copyWith(isLoading: false, isSyncing: false, isFromCache: true);
       if (!_isOnline) {
         state = state.copyWith(
           error: 'لا يوجد اتصال بالإنترنت ولا توجد بيانات مخزنة لليوم',
@@ -986,27 +1035,45 @@ class SmartDriverTripsNotifier extends Notifier<SmartDriverTripsState> {
     );
 
     try {
-      final tripsResult =
-          await repository.getDriverTrips(_driverId, normalizedDate);
-      tripsResult.fold(
-        (failure) {
-          state = state.copyWith(
-            isLoading: false,
-            isSyncing: false,
-            error: failure.message,
-            isFromCache: false,
-          );
-        },
-        (trips) {
-          state = state.copyWith(
-            trips: trips,
-            isLoading: false,
-            isSyncing: false,
-            lastUpdated: DateTime.now(),
-            isFromCache: false,
-          );
-        },
-      );
+      // Prefer REST `/trips/my` then filter by date.
+      try {
+        final shuttleApi = ref.read(shuttleBeeApiServiceProvider);
+        final trips = await shuttleApi.getMyTrips();
+        final filtered = trips.where((t) {
+          final d = DateTime(t.date.year, t.date.month, t.date.day);
+          return d == normalizedDate;
+        }).toList();
+        state = state.copyWith(
+          trips: filtered,
+          isLoading: false,
+          isSyncing: false,
+          lastUpdated: DateTime.now(),
+          isFromCache: false,
+        );
+      } catch (_) {
+        // Fallback to RPC repository.
+        final tripsResult =
+            await repository.getDriverTrips(_driverId, normalizedDate);
+        tripsResult.fold(
+          (failure) {
+            state = state.copyWith(
+              isLoading: false,
+              isSyncing: false,
+              error: failure.message,
+              isFromCache: false,
+            );
+          },
+          (trips) {
+            state = state.copyWith(
+              trips: trips,
+              isLoading: false,
+              isSyncing: false,
+              lastUpdated: DateTime.now(),
+              isFromCache: false,
+            );
+          },
+        );
+      }
     } catch (e) {
       _logger.e('Failed to fetch non-today trips', error: e);
       state = state.copyWith(
@@ -1063,8 +1130,20 @@ class SmartDriverTripsNotifier extends Notifier<SmartDriverTripsState> {
         isFromCache: false,
       );
 
-      final tripsResult =
-          await repository.getDriverTrips(_driverId, normalizedDate);
+      // Prefer REST `/trips/my` then filter by date.
+      Either<Failure, List<Trip>> tripsResult;
+      try {
+        final shuttleApi = ref.read(shuttleBeeApiServiceProvider);
+        final trips = await shuttleApi.getMyTrips();
+        final filtered = trips.where((t) {
+          final d = DateTime(t.date.year, t.date.month, t.date.day);
+          return d == normalizedDate;
+        }).toList();
+        tripsResult = Right(filtered);
+      } catch (_) {
+        tripsResult =
+            await repository.getDriverTrips(_driverId, normalizedDate);
+      }
 
       await tripsResult.fold(
         (failure) async {
@@ -1075,6 +1154,15 @@ class SmartDriverTripsNotifier extends Notifier<SmartDriverTripsState> {
           );
         },
         (trips) async {
+          // Persist last known vehicleId for background heartbeat.
+          try {
+            final vehicleId =
+                trips.firstWhere((t) => t.vehicleId != null).vehicleId;
+            if (vehicleId != null) {
+              await _prefs.setInt(StorageKeys.lastVehicleId, vehicleId);
+            }
+          } catch (_) {}
+
           // تخزين IDs القائمة في الكاش
           final cacheKey =
               _driverTripsCacheKey(driverId: _driverId, date: normalizedDate);
@@ -1134,19 +1222,20 @@ class SmartDriverTripsNotifier extends Notifier<SmartDriverTripsState> {
   void updateTripInList(Trip updatedTrip) {
     final currentTrips = List<Trip>.from(state.trips);
     final index = currentTrips.indexWhere((t) => t.id == updatedTrip.id);
-    
+
     if (index != -1) {
       currentTrips[index] = updatedTrip;
       state = state.copyWith(
         trips: currentTrips,
         lastUpdated: DateTime.now(),
       );
-      _logger.d('🔄 Updated trip ${updatedTrip.id} in list: ${updatedTrip.state.value}');
-      
+      _logger.d(
+          '🔄 Updated trip ${updatedTrip.id} in list: ${updatedTrip.state.value}');
+
       // تحديث الكاش أيضاً
       if (state.selectedDate != null && _isToday(state.selectedDate!)) {
-        final cacheKey =
-            _driverTripsCacheKey(driverId: _driverId, date: state.selectedDate!);
+        final cacheKey = _driverTripsCacheKey(
+            driverId: _driverId, date: state.selectedDate!);
         _cache.cacheTrips(currentTrips, cacheKey: cacheKey);
       }
     }

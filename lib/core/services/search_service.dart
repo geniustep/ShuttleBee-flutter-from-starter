@@ -119,7 +119,9 @@ class SearchService {
         ];
 
       default:
-        return [['name', 'ilike', query]];
+        return [
+          ['name', 'ilike', query]
+        ];
     }
   }
 
@@ -151,9 +153,8 @@ class SearchService {
     }
 
     // Build order string
-    final order = sortBy != null
-        ? '$sortBy ${ascending ? 'ASC' : 'DESC'}'
-        : null;
+    final order =
+        sortBy != null ? '$sortBy ${ascending ? 'ASC' : 'DESC'}' : null;
 
     return await _remote.searchRead(
       model: model,

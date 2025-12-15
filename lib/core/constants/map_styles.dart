@@ -14,8 +14,7 @@ class MapStyles {
 
   /// Custom Style (يمكن إنشاؤه في Mapbox Studio)
   /// Example: mapbox://styles/YOUR_USERNAME/YOUR_STYLE_ID
-  static const String shuttlebeeCustom =
-      'mapbox://styles/mapbox/streets-v12';
+  static const String shuttlebeeCustom = 'mapbox://styles/mapbox/streets-v12';
 
   /// Map Configuration
   static const double defaultZoom = 14.0;

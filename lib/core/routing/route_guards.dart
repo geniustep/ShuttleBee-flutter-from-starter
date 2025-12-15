@@ -8,7 +8,7 @@ import '../../shared/providers/global_providers.dart';
 import 'route_paths.dart';
 
 /// Route guard for authentication with offline support
-/// 
+///
 /// هذا الـ Guard يتعامل مع:
 /// - المستخدم المصادق عليه بالكامل
 /// - المستخدم الذي يحتاج تجديد التوكن
@@ -55,7 +55,7 @@ class AuthGuard {
 }
 
 /// Route guard for routes that require online access
-/// 
+///
 /// يُستخدم للصفحات التي تحتاج اتصال بالإنترنت حتماً
 /// مثل: صفحات الدفع، إنشاء رحلات جديدة، إلخ
 class OnlineGuard {
@@ -83,7 +83,7 @@ class OnlineGuard {
 }
 
 /// Route guard for routes that require valid token (not just offline cache)
-/// 
+///
 /// يُستخدم للصفحات الحساسة التي تحتاج توكن صالح فعلاً
 /// مثل: إدارة الحساب، تغيير كلمة المرور، إلخ
 class ValidTokenGuard {
@@ -129,7 +129,7 @@ class OnboardingGuard {
 }
 
 /// Combined guard that checks auth and token validity
-/// 
+///
 /// هذا الـ Guard الذكي يجمع كل المنطق:
 /// - التحقق من حالة التوكن (valid/needsRefresh/expired/none)
 /// - التعامل مع الأوفلاين
@@ -203,7 +203,7 @@ class SmartAuthGuard {
 }
 
 /// Route guard for sensitive operations that require both online AND valid token
-/// 
+///
 /// يُستخدم للعمليات الحساسة جداً مثل:
 /// - عمليات الدفع
 /// - تعديل بيانات حساسة

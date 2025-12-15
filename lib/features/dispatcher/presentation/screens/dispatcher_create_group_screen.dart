@@ -10,6 +10,9 @@ import '../../../groups/domain/entities/passenger_group.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
 import '../../../vehicles/domain/entities/shuttle_vehicle.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
+import '../../../stops/domain/entities/shuttle_stop.dart';
+import '../../../stops/presentation/providers/stop_providers.dart';
+import '../widgets/dispatcher_app_bar.dart';
 
 /// Dispatcher Create Group Screen - شاشة إنشاء مجموعة جديدة - ShuttleBee
 class DispatcherCreateGroupScreen extends ConsumerStatefulWidget {
@@ -27,12 +30,14 @@ class _DispatcherCreateGroupScreenState
   final _codeController = TextEditingController();
   final _notesController = TextEditingController();
   final _totalSeatsController = TextEditingController(text: '15');
-  final _subscriptionPriceController = TextEditingController();
 
   GroupTripType _tripType = GroupTripType.both;
-  BillingCycle _billingCycle = BillingCycle.monthly;
   int? _selectedVehicleId;
+  int? _selectedDriverId;
+  String? _selectedDriverName;
+
   bool _useCompanyDestination = true;
+  int? _selectedDestinationStopId;
   bool _autoScheduleEnabled = true;
   int _autoScheduleWeeks = 1;
   bool _isLoading = false;
@@ -43,31 +48,27 @@ class _DispatcherCreateGroupScreenState
     _codeController.dispose();
     _notesController.dispose();
     _totalSeatsController.dispose();
-    _subscriptionPriceController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final vehiclesAsync = ref.watch(allVehiclesProvider);
+    final dropoffStopsAsync = ref.watch(dropoffStopsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text(
-          'إنشاء مجموعة جديدة',
-          style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: const Color(0xFF7B1FA2),
-        foregroundColor: Colors.white,
-      ),
+      appBar: const DispatcherAppBar(title: 'إنشاء مجموعة جديدة'),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             // Basic Info Section
-            _buildSectionHeader('المعلومات الأساسية', Icons.info_outline_rounded),
+            _buildSectionHeader(
+              'المعلومات الأساسية',
+              Icons.info_outline_rounded,
+            ),
             const SizedBox(height: 12),
             _buildBasicInfoCard(),
 
@@ -80,17 +81,17 @@ class _DispatcherCreateGroupScreenState
 
             const SizedBox(height: 24),
 
+            // Destination Section
+            _buildSectionHeader('الوجهة', Icons.flag_rounded),
+            const SizedBox(height: 12),
+            _buildDestinationCard(dropoffStopsAsync),
+
+            const SizedBox(height: 24),
+
             // Vehicle Section
             _buildSectionHeader('المركبة', Icons.directions_bus_rounded),
             const SizedBox(height: 12),
             _buildVehicleCard(vehiclesAsync),
-
-            const SizedBox(height: 24),
-
-            // Billing Section
-            _buildSectionHeader('الفوترة', Icons.payments_rounded),
-            const SizedBox(height: 12),
-            _buildBillingCard(),
 
             const SizedBox(height: 24),
 
@@ -121,7 +122,7 @@ class _DispatcherCreateGroupScreenState
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: const Color(0xFF7B1FA2)),
+        Icon(icon, size: 20, color: AppColors.dispatcherPrimary),
         const SizedBox(width: 8),
         Text(
           title,
@@ -129,7 +130,7 @@ class _DispatcherCreateGroupScreenState
             fontSize: 16,
             fontWeight: FontWeight.bold,
             fontFamily: 'Cairo',
-            color: Color(0xFF7B1FA2),
+            color: AppColors.dispatcherPrimary,
           ),
         ),
       ],
@@ -220,12 +221,12 @@ class _DispatcherCreateGroupScreenState
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? const Color(0xFF7B1FA2).withValues(alpha: 0.1)
+                        ? AppColors.dispatcherPrimary.withValues(alpha: 0.1)
                         : Colors.grey.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isSelected
-                          ? const Color(0xFF7B1FA2)
+                          ? AppColors.dispatcherPrimary
                           : Colors.grey.withValues(alpha: 0.2),
                       width: isSelected ? 2 : 1,
                     ),
@@ -235,7 +236,7 @@ class _DispatcherCreateGroupScreenState
                       Icon(
                         _getTripTypeIcon(type),
                         color: isSelected
-                            ? const Color(0xFF7B1FA2)
+                            ? AppColors.dispatcherPrimary
                             : AppColors.textSecondary,
                       ),
                       const SizedBox(width: 12),
@@ -249,13 +250,13 @@ class _DispatcherCreateGroupScreenState
                                 fontWeight: FontWeight.bold,
                                 fontFamily: 'Cairo',
                                 color: isSelected
-                                    ? const Color(0xFF7B1FA2)
+                                    ? AppColors.dispatcherPrimary
                                     : AppColors.textPrimary,
                               ),
                             ),
                             Text(
                               _getTripTypeDescription(type),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
                                 fontFamily: 'Cairo',
                                 color: AppColors.textSecondary,
@@ -267,7 +268,7 @@ class _DispatcherCreateGroupScreenState
                       if (isSelected)
                         const Icon(
                           Icons.check_circle_rounded,
-                          color: Color(0xFF7B1FA2),
+                          color: AppColors.dispatcherPrimary,
                         ),
                     ],
                   ),
@@ -290,34 +291,78 @@ class _DispatcherCreateGroupScreenState
           data: (vehicles) {
             final activeVehicles =
                 vehicles.where((v) => v.active == true).toList();
-            return DropdownButtonFormField<int>(
-              value: _selectedVehicleId,
-              decoration: _buildInputDecoration(
-                label: 'اختر المركبة',
-                hint: 'اختر المركبة المخصصة للمجموعة',
-                icon: Icons.directions_bus_rounded,
-              ),
-              items: [
-                const DropdownMenuItem<int>(
-                  value: null,
-                  child: Text(
-                    'بدون مركبة',
-                    style: TextStyle(fontFamily: 'Cairo'),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DropdownButtonFormField<int?>(
+                  initialValue: _selectedVehicleId,
+                  decoration: _buildInputDecoration(
+                    label: 'اختر المركبة',
+                    hint: 'اختر المركبة المخصصة للمجموعة',
+                    icon: Icons.directions_bus_rounded,
                   ),
-                ),
-                ...activeVehicles.map((vehicle) {
-                  return DropdownMenuItem<int>(
-                    value: vehicle.id,
-                    child: Text(
-                      '${vehicle.name} (${vehicle.licensePlate ?? "بدون لوحة"})',
-                      style: const TextStyle(fontFamily: 'Cairo'),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text(
+                        'بدون مركبة',
+                        style: TextStyle(fontFamily: 'Cairo'),
+                      ),
                     ),
-                  );
-                }),
+                    ...activeVehicles.map((vehicle) {
+                      return DropdownMenuItem<int?>(
+                        value: vehicle.id,
+                        child: Text(
+                          '${vehicle.name} (${vehicle.licensePlate ?? "بدون لوحة"})',
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
+                      );
+                    }),
+                  ],
+                  onChanged: (value) {
+                    ShuttleVehicle? selected;
+                    if (value != null) {
+                      for (final v in activeVehicles) {
+                        if (v.id == value) {
+                          selected = v;
+                          break;
+                        }
+                      }
+                    }
+                    setState(() {
+                      _selectedVehicleId = value;
+                      _selectedDriverId = selected?.driverId;
+                      _selectedDriverName = selected?.driverName;
+                      if (selected != null && selected.seatCapacity > 0) {
+                        _totalSeatsController.text = '${selected.seatCapacity}';
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.person_rounded,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _selectedDriverId != null
+                            ? 'السائق: ${_selectedDriverName ?? "ID: $_selectedDriverId"}'
+                            : 'السائق: غير محدد',
+                        style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
-              onChanged: (value) {
-                setState(() => _selectedVehicleId = value);
-              },
             );
           },
           loading: () => const Center(
@@ -332,7 +377,8 @@ class _DispatcherCreateGroupScreenState
     ).animate().fadeIn(duration: 300.ms, delay: 300.ms);
   }
 
-  Widget _buildBillingCard() {
+  Widget _buildDestinationCard(
+      AsyncValue<List<ShuttleStop>> dropoffStopsAsync) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -340,46 +386,77 @@ class _DispatcherCreateGroupScreenState
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Billing Cycle
-            DropdownButtonFormField<BillingCycle>(
-              value: _billingCycle,
-              decoration: _buildInputDecoration(
-                label: 'دورة الفوترة',
-                hint: 'اختر دورة الفوترة',
-                icon: Icons.repeat_rounded,
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                'استخدم وجهة الشركة',
+                style:
+                    TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w600),
               ),
-              items: BillingCycle.values.map((cycle) {
-                return DropdownMenuItem<BillingCycle>(
-                  value: cycle,
-                  child: Text(
-                    cycle.arabicLabel,
-                    style: const TextStyle(fontFamily: 'Cairo'),
-                  ),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _billingCycle = value);
-                }
+              subtitle: const Text(
+                'عند الإيقاف: يجب اختيار محطة وجهة (مدرسة/شركة)',
+                style: TextStyle(fontFamily: 'Cairo', fontSize: 12),
+              ),
+              value: _useCompanyDestination,
+              activeThumbColor: AppColors.dispatcherPrimary,
+              onChanged: (v) {
+                setState(() {
+                  _useCompanyDestination = v;
+                  if (v) {
+                    _selectedDestinationStopId = null;
+                  }
+                });
               },
             ),
-            const SizedBox(height: 16),
-
-            // Subscription Price
-            TextFormField(
-              controller: _subscriptionPriceController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: _buildInputDecoration(
-                label: 'سعر الاشتراك (اختياري)',
-                hint: 'مثال: 500.00',
-                icon: Icons.attach_money_rounded,
+            if (!_useCompanyDestination) ...[
+              const Divider(),
+              const SizedBox(height: 8),
+              dropoffStopsAsync.when(
+                data: (stops) {
+                  final activeStops =
+                      stops.where((s) => s.active == true).toList();
+                  return DropdownButtonFormField<int?>(
+                    initialValue: _selectedDestinationStopId,
+                    decoration: _buildInputDecoration(
+                      label: 'محطة الوجهة',
+                      hint: 'اختر محطة الوجهة (مدرسة/شركة)',
+                      icon: Icons.flag_rounded,
+                    ),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('اختر...',
+                            style: TextStyle(fontFamily: 'Cairo')),
+                      ),
+                      ...activeStops.map(
+                        (s) => DropdownMenuItem<int?>(
+                          value: s.id,
+                          child: Text(s.name,
+                              style: const TextStyle(fontFamily: 'Cairo')),
+                        ),
+                      ),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => _selectedDestinationStopId = v),
+                    validator: (v) {
+                      if (!_useCompanyDestination && (v == null)) {
+                        return 'يرجى اختيار محطة الوجهة';
+                      }
+                      return null;
+                    },
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (_, __) => const Text(
+                  'فشل في تحميل محطات النزول',
+                  style: TextStyle(fontFamily: 'Cairo', color: AppColors.error),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 300.ms, delay: 400.ms);
+    ).animate().fadeIn(duration: 300.ms, delay: 250.ms);
   }
 
   Widget _buildScheduleCard() {
@@ -394,14 +471,15 @@ class _DispatcherCreateGroupScreenState
             SwitchListTile(
               title: const Text(
                 'تفعيل الجدولة التلقائية',
-                style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w600),
+                style:
+                    TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w600),
               ),
               subtitle: const Text(
                 'إنشاء الرحلات تلقائياً بناءً على الجداول',
                 style: TextStyle(fontFamily: 'Cairo', fontSize: 12),
               ),
               value: _autoScheduleEnabled,
-              activeColor: const Color(0xFF7B1FA2),
+              activeThumbColor: AppColors.dispatcherPrimary,
               onChanged: (value) {
                 setState(() => _autoScheduleEnabled = value);
               },
@@ -413,8 +491,11 @@ class _DispatcherCreateGroupScreenState
               // Weeks Ahead
               Row(
                 children: [
-                  const Icon(Icons.date_range_rounded,
-                      size: 20, color: AppColors.textSecondary),
+                  const Icon(
+                    Icons.date_range_rounded,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 12),
                   const Expanded(
                     child: Text(
@@ -486,7 +567,7 @@ class _DispatcherCreateGroupScreenState
       child: ElevatedButton.icon(
         onPressed: _isLoading ? null : _submitForm,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF7B1FA2),
+          backgroundColor: AppColors.dispatcherPrimary,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -522,7 +603,7 @@ class _DispatcherCreateGroupScreenState
     return InputDecoration(
       labelText: label,
       hintText: hint,
-      prefixIcon: Icon(icon, color: const Color(0xFF7B1FA2)),
+      prefixIcon: Icon(icon, color: AppColors.dispatcherPrimary),
       labelStyle: const TextStyle(fontFamily: 'Cairo'),
       hintStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 13),
       border: OutlineInputBorder(
@@ -535,7 +616,8 @@ class _DispatcherCreateGroupScreenState
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF7B1FA2), width: 2),
+        borderSide:
+            const BorderSide(color: AppColors.dispatcherPrimary, width: 2),
       ),
       filled: true,
       fillColor: Colors.white,
@@ -565,23 +647,52 @@ class _DispatcherCreateGroupScreenState
     HapticFeedback.mediumImpact();
 
     try {
+      if (_autoScheduleEnabled && _selectedDriverId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'لا يمكن تفعيل الجدولة التلقائية بدون سائق. اختر مركبة لها سائق أو عطّل الجدولة التلقائية.',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
+              backgroundColor: AppColors.warning,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (!_useCompanyDestination && _selectedDestinationStopId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'يرجى اختيار محطة الوجهة أو تفعيل "استخدم وجهة الشركة".',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        return;
+      }
+
       final group = PassengerGroup(
         id: 0,
         name: _nameController.text.trim(),
         code: _codeController.text.trim().isNotEmpty
             ? _codeController.text.trim()
             : null,
+        driverId: _selectedDriverId,
         vehicleId: _selectedVehicleId,
         totalSeats: int.parse(_totalSeatsController.text),
         tripType: _tripType,
         useCompanyDestination: _useCompanyDestination,
+        destinationStopId:
+            !_useCompanyDestination ? _selectedDestinationStopId : null,
         notes: _notesController.text.trim().isNotEmpty
             ? _notesController.text.trim()
             : null,
-        subscriptionPrice: _subscriptionPriceController.text.isNotEmpty
-            ? double.tryParse(_subscriptionPriceController.text)
-            : null,
-        billingCycle: _billingCycle,
         autoScheduleEnabled: _autoScheduleEnabled,
         autoScheduleWeeks: _autoScheduleWeeks,
         autoScheduleIncludePickup: _tripType != GroupTripType.dropoff,
@@ -602,6 +713,78 @@ class _DispatcherCreateGroupScreenState
             backgroundColor: AppColors.success,
           ),
         );
+
+        // Generate trips immediately (do not wait for Odoo cron).
+        if (_autoScheduleEnabled) {
+          try {
+            final includePickup = _tripType != GroupTripType.dropoff;
+            final includeDropoff = _tripType != GroupTripType.pickup;
+
+            final now = DateTime.now();
+            final today = DateTime(now.year, now.month, now.day);
+
+            final count =
+                await ref.read(groupActionsProvider.notifier).generateTrips(
+                      createdGroup.id,
+                      weeks: _autoScheduleWeeks,
+                      startDate: today,
+                      includePickup: includePickup,
+                      includeDropoff: includeDropoff,
+                      limitToWeek: false,
+                    );
+
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  count > 0
+                      ? 'تم توليد $count رحلة تلقائياً'
+                      : 'لم يتم توليد أي رحلات (تحقق من الجدول أو تعارض السائق/المركبة)',
+                  style: const TextStyle(fontFamily: 'Cairo'),
+                ),
+                backgroundColor:
+                    count > 0 ? AppColors.success : AppColors.warning,
+                action: count > 0
+                    ? null
+                    : SnackBarAction(
+                        label: 'فتح الجداول',
+                        textColor: Colors.white,
+                        onPressed: () {
+                          context.go(
+                            '${RoutePaths.dispatcherHome}/groups/${createdGroup.id}/schedules',
+                          );
+                        },
+                      ),
+              ),
+            );
+          } catch (e) {
+            if (!mounted) return;
+            final msg = e.toString();
+            final isNoTrips = msg.contains('No trips were created') ||
+                msg.contains('لم يتم إنشاء رحلات');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  isNoTrips
+                      ? 'لم يتم إنشاء رحلات. السبب غالباً: لا يوجد جدول فعّال أو يوجد تعارض مع رحلات أخرى للسائق/المركبة.'
+                      : 'فشل توليد الرحلات: $e',
+                  style: const TextStyle(fontFamily: 'Cairo'),
+                ),
+                backgroundColor: AppColors.warning,
+                action: SnackBarAction(
+                  label: 'فتح الجداول',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    context.go(
+                      '${RoutePaths.dispatcherHome}/groups/${createdGroup.id}/schedules',
+                    );
+                  },
+                ),
+              ),
+            );
+          }
+        }
+
         context.go('${RoutePaths.dispatcherHome}/groups');
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

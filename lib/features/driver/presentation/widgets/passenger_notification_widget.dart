@@ -67,7 +67,8 @@ class _PassengerNotificationWidgetState
     super.didUpdateWidget(oldWidget);
 
     // تحديث الحالة من البيانات الجديدة
-    if (widget.tripLine.approachingNotified != oldWidget.tripLine.approachingNotified) {
+    if (widget.tripLine.approachingNotified !=
+        oldWidget.tripLine.approachingNotified) {
       _approachingNotified = widget.tripLine.approachingNotified;
     }
     if (widget.tripLine.arrivedNotified != oldWidget.tripLine.arrivedNotified) {
@@ -142,7 +143,8 @@ class _PassengerNotificationWidgetState
         (success) {
           setState(() => _approachingNotified = true);
           if (mounted && !isAuto) {
-            _showSnackBar('✅ تم إرسال إشعار الاقتراب لـ ${widget.tripLine.passengerName}');
+            _showSnackBar(
+                '✅ تم إرسال إشعار الاقتراب لـ ${widget.tripLine.passengerName}');
           }
           widget.onNotificationSent?.call();
         },
@@ -162,7 +164,8 @@ class _PassengerNotificationWidgetState
 
     try {
       final repository = ref.read(notificationRepositoryProvider);
-      final result = await repository.sendArrivedNotification(widget.tripLine.id);
+      final result =
+          await repository.sendArrivedNotification(widget.tripLine.id);
 
       result.fold(
         (failure) {
@@ -176,7 +179,8 @@ class _PassengerNotificationWidgetState
         (success) {
           setState(() => _arrivedNotified = true);
           if (mounted && !isAuto) {
-            _showSnackBar('✅ تم إرسال إشعار الوصول لـ ${widget.tripLine.passengerName}');
+            _showSnackBar(
+                '✅ تم إرسال إشعار الوصول لـ ${widget.tripLine.passengerName}');
           }
           widget.onNotificationSent?.call();
         },
@@ -501,7 +505,8 @@ class _PassengerNotificationWidgetState
               return Icon(
                 Icons.notifications_active,
                 size: 14,
-                color: Colors.blue.withOpacity(0.7 + _pulseController.value * 0.3),
+                color:
+                    Colors.blue.withOpacity(0.7 + _pulseController.value * 0.3),
               );
             },
           ),
@@ -693,7 +698,8 @@ class TripNotificationManager {
     );
   }
 
-  double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
+  double _calculateDistance(
+      double lat1, double lng1, double lat2, double lng2) {
     // Haversine formula simplified
     const p = 0.017453292519943295;
     final a = 0.5 -
@@ -736,4 +742,3 @@ class TripNotificationManager {
     _arrivedNotifiedIds.clear();
   }
 }
-

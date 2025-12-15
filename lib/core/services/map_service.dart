@@ -92,7 +92,8 @@ class MapService {
   /// تحويل الإحداثيات إلى عنوان
   Future<String?> getAddressFromLatLng(double lat, double lng) async {
     try {
-      List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
+      final List<Placemark> placemarks =
+          await placemarkFromCoordinates(lat, lng);
       if (placemarks.isEmpty) return null;
 
       final place = placemarks.first;
@@ -106,7 +107,7 @@ class MapService {
   /// تحويل العنوان إلى إحداثيات
   Future<LatLng?> getLatLngFromAddress(String address) async {
     try {
-      List<Location> locations = await locationFromAddress(address);
+      final List<Location> locations = await locationFromAddress(address);
       if (locations.isEmpty) return null;
 
       final location = locations.first;

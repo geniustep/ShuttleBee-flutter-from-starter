@@ -196,8 +196,10 @@ class BridgecoreClient {
   }
 
   /// ✅ الحصول على معلومات المستخدم الحالي باستخدام /me endpoint (BridgeCore v0.2.0)
-  Future<Map<String, dynamic>> getCurrentUser(
-      {required String modelName, required List<String> listFields}) async {
+  Future<Map<String, dynamic>> getCurrentUser({
+    required String modelName,
+    required List<String> listFields,
+  }) async {
     try {
       // استخدام BridgeCore مباشرة مع odoo_fields_check
       final meResponse = await BridgeCore.instance.auth.me(

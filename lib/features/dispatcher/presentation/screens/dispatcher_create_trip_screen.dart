@@ -12,6 +12,7 @@ import '../../../groups/domain/entities/passenger_group.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
 import '../../../vehicles/domain/entities/shuttle_vehicle.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
+import '../widgets/dispatcher_app_bar.dart';
 
 /// Dispatcher Create Trip Screen - شاشة إنشاء/توليد رحلة - ShuttleBee
 class DispatcherCreateTripScreen extends ConsumerStatefulWidget {
@@ -43,18 +44,10 @@ class _DispatcherCreateTripScreenState
   int _weeksAhead = 1;
   bool _isLoading = false;
 
-  // Tab mode: 0 = from group, 1 = manual
-  int _currentTabIndex = 0;
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      setState(() {
-        _currentTabIndex = _tabController.index;
-      });
-    });
 
     // Set initial group if provided
     if (widget.initialGroupId != null) {
@@ -73,13 +66,8 @@ class _DispatcherCreateTripScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text(
-          'إنشاء رحلة',
-          style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: const Color(0xFF7B1FA2),
-        foregroundColor: Colors.white,
+      appBar: DispatcherAppBar(
+        title: 'إنشاء رحلة',
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -157,7 +145,8 @@ class _DispatcherCreateTripScreenState
           _buildInfoCard(
             icon: Icons.info_outline_rounded,
             title: 'إنشاء رحلة يدوياً',
-            message: 'قم بتحديد تفاصيل الرحلة يدوياً بدون الاعتماد على جدول مجموعة',
+            message:
+                'قم بتحديد تفاصيل الرحلة يدوياً بدون الاعتماد على جدول مجموعة',
           ),
           const SizedBox(height: 24),
 
@@ -183,7 +172,8 @@ class _DispatcherCreateTripScreenState
           const SizedBox(height: 24),
 
           // Group & Vehicle
-          _buildSectionHeader('المجموعة والمركبة', Icons.directions_bus_rounded),
+          _buildSectionHeader(
+              'المجموعة والمركبة', Icons.directions_bus_rounded),
           const SizedBox(height: 12),
           _buildGroupVehicleCard(groupsAsync, vehiclesAsync),
 
@@ -206,15 +196,15 @@ class _DispatcherCreateTripScreenState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF7B1FA2).withValues(alpha: 0.1),
+        color: AppColors.dispatcherPrimary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF7B1FA2).withValues(alpha: 0.3),
+          color: AppColors.dispatcherPrimary.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFF7B1FA2), size: 32),
+          Icon(icon, color: AppColors.dispatcherPrimary, size: 32),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -225,7 +215,7 @@ class _DispatcherCreateTripScreenState
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Cairo',
-                    color: Color(0xFF7B1FA2),
+                    color: AppColors.dispatcherPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -248,7 +238,7 @@ class _DispatcherCreateTripScreenState
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: const Color(0xFF7B1FA2)),
+        Icon(icon, size: 20, color: AppColors.dispatcherPrimary),
         const SizedBox(width: 8),
         Text(
           title,
@@ -256,14 +246,15 @@ class _DispatcherCreateTripScreenState
             fontSize: 16,
             fontWeight: FontWeight.bold,
             fontFamily: 'Cairo',
-            color: Color(0xFF7B1FA2),
+            color: AppColors.dispatcherPrimary,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildGroupSelectionCard(AsyncValue<List<PassengerGroup>> groupsAsync) {
+  Widget _buildGroupSelectionCard(
+      AsyncValue<List<PassengerGroup>> groupsAsync) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -300,12 +291,12 @@ class _DispatcherCreateTripScreenState
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? const Color(0xFF7B1FA2).withValues(alpha: 0.1)
+                            ? AppColors.dispatcherPrimary.withValues(alpha: 0.1)
                             : Colors.grey.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: isSelected
-                              ? const Color(0xFF7B1FA2)
+                              ? AppColors.dispatcherPrimary
                               : Colors.grey.withValues(alpha: 0.2),
                           width: isSelected ? 2 : 1,
                         ),
@@ -317,14 +308,15 @@ class _DispatcherCreateTripScreenState
                             height: 48,
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? const Color(0xFF7B1FA2).withValues(alpha: 0.2)
+                                  ? AppColors.dispatcherPrimary
+                                      .withValues(alpha: 0.2)
                                   : Colors.grey.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
                               Icons.groups_rounded,
                               color: isSelected
-                                  ? const Color(0xFF7B1FA2)
+                                  ? AppColors.dispatcherPrimary
                                   : AppColors.textSecondary,
                             ),
                           ),
@@ -339,7 +331,7 @@ class _DispatcherCreateTripScreenState
                                     fontWeight: FontWeight.bold,
                                     fontFamily: 'Cairo',
                                     color: isSelected
-                                        ? const Color(0xFF7B1FA2)
+                                        ? AppColors.dispatcherPrimary
                                         : AppColors.textPrimary,
                                   ),
                                 ),
@@ -370,7 +362,7 @@ class _DispatcherCreateTripScreenState
                           if (isSelected)
                             const Icon(
                               Icons.check_circle_rounded,
-                              color: Color(0xFF7B1FA2),
+                              color: AppColors.dispatcherPrimary,
                             ),
                         ],
                       ),
@@ -408,8 +400,11 @@ class _DispatcherCreateTripScreenState
             // Weeks Selection
             Row(
               children: [
-                const Icon(Icons.date_range_rounded,
-                    size: 20, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.date_range_rounded,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text(
@@ -461,8 +456,11 @@ class _DispatcherCreateTripScreenState
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded,
-                      color: Colors.blue, size: 20),
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: Colors.blue,
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -552,12 +550,12 @@ class _DispatcherCreateTripScreenState
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF7B1FA2).withValues(alpha: 0.1)
+              ? AppColors.dispatcherPrimary.withValues(alpha: 0.1)
               : Colors.grey.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF7B1FA2)
+                ? AppColors.dispatcherPrimary
                 : Colors.grey.withValues(alpha: 0.2),
             width: isSelected ? 2 : 1,
           ),
@@ -567,8 +565,9 @@ class _DispatcherCreateTripScreenState
             Icon(
               icon,
               size: 32,
-              color:
-                  isSelected ? const Color(0xFF7B1FA2) : AppColors.textSecondary,
+              color: isSelected
+                  ? AppColors.dispatcherPrimary
+                  : AppColors.textSecondary,
             ),
             const SizedBox(height: 8),
             Text(
@@ -577,7 +576,7 @@ class _DispatcherCreateTripScreenState
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Cairo',
                 color: isSelected
-                    ? const Color(0xFF7B1FA2)
+                    ? AppColors.dispatcherPrimary
                     : AppColors.textSecondary,
               ),
             ),
@@ -610,8 +609,10 @@ class _DispatcherCreateTripScreenState
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.calendar_today_rounded,
-                        color: Color(0xFF7B1FA2)),
+                    const Icon(
+                      Icons.calendar_today_rounded,
+                      color: AppColors.dispatcherPrimary,
+                    ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
@@ -658,8 +659,10 @@ class _DispatcherCreateTripScreenState
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.access_time_rounded,
-                        color: Color(0xFF7B1FA2)),
+                    const Icon(
+                      Icons.access_time_rounded,
+                      color: AppColors.dispatcherPrimary,
+                    ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
@@ -710,7 +713,7 @@ class _DispatcherCreateTripScreenState
               data: (groups) {
                 final activeGroups = groups.where((g) => g.active).toList();
                 return DropdownButtonFormField<int>(
-                  value: _selectedGroupId,
+                  initialValue: _selectedGroupId,
                   decoration: _buildInputDecoration(
                     label: 'المجموعة (اختياري)',
                     hint: 'اختر المجموعة',
@@ -750,7 +753,7 @@ class _DispatcherCreateTripScreenState
                 final activeVehicles =
                     vehicles.where((v) => v.active == true).toList();
                 return DropdownButtonFormField<int>(
-                  value: _selectedVehicleId,
+                  initialValue: _selectedVehicleId,
                   decoration: _buildInputDecoration(
                     label: 'المركبة (اختياري)',
                     hint: 'اختر المركبة',
@@ -833,7 +836,7 @@ class _DispatcherCreateTripScreenState
       child: ElevatedButton.icon(
         onPressed: _isLoading ? null : _createManualTrip,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF7B1FA2),
+          backgroundColor: AppColors.dispatcherPrimary,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -869,7 +872,7 @@ class _DispatcherCreateTripScreenState
     return InputDecoration(
       labelText: label,
       hintText: hint,
-      prefixIcon: Icon(icon, color: const Color(0xFF7B1FA2)),
+      prefixIcon: Icon(icon, color: AppColors.dispatcherPrimary),
       labelStyle: const TextStyle(fontFamily: 'Cairo'),
       hintStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 13),
       border: OutlineInputBorder(
@@ -882,7 +885,8 @@ class _DispatcherCreateTripScreenState
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF7B1FA2), width: 2),
+        borderSide:
+            const BorderSide(color: AppColors.dispatcherPrimary, width: 2),
       ),
       filled: true,
       fillColor: Colors.white,

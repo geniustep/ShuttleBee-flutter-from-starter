@@ -9,6 +9,9 @@ class StorageKeys {
   /// Session ID
   static const String sessionId = 'session_id';
 
+  /// ShuttleBee REST Session ID (when REST base URL differs from main ODOO_URL).
+  static const String shuttleBeeSessionId = 'shuttlebee_session_id';
+
   /// User credentials (encrypted)
   static const String userCredentials = 'user_credentials';
 
@@ -60,6 +63,9 @@ class StorageKeys {
 
   /// User Role (driver, dispatcher, passenger, manager)
   static const String userRole = 'user_role';
+
+  /// Last known vehicle ID for the current driver (for background heartbeat).
+  static const String lastVehicleId = 'last_vehicle_id';
 
   /// Offline mode enabled
   static const String offlineModeEnabled = 'offline_mode_enabled';

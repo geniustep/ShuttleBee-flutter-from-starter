@@ -23,7 +23,11 @@ class StopRemoteDataSource {
     }
 
     if (stopType != null) {
-      domain.add(['stop_type', 'in', ['both', stopType.value]]);
+      domain.add([
+        'stop_type',
+        'in',
+        ['both', stopType.value]
+      ]);
     }
 
     final result = await _client.searchRead(
@@ -43,7 +47,7 @@ class StopRemoteDataSource {
     final result = await _client.searchRead(
       model: _stopModel,
       domain: [
-        ['id', '=', stopId]
+        ['id', '=', stopId],
       ],
       fields: _stopFields,
       limit: 1,
@@ -90,7 +94,8 @@ class StopRemoteDataSource {
 
       if (result is List) {
         return result
-            .map((json) => StopSuggestion.fromJson(json as Map<String, dynamic>))
+            .map(
+                (json) => StopSuggestion.fromJson(json as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
@@ -168,4 +173,3 @@ class StopRemoteDataSource {
     'company_id',
   ];
 }
-

@@ -42,8 +42,7 @@ class ChartDataPoint extends Equatable {
         'label': label,
       };
 
-  factory ChartDataPoint.fromJson(Map<String, dynamic> json) =>
-      ChartDataPoint(
+  factory ChartDataPoint.fromJson(Map<String, dynamic> json) => ChartDataPoint(
         x: (json['x'] as num).toDouble(),
         y: (json['y'] as num).toDouble(),
         label: json['label'] as String,

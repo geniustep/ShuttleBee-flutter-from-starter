@@ -155,12 +155,14 @@ class CacheManager {
     Duration? ttl,
   }) async {
     await Future.wait(
-      items.entries.map((entry) => prefetch(
-            entry.key,
-            entry.value,
-            memoryTTL: ttl,
-            diskTTL: ttl,
-          )),
+      items.entries.map(
+        (entry) => prefetch(
+          entry.key,
+          entry.value,
+          memoryTTL: ttl,
+          diskTTL: ttl,
+        ),
+      ),
     );
   }
 }

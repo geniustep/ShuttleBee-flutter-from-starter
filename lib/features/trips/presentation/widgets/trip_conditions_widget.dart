@@ -581,4 +581,3 @@ class _TripConditionsDialogState extends State<TripConditionsDialog> {
     );
   }
 }
-

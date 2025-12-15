@@ -27,7 +27,7 @@ class SettingsTile extends StatelessWidget {
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(AppDimensions.xs),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: AppColors.surfaceVariant,
           borderRadius: AppDimensions.borderRadiusSm,
         ),

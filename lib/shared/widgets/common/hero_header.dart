@@ -210,10 +210,12 @@ class HeroHeader extends StatelessWidget {
                 ),
               )
             : Icon(action.icon, color: Colors.white, size: 22),
-        onPressed: action.isLoading ? null : () {
-          HapticFeedback.lightImpact();
-          action.onPressed?.call();
-        },
+        onPressed: action.isLoading
+            ? null
+            : () {
+                HapticFeedback.lightImpact();
+                action.onPressed?.call();
+              },
         tooltip: action.tooltip,
       ),
     );

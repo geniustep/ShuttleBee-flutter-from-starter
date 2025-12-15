@@ -30,6 +30,16 @@ class _PassengerTripTrackingScreenState
   Timer? _refreshTimer;
   BitmapDescriptor? _busMarker;
 
+  static bool _isValidLatLng(double? lat, double? lng) {
+    if (lat == null || lng == null) return false;
+    if (lat.isNaN || lng.isNaN) return false;
+    if (!lat.isFinite || !lng.isFinite) return false;
+    if (lat < -90 || lat > 90) return false;
+    if (lng < -180 || lng > 180) return false;
+    if (lat.abs() < 0.00001 && lng.abs() < 0.00001) return false;
+    return true;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -62,13 +72,14 @@ class _PassengerTripTrackingScreenState
     return Scaffold(
       body: tripAsync.when(
         data: (trip) {
-        if (trip == null) {
-          return const Center(
-            child: Text('الرحلة غير موجودة', style: TextStyle(fontFamily: 'Cairo')),
-          );
-        }
-        return _buildContent(trip);
-      },
+          if (trip == null) {
+            return const Center(
+              child: Text('الرحلة غير موجودة',
+                  style: TextStyle(fontFamily: 'Cairo')),
+            );
+          }
+          return _buildContent(trip);
+        },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
           child: Column(
@@ -119,14 +130,15 @@ class _PassengerTripTrackingScreenState
     final markers = <Marker>{};
 
     // إضافة علامة الحافلة إذا كان هناك موقع GPS
-    if (trip.currentLatitude != null && trip.currentLongitude != null) {
+    if (_isValidLatLng(trip.currentLatitude, trip.currentLongitude)) {
       markers.add(
         Marker(
           markerId: const MarkerId('bus'),
           position: LatLng(trip.currentLatitude!, trip.currentLongitude!),
-          icon: _busMarker ?? BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueBlue,
-          ),
+          icon: _busMarker ??
+              BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueBlue,
+              ),
           infoWindow: InfoWindow(
             title: trip.vehicleName ?? 'الحافلة',
             snippet: 'آخر تحديث: ${_formatTime(trip.lastGpsUpdate)}',
@@ -139,7 +151,7 @@ class _PassengerTripTrackingScreenState
     for (final line in trip.lines) {
       final lat = line.effectivePickupLatitude;
       final lng = line.effectivePickupLongitude;
-      
+
       if (lat != null && lng != null) {
         markers.add(
           Marker(
@@ -161,7 +173,7 @@ class _PassengerTripTrackingScreenState
 
     return GoogleMap(
       initialCameraPosition: CameraPosition(
-        target: trip.currentLatitude != null && trip.currentLongitude != null
+        target: _isValidLatLng(trip.currentLatitude, trip.currentLongitude)
             ? LatLng(trip.currentLatitude!, trip.currentLongitude!)
             : defaultLocation,
         zoom: 14,
@@ -287,7 +299,10 @@ class _PassengerTripTrackingScreenState
                 color: color,
                 shape: BoxShape.circle,
               ),
-            ).animate(onPlay: (c) => c.repeat()).fadeIn(duration: 500.ms).fadeOut(duration: 500.ms),
+            )
+                .animate(onPlay: (c) => c.repeat())
+                .fadeIn(duration: 500.ms)
+                .fadeOut(duration: 500.ms),
             const SizedBox(width: 4),
           ],
           Text(
@@ -431,7 +446,10 @@ class _PassengerTripTrackingScreenState
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 300.ms, delay: 200.ms).slideY(begin: 0.2, end: 0);
+    )
+        .animate()
+        .fadeIn(duration: 300.ms, delay: 200.ms)
+        .slideY(begin: 0.2, end: 0);
   }
 
   Widget _buildTimeInfo(String label, String time, IconData icon, Color color) {
@@ -508,4 +526,3 @@ class _PassengerTripTrackingScreenState
     return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 }
-

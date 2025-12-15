@@ -17,7 +17,7 @@ class GuardianRemoteDataSource {
     final result = await _client.searchRead(
       model: _partnerModel,
       domain: [
-        ['id', '=', guardianId]
+        ['id', '=', guardianId],
       ],
       fields: _guardianFields,
       limit: 1,
@@ -49,7 +49,8 @@ class GuardianRemoteDataSource {
   }
 
   /// الحصول على رحلات التابعين
-  Future<List<Trip>> getDependentTrips(int dependentId, {
+  Future<List<Trip>> getDependentTrips(
+    int dependentId, {
     DateTime? fromDate,
     DateTime? toDate,
     int limit = 20,
@@ -87,7 +88,7 @@ class GuardianRemoteDataSource {
     final result = await _client.searchRead(
       model: _tripModel,
       domain: [
-        ['id', 'in', tripIds]
+        ['id', 'in', tripIds],
       ],
       fields: _tripFields,
       order: 'date desc, planned_start_time asc',
@@ -126,7 +127,7 @@ class GuardianRemoteDataSource {
     final result = await _client.searchRead(
       model: _tripModel,
       domain: [
-        ['id', 'in', tripIds]
+        ['id', 'in', tripIds],
       ],
       fields: _tripFields,
       order: 'planned_start_time asc',
@@ -155,7 +156,7 @@ class GuardianRemoteDataSource {
     final result = await _client.searchRead(
       model: _tripModel,
       domain: [
-        ['id', '=', tripId]
+        ['id', '=', tripId],
       ],
       fields: _tripFields,
       limit: 1,
@@ -192,7 +193,7 @@ class GuardianRemoteDataSource {
           model: _tripLineModel,
           method: 'action_absent',
           args: [
-            [line['id'] as int]
+            [line['id'] as int],
           ],
           kwargs: {
             if (reason != null) 'reason': reason,
@@ -215,7 +216,7 @@ class GuardianRemoteDataSource {
   }) async {
     try {
       final values = <String, dynamic>{};
-      
+
       if (pickupStopId != null) {
         values['shuttle_default_pickup_stop_id'] = pickupStopId;
       }
@@ -294,4 +295,3 @@ class GuardianRemoteDataSource {
     'notes',
   ];
 }
-

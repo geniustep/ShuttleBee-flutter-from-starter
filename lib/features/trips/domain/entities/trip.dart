@@ -221,6 +221,81 @@ class Trip {
               ?.map((e) => TripLine.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      // GPS Tracking (cached)
+      currentLatitude: (json['currentLatitude'] as num?)?.toDouble(),
+      currentLongitude: (json['currentLongitude'] as num?)?.toDouble(),
+      lastGpsUpdate: json['lastGpsUpdate'] != null
+          ? DateTime.tryParse(json['lastGpsUpdate'] as String)
+          : null,
+      // Company (cached)
+      companyId: json['companyId'] as int?,
+      companyName: json['companyName'] as String?,
+      companyLatitude: (json['companyLatitude'] as num?)?.toDouble(),
+      companyLongitude: (json['companyLongitude'] as num?)?.toDouble(),
+    );
+  }
+
+  /// Create from ShuttleBee REST endpoints (`/api/v1/shuttle/*`).
+  ///
+  /// These endpoints usually return a minimal trip payload; missing fields
+  /// are filled with safe defaults.
+  factory Trip.fromShuttleBeeLiveJson(Map<String, dynamic> json) {
+    double? asDouble(dynamic v) {
+      if (v == null || v == false) return null;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString());
+    }
+
+    int? asInt(dynamic v) {
+      if (v == null || v == false) return null;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString());
+    }
+
+    String? asString(dynamic v) {
+      if (v == null || v == false) return null;
+      if (v is String) return v;
+      return v.toString();
+    }
+
+    final tripId = asInt(json['trip_id'] ?? json['id']) ?? 0;
+    final state =
+        TripState.tryFromString(asString(json['state'])) ?? TripState.ongoing;
+    final tripType =
+        TripType.tryFromString(asString(json['trip_type'])) ?? TripType.pickup;
+
+    // Accept multiple key names from different controller versions.
+    final lat = asDouble(
+      json['latitude'] ?? json['lat'] ?? json['current_latitude'],
+    );
+    final lng = asDouble(
+      json['longitude'] ?? json['lng'] ?? json['current_longitude'],
+    );
+
+    final lastGpsUpdate =
+        parseDateTime(json['last_gps_update'] ?? json['lastGpsUpdate']);
+
+    return Trip(
+      id: tripId,
+      name: asString(json['name']) ?? 'Trip #$tripId',
+      state: state,
+      tripType: tripType,
+      date: parseDate(json['date']),
+      driverId: asInt(json['driver_id'] ?? json['driverId']),
+      driverName: asString(json['driver_name'] ?? json['driverName']),
+      vehicleId: asInt(json['vehicle_id'] ?? json['vehicleId']),
+      vehicleName: asString(json['vehicle_name'] ?? json['vehicleName']),
+      vehiclePlateNumber:
+          asString(json['vehicle_plate'] ?? json['vehiclePlateNumber']),
+      currentLatitude: lat,
+      currentLongitude: lng,
+      lastGpsUpdate: lastGpsUpdate,
+      totalPassengers:
+          asInt(json['total_passengers'] ?? json['totalPassengers']) ?? 0,
+      boardedCount: asInt(json['boarded_count'] ?? json['boardedCount']) ?? 0,
+      absentCount: asInt(json['absent_count'] ?? json['absentCount']) ?? 0,
+      droppedCount: asInt(json['dropped_count'] ?? json['droppedCount']) ?? 0,
     );
   }
 
@@ -251,6 +326,15 @@ class Trip {
       'actualDistance': actualDistance,
       'notes': notes,
       'lines': lines.map((e) => e.toJson()).toList(),
+      // GPS Tracking
+      'currentLatitude': currentLatitude,
+      'currentLongitude': currentLongitude,
+      'lastGpsUpdate': lastGpsUpdate?.toIso8601String(),
+      // Company
+      'companyId': companyId,
+      'companyName': companyName,
+      'companyLatitude': companyLatitude,
+      'companyLongitude': companyLongitude,
     };
   }
 
@@ -629,8 +713,9 @@ class TripLine {
           Trip._extractString(json['phone']),
       passengerEmail: Trip._extractString(json['passenger_email']),
       status: TripLineStatus.tryFromString(
-              Trip._extractString(json['status']) ??
-                  Trip._extractString(json['state'])) ??
+            Trip._extractString(json['status']) ??
+                Trip._extractString(json['state']),
+          ) ??
           TripLineStatus.notStarted,
       sequence: json['sequence'] as int? ?? 0,
       seatCount: json['seat_count'] as int? ?? 1,
@@ -913,16 +998,18 @@ class TripLine {
   /// نوع موقع الصعود
   LocationType get pickupLocationType {
     if (pickupStopId != null) return LocationType.stop;
-    if (pickupLatitude != null && pickupLongitude != null)
+    if (pickupLatitude != null && pickupLongitude != null) {
       return LocationType.custom;
+    }
     return LocationType.none;
   }
 
   /// نوع موقع النزول
   LocationType get dropoffLocationType {
     if (dropoffStopId != null) return LocationType.stop;
-    if (dropoffLatitude != null && dropoffLongitude != null)
+    if (dropoffLatitude != null && dropoffLongitude != null) {
       return LocationType.custom;
+    }
     return LocationType.none;
   }
 
