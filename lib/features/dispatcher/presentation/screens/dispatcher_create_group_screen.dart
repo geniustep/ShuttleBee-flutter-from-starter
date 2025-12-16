@@ -6,17 +6,24 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../groups/domain/entities/passenger_group.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
 import '../../../vehicles/domain/entities/shuttle_vehicle.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../../stops/domain/entities/shuttle_stop.dart';
 import '../../../stops/presentation/providers/stop_providers.dart';
+import '../providers/dispatcher_cached_providers.dart';
 import '../widgets/dispatcher_app_bar.dart';
 
 /// Dispatcher Create Group Screen - شاشة إنشاء مجموعة جديدة - ShuttleBee
 class DispatcherCreateGroupScreen extends ConsumerStatefulWidget {
-  const DispatcherCreateGroupScreen({super.key});
+  final PassengerGroup? initialGroup;
+
+  const DispatcherCreateGroupScreen({
+    super.key,
+    this.initialGroup,
+  });
 
   @override
   ConsumerState<DispatcherCreateGroupScreen> createState() =>
@@ -43,6 +50,31 @@ class _DispatcherCreateGroupScreenState
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+
+    final group = widget.initialGroup;
+    if (group == null) return;
+
+    _nameController.text = group.name;
+    _codeController.text = group.code ?? '';
+    _notesController.text = group.notes ?? '';
+    _totalSeatsController.text = '${group.totalSeats}';
+
+    _tripType = group.tripType;
+    _selectedVehicleId = group.vehicleId;
+    _selectedDriverId = group.driverId;
+    _selectedDriverName = group.driverName;
+
+    _useCompanyDestination = group.useCompanyDestination;
+    _selectedDestinationStopId =
+        group.useCompanyDestination ? null : group.destinationStopId;
+
+    _autoScheduleEnabled = group.autoScheduleEnabled;
+    _autoScheduleWeeks = group.autoScheduleWeeks;
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _codeController.dispose();
@@ -55,10 +87,13 @@ class _DispatcherCreateGroupScreenState
   Widget build(BuildContext context) {
     final vehiclesAsync = ref.watch(allVehiclesProvider);
     final dropoffStopsAsync = ref.watch(dropoffStopsProvider);
+    final isEditMode = widget.initialGroup != null;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: const DispatcherAppBar(title: 'إنشاء مجموعة جديدة'),
+      appBar: DispatcherAppBar(
+        title: isEditMode ? 'تعديل المجموعة' : 'إنشاء مجموعة جديدة',
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -291,11 +326,27 @@ class _DispatcherCreateGroupScreenState
           data: (vehicles) {
             final activeVehicles =
                 vehicles.where((v) => v.active == true).toList();
+
+            final selectedVehicleId = _selectedVehicleId;
+            if (selectedVehicleId != null &&
+                !activeVehicles.any((v) => v.id == selectedVehicleId)) {
+              for (final v in vehicles) {
+                if (v.id == selectedVehicleId) {
+                  activeVehicles.insert(0, v);
+                  break;
+                }
+              }
+            }
+
+            final safeSelectedVehicleId = selectedVehicleId != null &&
+                    activeVehicles.any((v) => v.id == selectedVehicleId)
+                ? selectedVehicleId
+                : null;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 DropdownButtonFormField<int?>(
-                  initialValue: _selectedVehicleId,
+                  initialValue: safeSelectedVehicleId,
                   decoration: _buildInputDecoration(
                     label: 'اختر المركبة',
                     hint: 'اختر المركبة المخصصة للمجموعة',
@@ -415,8 +466,24 @@ class _DispatcherCreateGroupScreenState
                 data: (stops) {
                   final activeStops =
                       stops.where((s) => s.active == true).toList();
+
+                  final selectedStopId = _selectedDestinationStopId;
+                  if (selectedStopId != null &&
+                      !activeStops.any((s) => s.id == selectedStopId)) {
+                    for (final s in stops) {
+                      if (s.id == selectedStopId) {
+                        activeStops.insert(0, s);
+                        break;
+                      }
+                    }
+                  }
+
+                  final safeSelectedStopId = selectedStopId != null &&
+                          activeStops.any((s) => s.id == selectedStopId)
+                      ? selectedStopId
+                      : null;
                   return DropdownButtonFormField<int?>(
-                    initialValue: _selectedDestinationStopId,
+                    initialValue: safeSelectedStopId,
                     decoration: _buildInputDecoration(
                       label: 'محطة الوجهة',
                       hint: 'اختر محطة الوجهة (مدرسة/شركة)',
@@ -561,6 +628,8 @@ class _DispatcherCreateGroupScreenState
   }
 
   Widget _buildSubmitButton() {
+    final isEditMode = widget.initialGroup != null;
+
     return SizedBox(
       width: double.infinity,
       height: 56,
@@ -584,7 +653,9 @@ class _DispatcherCreateGroupScreenState
               )
             : const Icon(Icons.check_rounded),
         label: Text(
-          _isLoading ? 'جاري الإنشاء...' : 'إنشاء المجموعة',
+          _isLoading
+              ? (isEditMode ? 'جاري الحفظ...' : 'جاري الإنشاء...')
+              : (isEditMode ? 'حفظ التعديلات' : 'إنشاء المجموعة'),
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -647,6 +718,8 @@ class _DispatcherCreateGroupScreenState
     HapticFeedback.mediumImpact();
 
     try {
+      final isEditMode = widget.initialGroup != null;
+
       if (_autoScheduleEnabled && _selectedDriverId == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -677,6 +750,81 @@ class _DispatcherCreateGroupScreenState
         return;
       }
 
+      if (isEditMode) {
+        final existing = widget.initialGroup;
+        if (existing == null) return;
+
+        final updated = PassengerGroup(
+          id: existing.id,
+          name: _nameController.text.trim(),
+          code: _codeController.text.trim().isNotEmpty
+              ? _codeController.text.trim()
+              : null,
+          driverId: _selectedDriverId,
+          driverName: _selectedDriverName,
+          vehicleId: _selectedVehicleId,
+          vehicleName: existing.vehicleName,
+          totalSeats: int.parse(_totalSeatsController.text),
+          tripType: _tripType,
+          useCompanyDestination: _useCompanyDestination,
+          destinationStopId:
+              !_useCompanyDestination ? _selectedDestinationStopId : null,
+          destinationStopName: existing.destinationStopName,
+          destinationLatitude: existing.destinationLatitude,
+          destinationLongitude: existing.destinationLongitude,
+          color: existing.color,
+          notes: _notesController.text.trim().isNotEmpty
+              ? _notesController.text.trim()
+              : null,
+          active: existing.active,
+          companyId: existing.companyId,
+          companyName: existing.companyName,
+          memberCount: existing.memberCount,
+          subscriptionPrice: existing.subscriptionPrice,
+          billingCycle: existing.billingCycle,
+          schedules: existing.schedules,
+          holidays: existing.holidays,
+          autoScheduleEnabled: _autoScheduleEnabled,
+          autoScheduleWeeks: _autoScheduleWeeks,
+          autoScheduleIncludePickup: _tripType != GroupTripType.dropoff,
+          autoScheduleIncludeDropoff: _tripType != GroupTripType.pickup,
+          scheduleTimezone: existing.scheduleTimezone,
+        );
+
+        final saved =
+            await ref.read(groupActionsProvider.notifier).updateGroup(updated);
+
+        if (saved != null && mounted) {
+          await _invalidateDispatcherGroupsCache();
+          if (!mounted) return;
+
+          HapticFeedback.heavyImpact();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'تم تحديث المجموعة بنجاح',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
+              backgroundColor: AppColors.success,
+            ),
+          );
+
+          context.go('${RoutePaths.dispatcherHome}/groups');
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'فشل في تحديث المجموعة',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+
+        return;
+      }
+
       final group = PassengerGroup(
         id: 0,
         name: _nameController.text.trim(),
@@ -703,6 +851,9 @@ class _DispatcherCreateGroupScreenState
           await ref.read(groupActionsProvider.notifier).createGroup(group);
 
       if (createdGroup != null && mounted) {
+        await _invalidateDispatcherGroupsCache();
+        if (!mounted) return;
+
         HapticFeedback.heavyImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -723,7 +874,7 @@ class _DispatcherCreateGroupScreenState
             final now = DateTime.now();
             final today = DateTime(now.year, now.month, now.day);
 
-            final count =
+            final result =
                 await ref.read(groupActionsProvider.notifier).generateTrips(
                       createdGroup.id,
                       weeks: _autoScheduleWeeks,
@@ -737,14 +888,14 @@ class _DispatcherCreateGroupScreenState
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  count > 0
-                      ? 'تم توليد $count رحلة تلقائياً'
+                  result.count > 0
+                      ? 'تم توليد ${result.count} رحلة تلقائياً'
                       : 'لم يتم توليد أي رحلات (تحقق من الجدول أو تعارض السائق/المركبة)',
                   style: const TextStyle(fontFamily: 'Cairo'),
                 ),
                 backgroundColor:
-                    count > 0 ? AppColors.success : AppColors.warning,
-                action: count > 0
+                    result.count > 0 ? AppColors.success : AppColors.warning,
+                action: result.count > 0
                     ? null
                     : SnackBarAction(
                         label: 'فتح الجداول',
@@ -785,6 +936,7 @@ class _DispatcherCreateGroupScreenState
           }
         }
 
+        if (!mounted) return;
         context.go('${RoutePaths.dispatcherHome}/groups');
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -814,5 +966,14 @@ class _DispatcherCreateGroupScreenState
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _invalidateDispatcherGroupsCache() async {
+    final userId = ref.read(authStateProvider).asData?.value.user?.id ?? 0;
+    if (userId == 0) return;
+
+    final cache = ref.read(dispatcherCacheDataSourceProvider);
+    await cache.delete(DispatcherCacheKeys.groups(userId: userId));
+    ref.invalidate(dispatcherGroupsProvider);
   }
 }

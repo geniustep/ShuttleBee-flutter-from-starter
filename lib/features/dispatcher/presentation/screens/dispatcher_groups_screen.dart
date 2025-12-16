@@ -10,6 +10,7 @@ import '../../../../core/widgets/role_switcher_widget.dart';
 import '../../../../shared/widgets/loading/shimmer_loading.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../groups/domain/entities/passenger_group.dart';
+import '../../../groups/presentation/providers/group_providers.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/dispatcher_cached_providers.dart';
 import '../widgets/dispatcher_app_bar.dart';
@@ -634,6 +635,10 @@ class _DispatcherGroupsScreenState
       child: InkWell(
         onTap: () {
           HapticFeedback.lightImpact();
+          context.go('${RoutePaths.dispatcherHome}/groups/${group.id}');
+        },
+        onLongPress: () {
+          HapticFeedback.mediumImpact();
           _showGroupActions(group);
         },
         borderRadius: BorderRadius.circular(16),
@@ -746,22 +751,28 @@ class _DispatcherGroupsScreenState
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _buildInfoChip(
-                    Icons.person_rounded,
-                    group.driverName ?? 'بدون سائق',
-                    group.hasDriver
-                        ? AppColors.success
-                        : AppColors.textSecondary,
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildInfoChip(
+                          Icons.person_rounded,
+                          group.driverName ?? 'بدون سائق',
+                          group.hasDriver
+                              ? AppColors.success
+                              : AppColors.textSecondary,
+                        ),
+                        _buildInfoChip(
+                          Icons.directions_bus_rounded,
+                          group.vehicleName ?? 'بدون مركبة',
+                          group.hasVehicle
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  _buildInfoChip(
-                    Icons.directions_bus_rounded,
-                    group.vehicleName ?? 'بدون مركبة',
-                    group.hasVehicle
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                  ),
-                  const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.play_circle_rounded),
                     color: AppColors.success,
@@ -789,6 +800,7 @@ class _DispatcherGroupsScreenState
 
   Widget _buildInfoChip(IconData icon, String label, Color color) {
     return Container(
+      constraints: const BoxConstraints(maxWidth: 150),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
@@ -799,15 +811,17 @@ class _DispatcherGroupsScreenState
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: color,
-              fontFamily: 'Cairo',
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: color,
+                fontFamily: 'Cairo',
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -914,7 +928,7 @@ class _DispatcherGroupsScreenState
               color: AppColors.primary,
               onTap: () {
                 Navigator.pop(context);
-                context.go(
+                context.push(
                   '${RoutePaths.dispatcherHome}/groups/${group.id}/schedules',
                 );
               },
@@ -940,6 +954,16 @@ class _DispatcherGroupsScreenState
                 context.go(
                   '${RoutePaths.dispatcherHome}/groups/${group.id}/passengers',
                 );
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildActionButton(
+              icon: Icons.delete_rounded,
+              label: 'حذف المجموعة',
+              color: AppColors.error,
+              onTap: () {
+                Navigator.pop(context);
+                _confirmDeleteGroup(group);
               },
             ),
             const SizedBox(height: 24),
@@ -990,5 +1014,90 @@ class _DispatcherGroupsScreenState
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDeleteGroup(PassengerGroup group) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          'حذف المجموعة',
+          style: TextStyle(
+            fontFamily: 'Cairo',
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'هل أنت متأكد من حذف مجموعة "${group.name}"؟\n\nهذه العملية لا يمكن التراجع عنها.',
+          style: const TextStyle(fontFamily: 'Cairo'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              'إلغاء',
+              style: TextStyle(fontFamily: 'Cairo'),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'حذف',
+              style: TextStyle(fontFamily: 'Cairo'),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    HapticFeedback.mediumImpact();
+
+    final success =
+        await ref.read(groupActionsProvider.notifier).deleteGroup(group.id);
+
+    if (!mounted) return;
+
+    if (success) {
+      // Clear cache and refresh
+      final cache = ref.read(dispatcherCacheDataSourceProvider);
+      final userId = ref.read(authStateProvider).asData?.value.user?.id ?? 0;
+      if (userId != 0) {
+        await cache.delete(DispatcherCacheKeys.groups(userId: userId));
+      }
+      ref.invalidate(dispatcherGroupsProvider);
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              'تم حذف المجموعة "${group.name}" بنجاح',
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: AppColors.success,
+          ),
+        );
+    } else {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: const Text(
+              'تعذر حذف المجموعة، حاول مرة أخرى',
+              style: TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+    }
   }
 }

@@ -27,6 +27,8 @@ class RoutePaths {
   static const String dispatcherCreateTrip = '/dispatcher/trips/create';
   static const String dispatcherTripDetail = '/dispatcher/trips/:tripId';
   static const String dispatcherEditTrip = '/dispatcher/trips/:tripId/edit';
+  static const String dispatcherTripPassengers =
+      '/dispatcher/trips/:tripId/passengers';
   static const String dispatcherMonitor = '/dispatcher/monitor';
   static const String dispatcherVehicles = '/dispatcher/vehicles';
   static const String dispatcherCreateVehicle = '/dispatcher/vehicles/create';
@@ -45,6 +47,8 @@ class RoutePaths {
       '/dispatcher/passengers/groups/:groupId';
   static const String dispatcherPassengerDetail =
       '/dispatcher/passengers/p/:passengerId';
+  static const String dispatcherEditPassenger =
+      '/dispatcher/passengers/p/:passengerId/edit';
   static const String dispatcherHolidays = '/dispatcher/holidays';
   static const String dispatcherHolidayDetail =
       '/dispatcher/holidays/:holidayId';
@@ -99,6 +103,7 @@ class RouteNames {
   static const String dispatcherCreateTrip = 'dispatcherCreateTrip';
   static const String dispatcherTripDetail = 'dispatcherTripDetail';
   static const String dispatcherEditTrip = 'dispatcherEditTrip';
+  static const String dispatcherTripPassengers = 'dispatcherTripPassengers';
   static const String dispatcherMonitor = 'dispatcherMonitor';
   static const String dispatcherVehicles = 'dispatcherVehicles';
   static const String dispatcherCreateVehicle = 'dispatcherCreateVehicle';
@@ -113,6 +118,7 @@ class RouteNames {
   static const String dispatcherPassengersGroupPassengers =
       'dispatcherPassengersGroupPassengers';
   static const String dispatcherPassengerDetail = 'dispatcherPassengerDetail';
+  static const String dispatcherEditPassenger = 'dispatcherEditPassenger';
   static const String dispatcherHolidays = 'dispatcherHolidays';
   static const String dispatcherHolidayDetail = 'dispatcherHolidayDetail';
 

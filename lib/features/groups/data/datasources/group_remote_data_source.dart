@@ -134,14 +134,26 @@ class GroupRemoteDataSource {
 
   /// تحديث مجموعة
   Future<PassengerGroup> updateGroup(PassengerGroup group) async {
-    await _client.write(
+    final values = group.toOdoo();
+    // Debug: Log the values being sent to Odoo
+    // ignore: avoid_print
+    print('🔄 [updateGroup] Updating group ${group.id} with values: $values');
+
+    final result = await _client.write(
       model: _groupModel,
       ids: [group.id],
-      values: group.toOdoo(),
+      values: values,
     );
+
+    // ignore: avoid_print
+    print('🔄 [updateGroup] Write result: $result');
 
     final updated = await getGroupById(group.id);
     if (updated == null) throw Exception('Failed to update group');
+
+    // ignore: avoid_print
+    print('🔄 [updateGroup] Updated group name: ${updated.name}');
+
     return updated;
   }
 
@@ -264,7 +276,8 @@ class GroupRemoteDataSource {
   }
 
   /// توليد رحلات من الجدول
-  Future<int> generateTripsFromSchedule(
+  /// يُرجع كائن يحتوي على عدد الرحلات المولدة ومعرفاتها
+  Future<({int count, List<int> tripIds})> generateTripsFromSchedule(
     int groupId, {
     int weeks = 1,
     DateTime? startDate,
@@ -292,7 +305,7 @@ class GroupRemoteDataSource {
       },
     );
 
-    // Try to infer count from returned action domain.
+    // Try to extract trip IDs from returned action domain.
     if (result is Map) {
       final domain = result['domain'];
       if (domain is List) {
@@ -302,13 +315,23 @@ class GroupRemoteDataSource {
               clause[0] == 'id' &&
               clause[1] == 'in') {
             final ids = clause[2];
-            if (ids is List) return ids.length;
+            if (ids is List) {
+              final tripIds = <int>[];
+              for (final id in ids) {
+                if (id is int) {
+                  tripIds.add(id);
+                } else if (id is num) {
+                  tripIds.add(id.toInt());
+                }
+              }
+              return (count: tripIds.length, tripIds: tripIds);
+            }
           }
         }
       }
     }
 
-    return 0;
+    return (count: 0, tripIds: <int>[]);
   }
 
   /// عدد المجموعات

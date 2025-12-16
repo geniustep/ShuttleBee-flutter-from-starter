@@ -10,7 +10,10 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../groups/domain/entities/passenger_group.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
+import '../../../trips/domain/entities/trip.dart';
+import '../../../trips/presentation/providers/trip_providers.dart';
 import '../../../vehicles/domain/entities/shuttle_vehicle.dart';
+import '../../../vehicles/presentation/providers/fleet_providers.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../widgets/dispatcher_app_bar.dart';
 
@@ -41,6 +44,7 @@ class _DispatcherCreateTripScreenState
   TimeOfDay _selectedTime = TimeOfDay.now();
   int? _selectedGroupId;
   int? _selectedVehicleId;
+  int? _selectedDriverId;
   int _weeksAhead = 1;
   bool _isLoading = false;
 
@@ -171,11 +175,11 @@ class _DispatcherCreateTripScreenState
 
           const SizedBox(height: 24),
 
-          // Group & Vehicle
+          // Group, Driver & Vehicle
           _buildSectionHeader(
-              'المجموعة والمركبة', Icons.directions_bus_rounded),
+              'المجموعة والسائق والمركبة', Icons.directions_bus_rounded),
           const SizedBox(height: 12),
-          _buildGroupVehicleCard(groupsAsync, vehiclesAsync),
+          _buildGroupDriverVehicleCard(groupsAsync, vehiclesAsync),
 
           const SizedBox(height: 32),
 
@@ -335,7 +339,9 @@ class _DispatcherCreateTripScreenState
                                         : AppColors.textPrimary,
                                   ),
                                 ),
-                                Row(
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 4,
                                   children: [
                                     Text(
                                       '${group.memberCount} راكب',
@@ -345,7 +351,6 @@ class _DispatcherCreateTripScreenState
                                         color: AppColors.textSecondary,
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
                                     Text(
                                       '• ${group.tripType.arabicLabel}',
                                       style: const TextStyle(
@@ -697,10 +702,12 @@ class _DispatcherCreateTripScreenState
     ).animate().fadeIn(duration: 300.ms, delay: 300.ms);
   }
 
-  Widget _buildGroupVehicleCard(
+  Widget _buildGroupDriverVehicleCard(
     AsyncValue<List<PassengerGroup>> groupsAsync,
     AsyncValue<List<ShuttleVehicle>> vehiclesAsync,
   ) {
+    final driversAsync = ref.watch(availableDriversProvider);
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -708,12 +715,74 @@ class _DispatcherCreateTripScreenState
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // Driver Dropdown (Required)
+            driversAsync.when(
+              data: (drivers) {
+                if (drivers.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.warning_rounded, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'لا توجد سائقين متاحين',
+                            style: TextStyle(
+                              fontFamily: 'Cairo',
+                              color: Colors.orange,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return DropdownButtonFormField<int>(
+                  value: _selectedDriverId,
+                  isExpanded: true,
+                  decoration: _buildInputDecoration(
+                    label: 'السائق *',
+                    hint: 'اختر السائق',
+                    icon: Icons.person_rounded,
+                  ),
+                  items: drivers.map((driver) {
+                    return DropdownMenuItem<int>(
+                      value: driver.id,
+                      child: Text(
+                        driver.name,
+                        style: const TextStyle(fontFamily: 'Cairo'),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() => _selectedDriverId = value);
+                  },
+                  validator: (value) {
+                    if (value == null) {
+                      return 'يرجى اختيار السائق';
+                    }
+                    return null;
+                  },
+                );
+              },
+              loading: () => const LinearProgressIndicator(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+            const SizedBox(height: 16),
+
             // Group Dropdown
             groupsAsync.when(
               data: (groups) {
                 final activeGroups = groups.where((g) => g.active).toList();
                 return DropdownButtonFormField<int>(
-                  initialValue: _selectedGroupId,
+                  value: _selectedGroupId,
+                  isExpanded: true,
                   decoration: _buildInputDecoration(
                     label: 'المجموعة (اختياري)',
                     hint: 'اختر المجموعة',
@@ -725,6 +794,7 @@ class _DispatcherCreateTripScreenState
                       child: Text(
                         'بدون مجموعة',
                         style: TextStyle(fontFamily: 'Cairo'),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     ...activeGroups.map((group) {
@@ -733,6 +803,7 @@ class _DispatcherCreateTripScreenState
                         child: Text(
                           group.name,
                           style: const TextStyle(fontFamily: 'Cairo'),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       );
                     }),
@@ -753,7 +824,8 @@ class _DispatcherCreateTripScreenState
                 final activeVehicles =
                     vehicles.where((v) => v.active == true).toList();
                 return DropdownButtonFormField<int>(
-                  initialValue: _selectedVehicleId,
+                  value: _selectedVehicleId,
+                  isExpanded: true,
                   decoration: _buildInputDecoration(
                     label: 'المركبة (اختياري)',
                     hint: 'اختر المركبة',
@@ -765,6 +837,7 @@ class _DispatcherCreateTripScreenState
                       child: Text(
                         'بدون مركبة',
                         style: TextStyle(fontFamily: 'Cairo'),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     ...activeVehicles.map((vehicle) {
@@ -773,12 +846,39 @@ class _DispatcherCreateTripScreenState
                         child: Text(
                           '${vehicle.name} (${vehicle.licensePlate ?? "بدون لوحة"})',
                           style: const TextStyle(fontFamily: 'Cairo'),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       );
                     }),
                   ],
                   onChanged: (value) {
-                    setState(() => _selectedVehicleId = value);
+                    int? newDriverId;
+                    // تحديث السائق تلقائياً عند تغيير السيارة
+                    if (value != null) {
+                      try {
+                        final selectedVehicle =
+                            activeVehicles.firstWhere((v) => v.id == value);
+                        if (selectedVehicle.driverId != null) {
+                          // التحقق من أن السائق موجود في قائمة السائقين المتاحين
+                          final drivers = driversAsync.value;
+                          if (drivers != null) {
+                            final driverExists = drivers.any((driver) =>
+                                driver.id == selectedVehicle.driverId);
+                            if (driverExists) {
+                              newDriverId = selectedVehicle.driverId;
+                            }
+                          }
+                        }
+                      } catch (e) {
+                        // السيارة غير موجودة، لا شيء
+                      }
+                    }
+                    setState(() {
+                      _selectedVehicleId = value;
+                      if (newDriverId != null) {
+                        _selectedDriverId = newDriverId;
+                      }
+                    });
                   },
                 );
               },
@@ -923,23 +1023,67 @@ class _DispatcherCreateTripScreenState
     HapticFeedback.mediumImpact();
 
     try {
-      final tripCount = await ref
+      final result = await ref
           .read(groupActionsProvider.notifier)
           .generateTrips(_selectedGroupId!, weeks: _weeksAhead);
 
       if (mounted) {
         HapticFeedback.heavyImpact();
-        if (tripCount > 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'تم توليد $tripCount رحلة بنجاح',
-                style: const TextStyle(fontFamily: 'Cairo'),
+        if (result.count > 0) {
+          // جلب بيانات الرحلات المولدة
+          final repository = ref.read(tripRepositoryProvider);
+          if (repository != null && result.tripIds.isNotEmpty) {
+            try {
+              final trips = <Trip>[];
+              for (final tripId in result.tripIds) {
+                final tripResult = await repository.getTripById(tripId);
+                tripResult.fold(
+                  (failure) => null,
+                  (trip) => trips.add(trip),
+                );
+              }
+
+              // إظهار حوار مع الرحلات المولدة
+              if (mounted && trips.isNotEmpty) {
+                await _showGeneratedTripsDialog(trips, result.count);
+              }
+            } catch (e) {
+              // في حالة فشل جلب الرحلات، نعرض رسالة بسيطة
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'تم توليد ${result.count} رحلة بنجاح',
+                    style: const TextStyle(fontFamily: 'Cairo'),
+                  ),
+                  backgroundColor: AppColors.success,
+                  action: SnackBarAction(
+                    label: 'عرض',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      context.go('${RoutePaths.dispatcherHome}/trips');
+                    },
+                  ),
+                ),
+              );
+            }
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'تم توليد ${result.count} رحلة بنجاح',
+                  style: const TextStyle(fontFamily: 'Cairo'),
+                ),
+                backgroundColor: AppColors.success,
+                action: SnackBarAction(
+                  label: 'عرض',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    context.go('${RoutePaths.dispatcherHome}/trips');
+                  },
+                ),
               ),
-              backgroundColor: AppColors.success,
-            ),
-          );
-          context.go('${RoutePaths.dispatcherHome}/trips');
+            );
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -971,6 +1115,143 @@ class _DispatcherCreateTripScreenState
     }
   }
 
+  Future<void> _showGeneratedTripsDialog(
+      List<Trip> trips, int totalCount) async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(
+              Icons.check_circle_rounded,
+              color: AppColors.success,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'تم توليد الرحلات',
+                style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'تم توليد $totalCount رحلة بنجاح',
+                  style: const TextStyle(
+                    fontFamily: 'Cairo',
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.success,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'الرحلات المولدة:',
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: trips.length > 10 ? 10 : trips.length,
+                  itemBuilder: (context, index) {
+                    final trip = trips[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            trip.tripType == TripType.pickup
+                                ? Icons.arrow_upward_rounded
+                                : Icons.arrow_downward_rounded,
+                            size: 16,
+                            color: AppColors.dispatcherPrimary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              trip.name,
+                              style: const TextStyle(fontFamily: 'Cairo'),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (trip.plannedStartTime != null)
+                            Text(
+                              DateFormat('HH:mm')
+                                  .format(trip.plannedStartTime!),
+                              style: const TextStyle(
+                                fontFamily: 'Cairo',
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              if (trips.length > 10)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'و ${trips.length - 10} رحلة أخرى...',
+                    style: const TextStyle(
+                      fontFamily: 'Cairo',
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'إغلاق',
+              style: TextStyle(fontFamily: 'Cairo'),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              context.go('${RoutePaths.dispatcherHome}/trips');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.dispatcherPrimary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text(
+              'عرض جميع الرحلات',
+              style: TextStyle(fontFamily: 'Cairo'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _createManualTrip() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -978,21 +1259,84 @@ class _DispatcherCreateTripScreenState
     HapticFeedback.mediumImpact();
 
     try {
-      // TODO: Implement manual trip creation via TripActionsNotifier
-      // For now, show a success message and navigate back
+      // إنشاء كائن الرحلة من البيانات المدخلة
+      final plannedStartDateTime = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _selectedTime.hour,
+        _selectedTime.minute,
+      );
 
-      if (mounted) {
-        HapticFeedback.heavyImpact();
+      // حساب وقت الوصول المتوقع (إضافة ساعة افتراضياً)
+      final plannedArrivalDateTime = plannedStartDateTime.add(
+        const Duration(hours: 1),
+      );
+
+      // التحقق من وجود السائق (إلزامي)
+      if (_selectedDriverId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'تم إنشاء الرحلة بنجاح',
+              'يرجى اختيار السائق',
               style: TextStyle(fontFamily: 'Cairo'),
             ),
-            backgroundColor: AppColors.success,
+            backgroundColor: AppColors.error,
           ),
         );
-        context.go('${RoutePaths.dispatcherHome}/trips');
+        return;
+      }
+
+      final trip = Trip(
+        id: 0, // سيتم تعيينه من الخادم
+        name: _nameController.text.trim(),
+        state: TripState.draft,
+        tripType: _tripType,
+        date: _selectedDate,
+        plannedStartTime: plannedStartDateTime,
+        plannedArrivalTime: plannedArrivalDateTime,
+        driverId: _selectedDriverId, // السائق إلزامي
+        vehicleId: _selectedVehicleId,
+        groupId: _selectedGroupId,
+        notes: null,
+      );
+
+      // إنشاء الرحلة عبر الـ repository
+      final repository = ref.read(tripRepositoryProvider);
+      if (repository == null) {
+        throw Exception('لا يمكن الوصول إلى مستودع الرحلات');
+      }
+
+      final result = await repository.createTrip(trip);
+
+      if (mounted) {
+        HapticFeedback.heavyImpact();
+        result.fold(
+          (failure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'خطأ في إنشاء الرحلة: ${failure.message}',
+                  style: const TextStyle(fontFamily: 'Cairo'),
+                ),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          },
+          (createdTrip) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'تم إنشاء الرحلة بنجاح',
+                  style: TextStyle(fontFamily: 'Cairo'),
+                ),
+                backgroundColor: AppColors.success,
+              ),
+            );
+            // الانتقال مباشرة إلى صفحة تفاصيل الرحلة بعد إنشاء الرحلة
+            context.go('${RoutePaths.dispatcherHome}/trips/${createdTrip.id}');
+          },
+        );
       }
     } catch (e) {
       if (mounted) {

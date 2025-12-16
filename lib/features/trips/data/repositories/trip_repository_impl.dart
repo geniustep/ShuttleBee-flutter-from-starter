@@ -145,6 +145,60 @@ class TripRepositoryImpl extends BaseRepository implements TripRepository {
   }
 
   @override
+  Future<Either<Failure, TripLine>> addPassengerToTrip({
+    required int tripId,
+    required int passengerId,
+    int seatCount = 1,
+    String? notes,
+    int? pickupStopId,
+    int? dropoffStopId,
+  }) async {
+    return execute(
+      () => _remoteDataSource.addPassengerToTrip(
+        tripId: tripId,
+        passengerId: passengerId,
+        seatCount: seatCount,
+        notes: notes,
+        pickupStopId: pickupStopId,
+        dropoffStopId: dropoffStopId,
+      ),
+    );
+  }
+
+  @override
+  Future<Either<Failure, void>> removePassengerFromTrip(int tripLineId) async {
+    return execute(() => _remoteDataSource.removePassengerFromTrip(tripLineId));
+  }
+
+  @override
+  Future<Either<Failure, TripLine>> updateTripLine({
+    required int tripLineId,
+    int? seatCount,
+    String? notes,
+    int? pickupStopId,
+    int? dropoffStopId,
+    int? sequence,
+  }) async {
+    return execute(
+      () => _remoteDataSource.updateTripLine(
+        tripLineId: tripLineId,
+        seatCount: seatCount,
+        notes: notes,
+        pickupStopId: pickupStopId,
+        dropoffStopId: dropoffStopId,
+        sequence: sequence,
+      ),
+    );
+  }
+
+  @override
+  Future<Either<Failure, List<Map<String, dynamic>>>>
+      getAvailablePassengersForTrip(int tripId) async {
+    return execute(
+        () => _remoteDataSource.getAvailablePassengersForTrip(tripId));
+  }
+
+  @override
   Future<Either<Failure, TripDashboardStats>> getDashboardStats(
     DateTime date,
   ) async {

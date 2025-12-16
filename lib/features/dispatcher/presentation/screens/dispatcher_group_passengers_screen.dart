@@ -12,6 +12,7 @@ import '../../domain/entities/passenger_group_line.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
 import '../providers/dispatcher_cached_providers.dart';
 import '../providers/dispatcher_passenger_providers.dart';
+import '../widgets/dispatcher_add_passenger_sheet.dart';
 import '../widgets/dispatcher_app_bar.dart';
 import '../widgets/dispatcher_search_field.dart';
 
@@ -44,6 +45,7 @@ class _DispatcherGroupPassengersScreenState
     final groupsAsync = ref.watch(allGroupsProvider);
 
     String groupName = 'مجموعة #$groupId';
+    int vehicleSeats = 0;
     final cachedGroups = groupsCachedAsync.asData?.value;
     final directGroups = groupsAsync.asData?.value;
     final groups = cachedGroups ?? directGroups;
@@ -51,6 +53,7 @@ class _DispatcherGroupPassengersScreenState
       for (final g in groups) {
         if (g.id == groupId) {
           groupName = g.name;
+          vehicleSeats = g.totalSeats;
           break;
         }
       }
@@ -86,6 +89,7 @@ class _DispatcherGroupPassengersScreenState
                     groupId: groupId,
                     groupName: groupName,
                     items: items,
+                    vehicleSeats: vehicleSeats,
                   ),
                   loading: () => _buildLoadingState(),
                   error: (e, _) => _buildErrorState(e.toString()),
@@ -136,6 +140,7 @@ class _DispatcherGroupPassengersScreenState
     required int groupId,
     required String groupName,
     required List<PassengerGroupLine> items,
+    required int vehicleSeats,
   }) {
     var filtered = items;
 
@@ -165,7 +170,7 @@ class _DispatcherGroupPassengersScreenState
       );
     }
 
-    final totalSeats = filtered.fold<int>(0, (sum, e) => sum + e.seatCount);
+    final occupiedSeats = filtered.fold<int>(0, (sum, e) => sum + e.seatCount);
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -179,7 +184,8 @@ class _DispatcherGroupPassengersScreenState
           if (index == 0) {
             return _buildSummaryCard(
               passengersCount: filtered.length,
-              seatsCount: totalSeats,
+              vehicleSeats: vehicleSeats,
+              occupiedSeats: occupiedSeats,
             );
           }
 
@@ -196,8 +202,12 @@ class _DispatcherGroupPassengersScreenState
 
   Widget _buildSummaryCard({
     required int passengersCount,
-    required int seatsCount,
+    required int vehicleSeats,
+    required int occupiedSeats,
   }) {
+    final availableSeats = vehicleSeats - occupiedSeats;
+    final isOverCapacity = occupiedSeats > vehicleSeats;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -205,32 +215,88 @@ class _DispatcherGroupPassengersScreenState
         gradient: AppColors.dispatcherGradient,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: Column(
         children: [
-          _stat(Icons.people_rounded, 'الركّاب', '$passengersCount'),
-          Container(
-            width: 1,
-            height: 40,
-            color: Colors.white.withValues(alpha: 0.3),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _stat(Icons.people_rounded, 'الركّاب', '$passengersCount'),
+              Container(
+                width: 1,
+                height: 40,
+                color: Colors.white.withValues(alpha: 0.3),
+              ),
+              _stat(
+                Icons.event_seat_rounded,
+                'مقاعد المركبة',
+                '$vehicleSeats',
+              ),
+              Container(
+                width: 1,
+                height: 40,
+                color: Colors.white.withValues(alpha: 0.3),
+              ),
+              _stat(
+                isOverCapacity
+                    ? Icons.warning_rounded
+                    : Icons.chair_alt_rounded,
+                'المتاح',
+                isOverCapacity ? '$availableSeats' : '$availableSeats',
+                valueColor: isOverCapacity
+                    ? const Color(0xFFFFCDD2)
+                    : const Color(0xFFC8E6C9),
+              ),
+            ],
           ),
-          _stat(Icons.event_seat_rounded, 'المقاعد', '$seatsCount'),
+          const SizedBox(height: 12),
+          // Progress bar showing occupancy
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: vehicleSeats > 0
+                  ? (occupiedSeats / vehicleSeats).clamp(0.0, 1.0)
+                  : 0.0,
+              minHeight: 8,
+              backgroundColor: Colors.white.withValues(alpha: 0.3),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isOverCapacity
+                    ? const Color(0xFFFF8A80)
+                    : const Color(0xFFA5D6A7),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            isOverCapacity
+                ? '⚠️ تجاوز السعة بـ ${-availableSeats} مقعد'
+                : 'مشغول: $occupiedSeats من $vehicleSeats مقعد',
+            style: TextStyle(
+              fontFamily: 'Cairo',
+              fontSize: 11,
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
+          ),
         ],
       ),
     ).animate().fadeIn(duration: 250.ms);
   }
 
-  Widget _stat(IconData icon, String label, String value) {
+  Widget _stat(
+    IconData icon,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
     return Column(
       children: [
         Icon(icon, color: Colors.white, size: 22),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: valueColor ?? Colors.white,
             fontFamily: 'Cairo',
           ),
         ),
@@ -523,160 +589,10 @@ class _DispatcherGroupPassengersScreenState
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        final unassignedAsync =
-            ref.watch(dispatcherUnassignedPassengersProvider);
-
-        return Container(
-          margin: const EdgeInsets.only(top: 90),
-          decoration: BoxDecoration(
-            color: Theme.of(ctx).colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 20,
-                offset: const Offset(0, -6),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.border,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'إضافة راكب إلى "$groupName"',
-                    style: const TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'اختر من قائمة الركاب غير المدرجين في أي مجموعة.',
-                    style: TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Flexible(
-                    child: unassignedAsync.when(
-                      data: (items) {
-                        if (items.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            child: EmptyState(
-                              icon: Icons.person_off_rounded,
-                              title: 'لا يوجد ركاب غير مدرجين',
-                              message:
-                                  'كل الركاب الحاليين مرتبطين بمجموعات، أو لم يتم تفعيل ركاب في النظام.',
-                            ),
-                          );
-                        }
-
-                        return ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: items.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final p = items[index];
-                            return ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: const CircleAvatar(
-                                backgroundColor: Color(0xFFEFF6FF),
-                                foregroundColor: AppColors.dispatcherPrimary,
-                                child: Icon(Icons.person_rounded),
-                              ),
-                              title: Text(
-                                p.passengerName,
-                                style: const TextStyle(
-                                  fontFamily: 'Cairo',
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              subtitle: Text(
-                                (p.guardianPhone?.isNotEmpty ?? false)
-                                    ? 'ولي: ${p.guardianPhone}'
-                                    : (p.passengerPhone ??
-                                        p.passengerMobile ??
-                                        ''),
-                                style: const TextStyle(
-                                  fontFamily: 'Cairo',
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                              trailing: SizedBox(
-                                width: 96,
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    minimumSize: const Size(0, 40),
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    backgroundColor:
-                                        AppColors.dispatcherPrimary,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  onPressed: () async {
-                                    HapticFeedback.lightImpact();
-                                    await ref
-                                        .read(dispatcherPassengerActionsProvider
-                                            .notifier)
-                                        .assignToGroup(
-                                          lineId: p.id,
-                                          groupId: groupId,
-                                        );
-                                    if (context.mounted) {
-                                      Navigator.pop(ctx);
-                                    }
-                                  },
-                                  child: const Text(
-                                    'إضافة',
-                                    style: TextStyle(fontFamily: 'Cairo'),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                      loading: () => ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: 6,
-                        itemBuilder: (_, __) => const ShimmerCard(height: 70),
-                      ),
-                      error: (e, _) => Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Text(
-                          e.toString(),
-                          style: const TextStyle(fontFamily: 'Cairo'),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+      builder: (ctx) => DispatcherAddPassengerSheet(
+        groupId: groupId,
+        groupName: groupName,
+      ),
     );
   }
 

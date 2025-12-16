@@ -8,8 +8,53 @@ class DispatcherPassengerRemoteDataSource {
   final BridgecoreClient _client;
 
   static const String _lineModel = 'shuttle.passenger.group.line';
+  static const int _pageSize = 500;
+  static const int _maxRecords = 20000;
 
   DispatcherPassengerRemoteDataSource(this._client);
+
+  Future<List<Map<String, dynamic>>> _searchReadAllLines({
+    required List<dynamic> domain,
+    required String order,
+  }) async {
+    final all = <Map<String, dynamic>>[];
+    final seenIds = <int>{};
+
+    var offset = 0;
+    while (true) {
+      final page = await _client.searchRead(
+        model: _lineModel,
+        domain: domain,
+        fields: _lineFields,
+        order: order,
+        limit: _pageSize,
+        offset: offset,
+      );
+
+      if (page.isEmpty) break;
+
+      var anyNew = false;
+      for (final row in page) {
+        final id = row['id'];
+        if (id is int) {
+          if (seenIds.add(id)) {
+            all.add(row);
+            anyNew = true;
+          }
+        } else {
+          all.add(row);
+          anyNew = true;
+        }
+
+        if (all.length >= _maxRecords) return all;
+      }
+
+      if (!anyNew) break;
+      offset += page.length;
+    }
+
+    return all;
+  }
 
   Future<List<PassengerGroupLine>> getGroupPassengers(int groupId) async {
     final result = await _client.searchRead(
@@ -78,15 +123,33 @@ class DispatcherPassengerRemoteDataSource {
     // Trigger backend sync to populate unassigned passengers if missing.
     await syncUnassignedPassengers();
 
-    final result = await _client.searchRead(
-      model: _lineModel,
+    final result = await _searchReadAllLines(
       domain: [
         ['group_id', '=', false],
       ],
-      fields: _lineFields,
       order: 'passenger_id asc, id asc',
-      limit: 500,
-      offset: 0,
+    );
+
+    return result.map((e) => PassengerGroupLine.fromOdoo(e)).toList();
+  }
+
+  /// Passengers assigned to other groups (group_id != false and != groupId).
+  /// If groupId is 0, returns all passengers in any group.
+  Future<List<PassengerGroupLine>> getPassengersInOtherGroups(
+    int groupId,
+  ) async {
+    final domain = <List<dynamic>>[
+      ['group_id', '!=', false],
+    ];
+
+    // If groupId > 0, exclude that specific group
+    if (groupId > 0) {
+      domain.add(['group_id', '!=', groupId]);
+    }
+
+    final result = await _searchReadAllLines(
+      domain: domain,
+      order: 'group_id asc, passenger_id asc, id asc',
     );
 
     return result.map((e) => PassengerGroupLine.fromOdoo(e)).toList();
@@ -160,6 +223,9 @@ class DispatcherPassengerRemoteDataSource {
     'dropoff_info_display',
     'passenger_phone',
     'passenger_mobile',
-    'guardian_phone',
+    'father_phone',
+    'mother_phone',
+    // Note: guardian_phone was removed from Odoo model shuttle.passenger.group.line
+    // Use father_phone and mother_phone instead
   ];
 }

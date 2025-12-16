@@ -1,13 +1,64 @@
 import '../../../../core/bridgecore_integration/client/bridgecore_client.dart';
 import '../../domain/entities/shuttle_vehicle.dart';
+import 'fleet_remote_data_source.dart';
+
+/// معلومات إنشاء المركبة الكاملة
+class CreateVehicleData {
+  // === بيانات الموديل (إذا كان موديل جديد) ===
+  final int? existingModelId;
+  final String? newModelName;
+  final int? brandId;
+  final String? vehicleType;
+  final String? fuelType;
+
+  // === بيانات fleet.vehicle ===
+  final String licensePlate;
+  final int? driverId;
+  final int seats;
+
+  // === بيانات shuttle.vehicle ===
+  final String name;
+  final String? homeAddress;
+  final double? homeLatitude;
+  final double? homeLongitude;
+  final String? note;
+  final bool active;
+
+  const CreateVehicleData({
+    // موديل موجود أو جديد
+    this.existingModelId,
+    this.newModelName,
+    this.brandId,
+    this.vehicleType,
+    this.fuelType,
+    // fleet.vehicle
+    required this.licensePlate,
+    this.driverId,
+    required this.seats,
+    // shuttle.vehicle
+    required this.name,
+    this.homeAddress,
+    this.homeLatitude,
+    this.homeLongitude,
+    this.note,
+    this.active = true,
+  });
+
+  /// هل يحتاج إنشاء موديل جديد؟
+  bool get needsNewModel =>
+      existingModelId == null && newModelName != null && brandId != null;
+}
 
 /// Vehicle Remote Data Source - مصدر بيانات المركبات
 class VehicleRemoteDataSource {
   final BridgecoreClient _client;
+  late final FleetRemoteDataSource _fleetDataSource;
 
   static const String _vehicleModel = 'shuttle.vehicle';
 
-  VehicleRemoteDataSource(this._client);
+  VehicleRemoteDataSource(this._client) {
+    _fleetDataSource = FleetRemoteDataSource(_client);
+  }
 
   /// الحصول على جميع المركبات
   Future<List<ShuttleVehicle>> getVehicles({
@@ -97,7 +148,7 @@ class VehicleRemoteDataSource {
     return result.map((json) => ShuttleVehicle.fromOdoo(json)).toList();
   }
 
-  /// إنشاء مركبة جديدة
+  /// إنشاء مركبة جديدة (الطريقة القديمة - تتطلب fleet_vehicle_id موجود)
   Future<ShuttleVehicle> createVehicle(ShuttleVehicle vehicle) async {
     final id = await _client.create(
       model: _vehicleModel,
@@ -108,6 +159,56 @@ class VehicleRemoteDataSource {
     if (created == null) throw Exception('Failed to create vehicle');
     return created;
   }
+
+  /// إنشاء مركبة كاملة - تُنشئ fleet.vehicle.model (إذا لزم) + fleet.vehicle + shuttle.vehicle
+  /// هذه الطريقة تقوم بكل العمل في خطوة واحدة من وجهة نظر المستخدم
+  Future<ShuttleVehicle> createFullVehicle(CreateVehicleData data) async {
+    int modelId;
+
+    // الخطوة 1: إنشاء موديل جديد إذا لزم الأمر
+    if (data.needsNewModel) {
+      final newModel = await _fleetDataSource.createVehicleModel(
+        name: data.newModelName!,
+        brandId: data.brandId!,
+        vehicleType: data.vehicleType,
+        fuelType: data.fuelType,
+        seats: data.seats,
+      );
+      modelId = newModel.id;
+    } else if (data.existingModelId != null) {
+      modelId = data.existingModelId!;
+    } else {
+      throw Exception('يجب تحديد موديل موجود أو إنشاء موديل جديد');
+    }
+
+    // الخطوة 2: إنشاء fleet.vehicle
+    final fleetVehicle = await _fleetDataSource.createFleetVehicle(
+      modelId: modelId,
+      licensePlate: data.licensePlate,
+      driverId: data.driverId,
+      fuelType: data.fuelType,
+    );
+
+    // الخطوة 3: إنشاء shuttle.vehicle مع ربطه بـ fleet.vehicle
+    final shuttleVehicle = ShuttleVehicle(
+      id: 0,
+      name: data.name,
+      fleetVehicleId: fleetVehicle.id,
+      licensePlate: data.licensePlate,
+      seatCapacity: data.seats,
+      driverId: data.driverId,
+      active: data.active,
+      note: data.note,
+      homeAddress: data.homeAddress,
+      homeLatitude: data.homeLatitude,
+      homeLongitude: data.homeLongitude,
+    );
+
+    return await createVehicle(shuttleVehicle);
+  }
+
+  /// الحصول على FleetRemoteDataSource للوصول إلى بيانات Fleet
+  FleetRemoteDataSource get fleetDataSource => _fleetDataSource;
 
   /// تحديث مركبة
   Future<ShuttleVehicle> updateVehicle(ShuttleVehicle vehicle) async {

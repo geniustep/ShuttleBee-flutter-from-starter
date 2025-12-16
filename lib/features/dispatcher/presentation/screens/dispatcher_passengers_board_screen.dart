@@ -9,11 +9,15 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading/shimmer_loading.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../groups/domain/entities/passenger_group.dart';
+import '../../../trips/presentation/providers/trip_providers.dart';
 import '../../domain/entities/passenger_group_line.dart';
 import '../providers/dispatcher_cached_providers.dart';
 import '../providers/dispatcher_passenger_providers.dart';
+import '../widgets/change_location_sheet.dart';
 import '../widgets/dispatcher_app_bar.dart';
 import '../widgets/dispatcher_search_field.dart';
+import '../widgets/passenger_quick_actions_sheet.dart';
+import '../widgets/select_trip_for_absence_sheet.dart';
 
 /// Dispatcher Passengers Board
 ///
@@ -30,18 +34,21 @@ class DispatcherPassengersBoardScreen extends ConsumerStatefulWidget {
 
 class _DispatcherPassengersBoardScreenState
     extends ConsumerState<DispatcherPassengersBoardScreen> {
+  String _searchAll = '';
   String _searchUnassigned = '';
   String _searchGroups = '';
   String _searchKanban = '';
 
   @override
   Widget build(BuildContext context) {
+    final allPassengersAsync = ref.watch(dispatcherAllPassengersProvider);
     final unassignedAsync = ref.watch(dispatcherUnassignedPassengersProvider);
     final groupsAsync = ref.watch(dispatcherGroupsProvider);
     final actionsState = ref.watch(dispatcherPassengerActionsProvider);
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
+      initialIndex: 0,
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
         appBar: DispatcherAppBar(
@@ -59,6 +66,7 @@ class _DispatcherPassengersBoardScreenState
               tooltip: 'تحديث',
               onPressed: () {
                 HapticFeedback.lightImpact();
+                ref.invalidate(dispatcherAllPassengersProvider);
                 ref.invalidate(dispatcherUnassignedPassengersProvider);
                 ref.invalidate(dispatcherGroupsProvider);
               },
@@ -71,6 +79,7 @@ class _DispatcherPassengersBoardScreenState
             unselectedLabelStyle:
                 TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w600),
             tabs: [
+              Tab(text: 'جميع الركاب'),
               Tab(text: 'غير مدرجين'),
               Tab(text: 'حسب المجموعات'),
               Tab(text: 'لوحة التوزيع'),
@@ -79,6 +88,100 @@ class _DispatcherPassengersBoardScreenState
         ),
         body: TabBarView(
           children: [
+            // All Passengers Tab
+            Column(
+              children: [
+                _buildSearchBar(
+                  hint: 'ابحث في جميع الركاب...',
+                  value: _searchAll,
+                  onChanged: (v) => setState(() => _searchAll = v),
+                  onClear: () => setState(() => _searchAll = ''),
+                ),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      allPassengersAsync.when(
+                        data: (items) {
+                          var filtered = items;
+                          if (_searchAll.trim().isNotEmpty) {
+                            final q = _searchAll.trim().toLowerCase();
+                            filtered = items
+                                .where(
+                                  (e) =>
+                                      e.passengerName
+                                          .toLowerCase()
+                                          .contains(q) ||
+                                      (e.passengerPhone ?? '')
+                                          .toLowerCase()
+                                          .contains(q) ||
+                                      (e.passengerMobile ?? '')
+                                          .toLowerCase()
+                                          .contains(q) ||
+                                      (e.fatherPhone ?? '')
+                                          .toLowerCase()
+                                          .contains(q) ||
+                                      (e.motherPhone ?? '')
+                                          .toLowerCase()
+                                          .contains(q) ||
+                                      (e.guardianPhone ?? '')
+                                          .toLowerCase()
+                                          .contains(q) ||
+                                      (e.groupName ?? '')
+                                          .toLowerCase()
+                                          .contains(q),
+                                )
+                                .toList();
+                          }
+
+                          if (filtered.isEmpty) {
+                            return EmptyState(
+                              icon: Icons.person_off_rounded,
+                              title: 'لا يوجد ركّاب',
+                              message: _searchAll.isNotEmpty
+                                  ? 'لا توجد نتائج مطابقة'
+                                  : 'لا يوجد ركاب في النظام.',
+                              buttonText: 'إضافة راكب جديد',
+                              onButtonPressed: () => context
+                                  .go(RoutePaths.dispatcherCreatePassenger),
+                            );
+                          }
+
+                          return ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: filtered.length,
+                            itemBuilder: (context, index) {
+                              final line = filtered[index];
+                              return _AllPassengerCard(
+                                key: ValueKey('all_${line.id}'),
+                                lineId: line.id,
+                                passengerId: line.passengerId,
+                                passengerName: line.passengerName,
+                                phone: line.passengerPhone,
+                                mobile: line.passengerMobile,
+                                fatherPhone: line.fatherPhone,
+                                motherPhone: line.motherPhone,
+                                guardianPhone: line.guardianPhone,
+                                groupName: line.groupName,
+                                onOpenDetails: () => context.push(
+                                  '${RoutePaths.dispatcherPassengers}/p/${line.passengerId}',
+                                ),
+                              ).animate().fadeIn(
+                                  duration: 220.ms, delay: (index * 30).ms);
+                            },
+                          );
+                        },
+                        loading: () => ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: 8,
+                          itemBuilder: (_, __) => const ShimmerCard(height: 84),
+                        ),
+                        error: (e, _) => _error(e.toString()),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
             // Unassigned
             Column(
               children: [
@@ -106,6 +209,12 @@ class _DispatcherPassengersBoardScreenState
                                           .toLowerCase()
                                           .contains(q) ||
                                       (e.passengerMobile ?? '')
+                                          .toLowerCase()
+                                          .contains(q) ||
+                                      (e.fatherPhone ?? '')
+                                          .toLowerCase()
+                                          .contains(q) ||
+                                      (e.motherPhone ?? '')
                                           .toLowerCase()
                                           .contains(q) ||
                                       (e.guardianPhone ?? '')
@@ -139,6 +248,8 @@ class _DispatcherPassengersBoardScreenState
                                 passengerId: line.passengerId,
                                 passengerName: line.passengerName,
                                 phone: line.passengerPhone,
+                                fatherPhone: line.fatherPhone,
+                                motherPhone: line.motherPhone,
                                 guardianPhone: line.guardianPhone,
                                 onAssign: () => _openAssignToGroupSheet(
                                   context,
@@ -731,7 +842,7 @@ class _KanbanColumn extends ConsumerWidget {
   }
 }
 
-class _KanbanPassengerCard extends StatelessWidget {
+class _KanbanPassengerCard extends ConsumerWidget {
   final PassengerGroupLine line;
   final Color accentColor;
 
@@ -742,92 +853,116 @@ class _KanbanPassengerCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final phone = (line.guardianPhone?.isNotEmpty ?? false)
-        ? 'ولي: ${line.guardianPhone}'
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Use new guardian phone fields, fallback to legacy
+    final phone = line.guardianContactDisplay.isNotEmpty
+        ? line.guardianContactDisplay
         : (line.passengerPhone ?? line.passengerMobile ?? '');
 
     final card = Card(
       margin: const EdgeInsets.only(bottom: 10),
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          _showQuickActions(context, ref);
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.person_rounded,
+                  color: accentColor,
+                ),
               ),
-              child: Icon(
-                Icons.person_rounded,
-                color: accentColor,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    line.passengerName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'Cairo',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                  if (phone.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      phone,
+                      line.passengerName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontFamily: 'Cairo',
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
                       ),
                     ),
-                  ],
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      _pill(
-                        icon: Icons.event_seat_rounded,
-                        text: '${line.seatCount}',
-                        color: AppColors.primary,
+                    if (phone.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        phone,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
-                      if ((line.pickupInfoDisplay ?? '').trim().isNotEmpty)
-                        _pill(
-                          icon: Icons.arrow_upward_rounded,
-                          text: 'صعود',
-                          color: Colors.blue,
-                        ),
-                      if ((line.dropoffInfoDisplay ?? '').trim().isNotEmpty)
-                        _pill(
-                          icon: Icons.arrow_downward_rounded,
-                          text: 'نزول',
-                          color: Colors.green,
-                        ),
                     ],
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _pill(
+                          icon: Icons.event_seat_rounded,
+                          text: '${line.seatCount}',
+                          color: AppColors.primary,
+                        ),
+                        if ((line.pickupInfoDisplay ?? '').trim().isNotEmpty)
+                          _pill(
+                            icon: Icons.arrow_upward_rounded,
+                            text: 'صعود',
+                            color: Colors.blue,
+                          ),
+                        if ((line.dropoffInfoDisplay ?? '').trim().isNotEmpty)
+                          _pill(
+                            icon: Icons.arrow_downward_rounded,
+                            text: 'نزول',
+                            color: Colors.green,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(
-              Icons.drag_indicator_rounded,
-              color: AppColors.textSecondary,
-            ),
-          ],
+              const SizedBox(width: 4),
+              // Quick actions button
+              IconButton(
+                icon: const Icon(
+                  Icons.flash_on_rounded,
+                  color: AppColors.warning,
+                  size: 20,
+                ),
+                tooltip: 'إجراءات سريعة',
+                onPressed: () => _showQuickActions(context, ref),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+              const Icon(
+                Icons.drag_indicator_rounded,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -846,6 +981,70 @@ class _KanbanPassengerCard extends StatelessWidget {
       ),
       childWhenDragging: Opacity(opacity: 0.35, child: card),
       child: card,
+    );
+  }
+
+  void _showQuickActions(BuildContext context, WidgetRef ref) {
+    PassengerQuickActionsSheet.show(
+      context,
+      passengerId: line.passengerId,
+      passengerName: line.passengerName,
+      onEditProfile: () {
+        context.push(
+          '${RoutePaths.dispatcherPassengers}/p/${line.passengerId}',
+        );
+      },
+      onChangeLocation: () {
+        ChangeLocationSheet.show(
+          context,
+          passengerId: line.passengerId,
+          passengerName: line.passengerName,
+        );
+      },
+      onMarkAbsent: () async {
+        final result = await SelectTripForAbsenceSheet.show(
+          context,
+          passengerId: line.passengerId,
+          passengerName: line.passengerName,
+        );
+
+        if (result != null && context.mounted) {
+          // Mark as absent using trip repository
+          final repository = ref.read(tripRepositoryProvider);
+          if (repository == null) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'لا يمكن الاتصال بالخادم',
+                    style: TextStyle(fontFamily: 'Cairo'),
+                  ),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+            return;
+          }
+
+          final apiResult =
+              await repository.markPassengerAbsent(result.tripLineId);
+          final success = apiResult.isRight();
+
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  success
+                      ? 'تم تسجيل غياب ${line.passengerName} في ${result.tripName}'
+                      : 'فشل تسجيل الغياب',
+                  style: const TextStyle(fontFamily: 'Cairo'),
+                ),
+                backgroundColor: success ? AppColors.success : AppColors.error,
+              ),
+            );
+          }
+        }
+      },
     );
   }
 
@@ -880,11 +1079,13 @@ class _KanbanPassengerCard extends StatelessWidget {
   }
 }
 
-class _UnassignedPassengerCard extends StatelessWidget {
+class _UnassignedPassengerCard extends ConsumerWidget {
   final int lineId;
   final int passengerId;
   final String passengerName;
   final String? phone;
+  final String? fatherPhone;
+  final String? motherPhone;
   final String? guardianPhone;
   final VoidCallback onAssign;
   final VoidCallback onOpenDetails;
@@ -895,13 +1096,22 @@ class _UnassignedPassengerCard extends StatelessWidget {
     required this.passengerId,
     required this.passengerName,
     this.phone,
+    this.fatherPhone,
+    this.motherPhone,
     this.guardianPhone,
     required this.onAssign,
     required this.onOpenDetails,
   });
 
+  String get _guardianDisplay {
+    if (fatherPhone?.isNotEmpty ?? false) return 'الأب: $fatherPhone';
+    if (motherPhone?.isNotEmpty ?? false) return 'الأم: $motherPhone';
+    if (guardianPhone?.isNotEmpty ?? false) return 'ولي: $guardianPhone';
+    return phone ?? '';
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -945,9 +1155,7 @@ class _UnassignedPassengerCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      (guardianPhone?.isNotEmpty ?? false)
-                          ? 'ولي: $guardianPhone'
-                          : (phone ?? ''),
+                      _guardianDisplay,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -959,21 +1167,32 @@ class _UnassignedPassengerCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
+              // Quick actions button
+              IconButton(
+                icon: const Icon(
+                  Icons.flash_on_rounded,
+                  color: AppColors.warning,
+                  size: 20,
+                ),
+                tooltip: 'إجراءات سريعة',
+                onPressed: () => _showQuickActions(context, ref),
+                visualDensity: VisualDensity.compact,
+              ),
+              const SizedBox(width: 4),
               SizedBox(
-                width: 106,
+                width: 90,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(0, 40),
+                    minimumSize: const Size(0, 36),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     backgroundColor: AppColors.dispatcherPrimary,
                     foregroundColor: Colors.white,
                   ),
                   onPressed: onAssign,
-                  icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                  icon: const Icon(Icons.swap_horiz_rounded, size: 16),
                   label: const Text(
                     'تعيين',
-                    style: TextStyle(fontFamily: 'Cairo'),
+                    style: TextStyle(fontFamily: 'Cairo', fontSize: 12),
                   ),
                 ),
               ),
@@ -981,6 +1200,265 @@ class _UnassignedPassengerCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showQuickActions(BuildContext context, WidgetRef ref) {
+    PassengerQuickActionsSheet.show(
+      context,
+      passengerId: passengerId,
+      passengerName: passengerName,
+      onEditProfile: () {
+        context.push(
+          '${RoutePaths.dispatcherPassengers}/p/$passengerId',
+        );
+      },
+      onChangeLocation: () {
+        ChangeLocationSheet.show(
+          context,
+          passengerId: passengerId,
+          passengerName: passengerName,
+        );
+      },
+      onMarkAbsent: () async {
+        final result = await SelectTripForAbsenceSheet.show(
+          context,
+          passengerId: passengerId,
+          passengerName: passengerName,
+        );
+
+        if (result != null && context.mounted) {
+          final repository = ref.read(tripRepositoryProvider);
+          if (repository == null) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'لا يمكن الاتصال بالخادم',
+                    style: TextStyle(fontFamily: 'Cairo'),
+                  ),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+            return;
+          }
+
+          final apiResult =
+              await repository.markPassengerAbsent(result.tripLineId);
+          final success = apiResult.isRight();
+
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  success
+                      ? 'تم تسجيل غياب $passengerName في ${result.tripName}'
+                      : 'فشل تسجيل الغياب',
+                  style: const TextStyle(fontFamily: 'Cairo'),
+                ),
+                backgroundColor: success ? AppColors.success : AppColors.error,
+              ),
+            );
+          }
+        }
+      },
+    );
+  }
+}
+
+class _AllPassengerCard extends ConsumerWidget {
+  final int lineId;
+  final int passengerId;
+  final String passengerName;
+  final String? phone;
+  final String? mobile;
+  final String? fatherPhone;
+  final String? motherPhone;
+  final String? guardianPhone;
+  final String? groupName;
+  final VoidCallback onOpenDetails;
+
+  const _AllPassengerCard({
+    super.key,
+    required this.lineId,
+    required this.passengerId,
+    required this.passengerName,
+    this.phone,
+    this.mobile,
+    this.fatherPhone,
+    this.motherPhone,
+    this.guardianPhone,
+    this.groupName,
+    required this.onOpenDetails,
+  });
+
+  String get _guardianDisplay {
+    if (fatherPhone?.isNotEmpty ?? false) return 'الأب: $fatherPhone';
+    if (motherPhone?.isNotEmpty ?? false) return 'الأم: $motherPhone';
+    if (guardianPhone?.isNotEmpty ?? false) return 'ولي: $guardianPhone';
+    return phone ?? mobile ?? '';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onOpenDetails();
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.dispatcherPrimary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.person_rounded,
+                  color: AppColors.dispatcherPrimary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      passengerName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (_guardianDisplay.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _guardianDisplay,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                    if (groupName != null && groupName!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          groupName!,
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 11,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              // Quick actions button
+              IconButton(
+                icon: const Icon(
+                  Icons.flash_on_rounded,
+                  color: AppColors.warning,
+                  size: 20,
+                ),
+                tooltip: 'إجراءات سريعة',
+                onPressed: () => _showQuickActions(context, ref),
+                visualDensity: VisualDensity.compact,
+              ),
+              const Icon(Icons.arrow_forward_ios_rounded,
+                  size: 18, color: AppColors.textSecondary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showQuickActions(BuildContext context, WidgetRef ref) {
+    PassengerQuickActionsSheet.show(
+      context,
+      passengerId: passengerId,
+      passengerName: passengerName,
+      onEditProfile: () {
+        context.push(
+          '${RoutePaths.dispatcherPassengers}/p/$passengerId',
+        );
+      },
+      onChangeLocation: () {
+        ChangeLocationSheet.show(
+          context,
+          passengerId: passengerId,
+          passengerName: passengerName,
+        );
+      },
+      onMarkAbsent: () async {
+        final result = await SelectTripForAbsenceSheet.show(
+          context,
+          passengerId: passengerId,
+          passengerName: passengerName,
+        );
+
+        if (result != null && context.mounted) {
+          final repository = ref.read(tripRepositoryProvider);
+          if (repository == null) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'لا يمكن الاتصال بالخادم',
+                    style: TextStyle(fontFamily: 'Cairo'),
+                  ),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+            return;
+          }
+
+          final apiResult =
+              await repository.markPassengerAbsent(result.tripLineId);
+          final success = apiResult.isRight();
+
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  success
+                      ? 'تم تسجيل غياب $passengerName في ${result.tripName}'
+                      : 'فشل تسجيل الغياب',
+                  style: const TextStyle(fontFamily: 'Cairo'),
+                ),
+                backgroundColor: success ? AppColors.success : AppColors.error,
+              ),
+            );
+          }
+        }
+      },
     );
   }
 }

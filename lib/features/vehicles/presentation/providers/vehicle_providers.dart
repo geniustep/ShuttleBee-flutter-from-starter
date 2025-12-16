@@ -4,6 +4,9 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/datasources/vehicle_remote_data_source.dart';
 import '../../domain/entities/shuttle_vehicle.dart';
 
+export '../../data/datasources/vehicle_remote_data_source.dart'
+    show CreateVehicleData;
+
 /// Vehicle Data Source Provider
 final vehicleDataSourceProvider = Provider<VehicleRemoteDataSource?>((ref) {
   final client = ref.watch(bridgecoreClientProvider);
@@ -83,7 +86,7 @@ class VehicleActionsNotifier extends Notifier<AsyncValue<void>> {
   VehicleRemoteDataSource? get _dataSource =>
       ref.read(vehicleDataSourceProvider);
 
-  /// إنشاء مركبة جديدة
+  /// إنشاء مركبة جديدة (الطريقة القديمة - تتطلب fleet_vehicle_id)
   Future<ShuttleVehicle?> createVehicle(ShuttleVehicle vehicle) async {
     final dataSource = _dataSource;
     if (dataSource == null) return null;
@@ -92,6 +95,25 @@ class VehicleActionsNotifier extends Notifier<AsyncValue<void>> {
 
     try {
       final created = await dataSource.createVehicle(vehicle);
+      state = const AsyncValue.data(null);
+      ref.invalidate(allVehiclesProvider);
+      ref.invalidate(vehicleStatsProvider);
+      return created;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return null;
+    }
+  }
+
+  /// إنشاء مركبة كاملة - تُنشئ fleet.vehicle.model + fleet.vehicle + shuttle.vehicle
+  Future<ShuttleVehicle?> createFullVehicle(CreateVehicleData data) async {
+    final dataSource = _dataSource;
+    if (dataSource == null) return null;
+
+    state = const AsyncValue.loading();
+
+    try {
+      final created = await dataSource.createFullVehicle(data);
       state = const AsyncValue.data(null);
       ref.invalidate(allVehiclesProvider);
       ref.invalidate(vehicleStatsProvider);

@@ -74,27 +74,32 @@ class TripRemoteDataSource {
     return result.map((json) => Trip.fromOdoo(json)).toList();
   }
 
-  /// Get passenger trips
+  /// Get passenger trips with their lines
   Future<List<Trip>> getPassengerTrips(int passengerId) async {
-    // First get trip lines for this passenger
-    final lines = await _client.searchRead(
+    // First get trip lines for this passenger with full details
+    final passengerLines = await _client.searchRead(
       model: _tripLineModel,
       domain: [
         ['passenger_id', '=', passengerId],
       ],
-      fields: ['trip_id'],
+      fields: _tripLineFields,
     );
 
-    if (lines.isEmpty) return [];
+    if (passengerLines.isEmpty) return [];
 
-    final tripIds = lines
-        .map((l) => Trip.extractId(l['trip_id']))
-        .whereType<int>()
-        .toSet()
-        .toList();
+    // Group lines by trip_id
+    final Map<int, List<Map<String, dynamic>>> linesByTrip = {};
+    for (final line in passengerLines) {
+      final tripId = Trip.extractId(line['trip_id']);
+      if (tripId != null) {
+        linesByTrip.putIfAbsent(tripId, () => []).add(line);
+      }
+    }
 
-    if (tripIds.isEmpty) return [];
+    if (linesByTrip.isEmpty) return [];
 
+    // Fetch trips
+    final tripIds = linesByTrip.keys.toList();
     final result = await _client.searchRead(
       model: _tripModel,
       domain: [
@@ -104,7 +109,19 @@ class TripRemoteDataSource {
       order: 'date desc, planned_start_time asc',
     );
 
-    return result.map((json) => Trip.fromOdoo(json)).toList();
+    // Build trips with their lines (only for this passenger)
+    return result.map((tripJson) {
+      final tripId = tripJson['id'] as int;
+      final tripLines = linesByTrip[tripId] ?? [];
+
+      // Create Trip with embedded lines
+      final trip = Trip.fromOdoo(tripJson);
+
+      // Parse lines for this passenger
+      final parsedLines = tripLines.map((l) => TripLine.fromOdoo(l)).toList();
+
+      return trip.copyWith(lines: parsedLines);
+    }).toList();
   }
 
   /// Get trip by ID with lines
@@ -632,6 +649,248 @@ class TripRemoteDataSource {
     return _getTripLineById(tripLineId);
   }
 
+  /// Add a passenger to a trip
+  Future<TripLine> addPassengerToTrip({
+    required int tripId,
+    required int passengerId,
+    int seatCount = 1,
+    String? notes,
+    int? pickupStopId,
+    int? dropoffStopId,
+  }) async {
+    // جلب نوع الرحلة أولاً
+    String? tripType;
+    int? companyId;
+    try {
+      final tripData = await _client.searchRead(
+        model: _tripModel,
+        domain: [
+          ['id', '=', tripId],
+        ],
+        fields: ['trip_type', 'company_id'],
+        limit: 1,
+      );
+
+      if (tripData.isNotEmpty) {
+        tripType = tripData.first['trip_type'] as String?;
+        companyId = Trip.extractId(tripData.first['company_id']);
+      }
+    } catch (e) {
+      print('⚠️ [addPassengerToTrip] Failed to fetch trip type: $e');
+    }
+
+    final values = <String, dynamic>{
+      'trip_id': tripId,
+      'passenger_id': passengerId,
+      'seat_count': seatCount,
+      'status': 'planned',
+    };
+
+    if (notes != null && notes.isNotEmpty) {
+      values['notes'] = notes;
+    }
+    if (pickupStopId != null) {
+      values['pickup_stop_id'] = pickupStopId;
+    }
+    if (dropoffStopId != null) {
+      values['dropoff_stop_id'] = dropoffStopId;
+    }
+
+    // جلب بيانات الراكب والشركة للحصول على الإحداثيات
+    try {
+      final passengerData = await _client.searchRead(
+        model: 'res.partner',
+        domain: [
+          ['id', '=', passengerId],
+        ],
+        fields: ['shuttle_latitude', 'shuttle_longitude'],
+        limit: 1,
+      );
+
+      Map<String, dynamic>? companyData;
+      if (companyId != null) {
+        try {
+          final companyResult = await _client.searchRead(
+            model: 'res.company',
+            domain: [
+              ['id', '=', companyId],
+            ],
+            fields: ['shuttle_latitude', 'shuttle_longitude'],
+            limit: 1,
+          );
+          if (companyResult.isNotEmpty) {
+            companyData = companyResult.first;
+          }
+        } catch (e) {
+          print('⚠️ [addPassengerToTrip] Failed to fetch company data: $e');
+        }
+      }
+
+      if (passengerData.isNotEmpty) {
+        final passenger = passengerData.first;
+        final passengerLat = passenger['shuttle_latitude'];
+        final passengerLng = passenger['shuttle_longitude'];
+
+        // إضافة إحداثيات الصعود إذا لم تكن هناك محطة صعود
+        if (pickupStopId == null &&
+            passengerLat != null &&
+            passengerLat != false &&
+            passengerLng != null &&
+            passengerLng != false) {
+          values['pickup_latitude'] = (passengerLat is num)
+              ? passengerLat.toDouble()
+              : double.tryParse(passengerLat.toString());
+          values['pickup_longitude'] = (passengerLng is num)
+              ? passengerLng.toDouble()
+              : double.tryParse(passengerLng.toString());
+        }
+
+        // إضافة إحداثيات النزول إذا كانت الرحلة من نوع dropoff ولم تكن هناك محطة نزول
+        if (tripType == 'dropoff' &&
+            dropoffStopId == null &&
+            companyData != null) {
+          final companyLat = companyData['shuttle_latitude'];
+          final companyLng = companyData['shuttle_longitude'];
+
+          // محاولة استخدام إحداثيات الشركة أولاً
+          if (companyLat != null &&
+              companyLat != false &&
+              companyLng != null &&
+              companyLng != false) {
+            values['dropoff_latitude'] = (companyLat is num)
+                ? companyLat.toDouble()
+                : double.tryParse(companyLat.toString());
+            values['dropoff_longitude'] = (companyLng is num)
+                ? companyLng.toDouble()
+                : double.tryParse(companyLng.toString());
+          }
+          // إذا لم تكن هناك إحداثيات للشركة، استخدم إحداثيات الراكب
+          else if (passengerLat != null &&
+              passengerLat != false &&
+              passengerLng != null &&
+              passengerLng != false) {
+            values['dropoff_latitude'] = (passengerLat is num)
+                ? passengerLat.toDouble()
+                : double.tryParse(passengerLat.toString());
+            values['dropoff_longitude'] = (passengerLng is num)
+                ? passengerLng.toDouble()
+                : double.tryParse(passengerLng.toString());
+          }
+        }
+      }
+    } catch (e) {
+      // في حالة فشل جلب البيانات، نتابع بدون إحداثيات GPS
+      // Odoo سيرمي خطأ إذا لم تكن هناك محطة أو إحداثيات
+      print(
+          '⚠️ [addPassengerToTrip] Failed to fetch passenger/company GPS: $e');
+    }
+
+    final id = await _client.create(
+      model: _tripLineModel,
+      values: values,
+    );
+
+    return _getTripLineById(id);
+  }
+
+  /// Remove a passenger from a trip
+  Future<void> removePassengerFromTrip(int tripLineId) async {
+    await _client.unlink(
+      model: _tripLineModel,
+      ids: [tripLineId],
+    );
+  }
+
+  /// Update a trip line (passenger in trip)
+  Future<TripLine> updateTripLine({
+    required int tripLineId,
+    int? seatCount,
+    String? notes,
+    int? pickupStopId,
+    int? dropoffStopId,
+    int? sequence,
+  }) async {
+    final values = <String, dynamic>{};
+
+    if (seatCount != null) {
+      values['seat_count'] = seatCount;
+    }
+    if (notes != null) {
+      values['notes'] = notes;
+    }
+    if (pickupStopId != null) {
+      values['pickup_stop_id'] = pickupStopId;
+    }
+    if (dropoffStopId != null) {
+      values['dropoff_stop_id'] = dropoffStopId;
+    }
+    if (sequence != null) {
+      values['sequence'] = sequence;
+    }
+
+    if (values.isNotEmpty) {
+      await _client.write(
+        model: _tripLineModel,
+        ids: [tripLineId],
+        values: values,
+      );
+    }
+
+    return _getTripLineById(tripLineId);
+  }
+
+  /// Get passengers not in a specific trip (from the trip's group)
+  Future<List<Map<String, dynamic>>> getAvailablePassengersForTrip(
+      int tripId) async {
+    // First get the trip to know its group
+    final tripResult = await _client.searchRead(
+      model: _tripModel,
+      domain: [
+        ['id', '=', tripId],
+      ],
+      fields: ['group_id'],
+      limit: 1,
+    );
+
+    if (tripResult.isEmpty) {
+      throw Exception('Trip not found');
+    }
+
+    final groupId = Trip.extractId(tripResult.first['group_id']);
+    if (groupId == null) {
+      return []; // Trip has no group, so no available passengers from group
+    }
+
+    // Get all passengers in the trip
+    final tripLines = await _client.searchRead(
+      model: _tripLineModel,
+      domain: [
+        ['trip_id', '=', tripId],
+      ],
+      fields: ['passenger_id'],
+    );
+
+    final passengerIdsInTrip = tripLines
+        .map((l) => Trip.extractId(l['passenger_id']))
+        .whereType<int>()
+        .toSet();
+
+    // Get all passengers in the group
+    final groupLines = await _client.searchRead(
+      model: 'shuttle.passenger.group.line',
+      domain: [
+        ['group_id', '=', groupId],
+      ],
+      fields: ['passenger_id', 'passenger_name', 'seat_count'],
+    );
+
+    // Filter out passengers already in the trip
+    return groupLines.where((line) {
+      final passengerId = Trip.extractId(line['passenger_id']);
+      return passengerId != null && !passengerIdsInTrip.contains(passengerId);
+    }).toList();
+  }
+
   /// Helper to get a single trip line by ID using searchRead (avoids SDK read issues)
   Future<TripLine> _getTripLineById(int tripLineId) async {
     final result = await _client.searchRead(
@@ -781,6 +1040,17 @@ class TripRemoteDataSource {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
+  /// تنسيق DateTime للتنسيق الذي يتوقعه Odoo: 'YYYY-MM-DD HH:MM:SS'
+  String _formatOdooDateTime(DateTime dt) {
+    final y = dt.year.toString().padLeft(4, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    final ss = dt.second.toString().padLeft(2, '0');
+    return '$y-$m-$d $hh:$mm:$ss';
+  }
+
   Map<String, dynamic> _tripToOdooValues(Trip trip) {
     return {
       'name': trip.name,
@@ -788,9 +1058,9 @@ class TripRemoteDataSource {
       'trip_type': trip.tripType.value,
       'date': _formatDate(trip.date),
       if (trip.plannedStartTime != null)
-        'planned_start_time': trip.plannedStartTime!.toIso8601String(),
+        'planned_start_time': _formatOdooDateTime(trip.plannedStartTime!),
       if (trip.plannedArrivalTime != null)
-        'planned_arrival_time': trip.plannedArrivalTime!.toIso8601String(),
+        'planned_arrival_time': _formatOdooDateTime(trip.plannedArrivalTime!),
       if (trip.driverId != null) 'driver_id': trip.driverId,
       if (trip.vehicleId != null) 'vehicle_id': trip.vehicleId,
       if (trip.groupId != null) 'group_id': trip.groupId,

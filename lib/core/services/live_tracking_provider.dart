@@ -285,6 +285,13 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
       return;
     }
 
+    // الحصول على معرف السائق من حالة المصادقة
+    final driverId = ref.read(authStateProvider).asData?.value.user?.id;
+    if (driverId == null) {
+      AppLogger.warning('📡 [LiveTracking] No driver ID available');
+      return;
+    }
+
     try {
       final position = await _getCurrentPosition();
       if (position == null) {
@@ -297,6 +304,7 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
         model: 'shuttle.vehicle.position',
         values: {
           'vehicle_id': vehicleId,
+          'driver_id': driverId,
           'latitude': position.latitude,
           'longitude': position.longitude,
           'speed': position.speed,

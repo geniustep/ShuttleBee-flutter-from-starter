@@ -1,8 +1,11 @@
+import 'package:bridgecore_flutter/bridgecore_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/passenger_group.dart';
 import '../providers/group_providers.dart';
@@ -1263,19 +1266,64 @@ class _GroupSchedulesScreenState extends ConsumerState<GroupSchedulesScreen>
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              final count = await ref
-                  .read(groupActionsProvider.notifier)
-                  .generateTrips(widget.groupId);
-              if (mounted) {
-                ScaffoldMessenger.of(rootContext).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      count > 0
-                          ? 'تم توليد $count رحلة بنجاح'
-                          : 'لم يتم توليد أي رحلات',
+              try {
+                final result = await ref
+                    .read(groupActionsProvider.notifier)
+                    .generateTrips(widget.groupId);
+                if (mounted) {
+                  if (result.count > 0) {
+                    // عرض رسالة النجاح
+                    ScaffoldMessenger.of(rootContext).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'تم توليد ${result.count} رحلة بنجاح',
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
+                        backgroundColor: Colors.green,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                    // التوجه لصفحة الرحلات
+                    if (rootContext.mounted) {
+                      rootContext.go(RoutePaths.dispatcherTrips);
+                    }
+                  } else {
+                    ScaffoldMessenger.of(rootContext).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'لم يتم توليد أي رحلات',
+                          style: TextStyle(fontFamily: 'Cairo'),
+                        ),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
+                }
+              } on BridgeCoreException catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(rootContext).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        e.message,
+                        style: const TextStyle(fontFamily: 'Cairo'),
+                      ),
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 5),
                     ),
-                  ),
-                );
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(rootContext).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'حدث خطأ أثناء توليد الرحلات: $e',
+                        style: const TextStyle(fontFamily: 'Cairo'),
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),

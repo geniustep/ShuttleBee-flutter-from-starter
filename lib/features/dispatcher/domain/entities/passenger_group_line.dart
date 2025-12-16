@@ -28,6 +28,12 @@ class PassengerGroupLine {
   /// Related fields (not stored) but readable via RPC.
   final String? passengerPhone;
   final String? passengerMobile;
+
+  /// Guardian fields (new structure)
+  final String? fatherPhone;
+  final String? motherPhone;
+
+  /// Legacy field (kept for backward compatibility)
   final String? guardianPhone;
 
   const PassengerGroupLine({
@@ -47,8 +53,30 @@ class PassengerGroupLine {
     this.dropoffInfoDisplay,
     this.passengerPhone,
     this.passengerMobile,
+    this.fatherPhone,
+    this.motherPhone,
     this.guardianPhone,
   });
+
+  /// Get the best guardian contact available
+  String get primaryGuardianPhone {
+    if (fatherPhone != null && fatherPhone!.isNotEmpty) return fatherPhone!;
+    if (motherPhone != null && motherPhone!.isNotEmpty) return motherPhone!;
+    if (guardianPhone != null && guardianPhone!.isNotEmpty)
+      return guardianPhone!;
+    return '';
+  }
+
+  /// Get guardian display with label
+  String get guardianContactDisplay {
+    if (fatherPhone != null && fatherPhone!.isNotEmpty)
+      return 'الأب: $fatherPhone';
+    if (motherPhone != null && motherPhone!.isNotEmpty)
+      return 'الأم: $motherPhone';
+    if (guardianPhone != null && guardianPhone!.isNotEmpty)
+      return 'ولي الأمر: $guardianPhone';
+    return '';
+  }
 
   factory PassengerGroupLine.fromOdoo(Map<String, dynamic> json) {
     return PassengerGroupLine(
@@ -70,6 +98,8 @@ class PassengerGroupLine {
       passengerPhone: _extractString(json['passenger_phone'] ?? json['phone']),
       passengerMobile:
           _extractString(json['passenger_mobile'] ?? json['mobile']),
+      fatherPhone: _extractString(json['father_phone']),
+      motherPhone: _extractString(json['mother_phone']),
       guardianPhone: _extractString(json['guardian_phone']),
     );
   }
@@ -93,6 +123,8 @@ class PassengerGroupLine {
       dropoffInfoDisplay: json['dropoff_info_display'] as String?,
       passengerPhone: json['passenger_phone'] as String?,
       passengerMobile: json['passenger_mobile'] as String?,
+      fatherPhone: json['father_phone'] as String?,
+      motherPhone: json['mother_phone'] as String?,
       guardianPhone: json['guardian_phone'] as String?,
     );
   }
@@ -114,6 +146,8 @@ class PassengerGroupLine {
         'dropoff_info_display': dropoffInfoDisplay,
         'passenger_phone': passengerPhone,
         'passenger_mobile': passengerMobile,
+        'father_phone': fatherPhone,
+        'mother_phone': motherPhone,
         'guardian_phone': guardianPhone,
       };
 
@@ -153,6 +187,8 @@ class PassengerGroupLine {
     String? dropoffInfoDisplay,
     String? passengerPhone,
     String? passengerMobile,
+    String? fatherPhone,
+    String? motherPhone,
     String? guardianPhone,
   }) {
     return PassengerGroupLine(
@@ -172,6 +208,8 @@ class PassengerGroupLine {
       dropoffInfoDisplay: dropoffInfoDisplay ?? this.dropoffInfoDisplay,
       passengerPhone: passengerPhone ?? this.passengerPhone,
       passengerMobile: passengerMobile ?? this.passengerMobile,
+      fatherPhone: fatherPhone ?? this.fatherPhone,
+      motherPhone: motherPhone ?? this.motherPhone,
       guardianPhone: guardianPhone ?? this.guardianPhone,
     );
   }

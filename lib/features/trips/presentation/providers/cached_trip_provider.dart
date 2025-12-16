@@ -1035,10 +1035,10 @@ class SmartDriverTripsNotifier extends Notifier<SmartDriverTripsState> {
     );
 
     try {
-      // Prefer REST `/trips/my` then filter by date.
+      // Prefer Odoo search_read then filter by date.
       try {
         final shuttleApi = ref.read(shuttleBeeApiServiceProvider);
-        final trips = await shuttleApi.getMyTrips();
+        final trips = await shuttleApi.getMyTrips(driverId: _driverId);
         final filtered = trips.where((t) {
           final d = DateTime(t.date.year, t.date.month, t.date.day);
           return d == normalizedDate;
@@ -1130,11 +1130,11 @@ class SmartDriverTripsNotifier extends Notifier<SmartDriverTripsState> {
         isFromCache: false,
       );
 
-      // Prefer REST `/trips/my` then filter by date.
+      // Prefer Odoo search_read then filter by date.
       Either<Failure, List<Trip>> tripsResult;
       try {
         final shuttleApi = ref.read(shuttleBeeApiServiceProvider);
-        final trips = await shuttleApi.getMyTrips();
+        final trips = await shuttleApi.getMyTrips(driverId: _driverId);
         final filtered = trips.where((t) {
           final d = DateTime(t.date.year, t.date.month, t.date.day);
           return d == normalizedDate;

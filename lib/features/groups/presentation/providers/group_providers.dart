@@ -94,17 +94,30 @@ class GroupActionsNotifier extends Notifier<AsyncValue<void>> {
   /// تحديث مجموعة
   Future<PassengerGroup?> updateGroup(PassengerGroup group) async {
     final dataSource = _dataSource;
-    if (dataSource == null) return null;
+    if (dataSource == null) {
+      // ignore: avoid_print
+      print('❌ [updateGroup] dataSource is null!');
+      return null;
+    }
 
     state = const AsyncValue.loading();
 
     try {
+      // ignore: avoid_print
+      print(
+          '📤 [updateGroup] Sending update for group: ${group.id}, name: ${group.name}');
       final updated = await dataSource.updateGroup(group);
+      // ignore: avoid_print
+      print('✅ [updateGroup] Update successful! New name: ${updated.name}');
       state = const AsyncValue.data(null);
       ref.invalidate(allGroupsProvider);
       ref.invalidate(groupByIdProvider(group.id));
       return updated;
     } catch (e, st) {
+      // ignore: avoid_print
+      print('❌ [updateGroup] Error: $e');
+      // ignore: avoid_print
+      print('❌ [updateGroup] StackTrace: $st');
       state = AsyncValue.error(e, st);
       return null;
     }
@@ -240,7 +253,10 @@ class GroupActionsNotifier extends Notifier<AsyncValue<void>> {
   }
 
   /// توليد رحلات من الجدول
-  Future<int> generateTrips(
+  ///
+  /// يُرجع كائن يحتوي على عدد الرحلات المولدة ومعرفاتها.
+  /// يرمي استثناء في حالة الخطأ (مثل عدم وجود محطات للركاب).
+  Future<({int count, List<int> tripIds})> generateTrips(
     int groupId, {
     int weeks = 1,
     DateTime? startDate,
@@ -249,12 +265,12 @@ class GroupActionsNotifier extends Notifier<AsyncValue<void>> {
     bool limitToWeek = false,
   }) async {
     final dataSource = _dataSource;
-    if (dataSource == null) return 0;
+    if (dataSource == null) return (count: 0, tripIds: <int>[]);
 
     state = const AsyncValue.loading();
 
     try {
-      final count = await dataSource.generateTripsFromSchedule(
+      final result = await dataSource.generateTripsFromSchedule(
         groupId,
         weeks: weeks,
         startDate: startDate,
@@ -263,10 +279,18 @@ class GroupActionsNotifier extends Notifier<AsyncValue<void>> {
         limitToWeek: limitToWeek,
       );
       state = const AsyncValue.data(null);
-      return count;
+      final tripIds = <int>[];
+      for (final id in result.tripIds) {
+        if (id is int) {
+          tripIds.add(id);
+        } else if (id is num) {
+          tripIds.add(id.toInt());
+        }
+      }
+      return (count: result.count, tripIds: tripIds);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
-      return 0;
+      rethrow; // إعادة رمي الاستثناء ليتم التعامل معه في الواجهة
     }
   }
 }

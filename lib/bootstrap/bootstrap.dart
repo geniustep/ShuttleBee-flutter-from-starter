@@ -13,9 +13,9 @@ Future<void> bootstrap() async {
   // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
   // إخفاء الأزرار + الشاشة كاملة بوضع Immersive Sticky
-  SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.immersiveSticky,
-  );
+  // SystemChrome.setEnabledSystemUIMode(
+  //   SystemUiMode.immersiveSticky,
+  // );
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

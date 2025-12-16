@@ -284,13 +284,13 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
                 delay: 175,
                 onTap: () => context.go(RoutePaths.dispatcherPassengers),
               ),
-              _buildActionCard(
-                icon: Icons.person_add_alt_1_rounded,
-                label: 'إضافة راكب',
-                color: AppColors.success,
-                delay: 190,
-                onTap: () => context.go(RoutePaths.dispatcherCreatePassenger),
-              ),
+              // _buildActionCard(
+              //   icon: Icons.person_add_alt_1_rounded,
+              //   label: 'إضافة راكب',
+              //   color: AppColors.success,
+              //   delay: 190,
+              //   onTap: () => context.go(RoutePaths.dispatcherCreatePassenger),
+              // ),
               _buildActionCard(
                 icon: Icons.directions_bus_rounded,
                 label: 'إدارة المركبات',

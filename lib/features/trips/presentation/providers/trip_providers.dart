@@ -83,13 +83,13 @@ final driverDailyTripsProvider = FutureProvider.autoDispose
     }
 
     try {
-      final trips = await shuttleApi.getMyTrips();
+      final trips = await shuttleApi.getMyTrips(driverId: driverId);
       final filtered = trips.where((t) {
         final d = DateTime(t.date.year, t.date.month, t.date.day);
         return d == date;
       }).toList();
       print(
-          '✅ [driverDailyTripsProvider] Got ${filtered.length} trips from /trips/my');
+          '✅ [driverDailyTripsProvider] Got ${filtered.length} trips from search_read');
       return filtered;
     } catch (e) {
       // Fallback to RPC repository for older servers or temporary failures.
@@ -289,6 +289,19 @@ class TripFilters {
         offset,
       );
 }
+
+/// Available passengers for a trip (from the trip's group, not already in trip)
+final availablePassengersForTripProvider = FutureProvider.autoDispose
+    .family<List<Map<String, dynamic>>, int>((ref, tripId) async {
+  final repository = ref.watch(tripRepositoryProvider);
+  if (repository == null) return [];
+
+  final result = await repository.getAvailablePassengersForTrip(tripId);
+  return result.fold(
+    (failure) => throw Exception(failure.message),
+    (passengers) => passengers,
+  );
+});
 
 /// Active Trip Notifier for managing trip actions
 class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
@@ -651,6 +664,111 @@ class ActiveTripNotifier extends Notifier<AsyncValue<Trip?>> {
           loadTrip(currentTrip.id);
           _invalidateDriverTripsList();
         }
+        return true;
+      },
+    );
+  }
+
+  /// Add a passenger to the trip
+  Future<bool> addPassengerToTrip({
+    required int tripId,
+    required int passengerId,
+    int seatCount = 1,
+    String? notes,
+  }) async {
+    final repository = _repository;
+    if (repository == null) return false;
+
+    state = const AsyncValue.loading();
+
+    final result = await repository.addPassengerToTrip(
+      tripId: tripId,
+      passengerId: passengerId,
+      seatCount: seatCount,
+      notes: notes,
+    );
+
+    if (!_isMounted) {
+      return result.isRight();
+    }
+
+    return result.fold(
+      (failure) {
+        state = AsyncValue.error(failure.message, StackTrace.current);
+        return false;
+      },
+      (line) {
+        // Refresh the trip to get updated data
+        ref.invalidate(tripDetailProvider(tripId));
+        ref.invalidate(availablePassengersForTripProvider(tripId));
+        state = const AsyncValue.data(null);
+        return true;
+      },
+    );
+  }
+
+  /// Remove a passenger from the trip
+  Future<bool> removePassengerFromTrip({
+    required int tripId,
+    required int tripLineId,
+  }) async {
+    final repository = _repository;
+    if (repository == null) return false;
+
+    state = const AsyncValue.loading();
+
+    final result = await repository.removePassengerFromTrip(tripLineId);
+
+    if (!_isMounted) {
+      return result.isRight();
+    }
+
+    return result.fold(
+      (failure) {
+        state = AsyncValue.error(failure.message, StackTrace.current);
+        return false;
+      },
+      (_) {
+        // Refresh the trip to get updated data
+        ref.invalidate(tripDetailProvider(tripId));
+        ref.invalidate(availablePassengersForTripProvider(tripId));
+        state = const AsyncValue.data(null);
+        return true;
+      },
+    );
+  }
+
+  /// Update a trip line (passenger in trip)
+  Future<bool> updateTripLine({
+    required int tripId,
+    required int tripLineId,
+    int? seatCount,
+    String? notes,
+  }) async {
+    final repository = _repository;
+    if (repository == null) return false;
+
+    state = const AsyncValue.loading();
+
+    final result = await repository.updateTripLine(
+      tripLineId: tripLineId,
+      seatCount: seatCount,
+      notes: notes,
+    );
+
+    if (!_isMounted) {
+      return result.isRight();
+    }
+
+    return result.fold(
+      (failure) {
+        state = AsyncValue.error(failure.message, StackTrace.current);
+        return false;
+      },
+      (line) {
+        // Refresh the trip to get updated data
+        ref.invalidate(tripDetailProvider(tripId));
+        state = const AsyncValue.data(null);
         return true;
       },
     );

@@ -207,7 +207,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.chevron_right_rounded),
+                icon: const Icon(Icons.chevron_left_rounded),
                 onPressed: () {
                   setState(() {
                     _selectedDate =
@@ -217,7 +217,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                 },
               ),
               IconButton(
-                icon: const Icon(Icons.chevron_left_rounded),
+                icon: const Icon(Icons.chevron_right_rounded),
                 onPressed: () {
                   setState(() {
                     _selectedDate = _selectedDate.add(const Duration(days: 1));
@@ -330,7 +330,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
       child: InkWell(
         onTap: () {
           HapticFeedback.lightImpact();
-          // Navigate to trip details
+          context.go('${RoutePaths.dispatcherHome}/trips/${trip.id}');
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
@@ -382,15 +382,17 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                               color: AppColors.textSecondary,
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              trip.plannedStartTime != null
-                                  ? DateFormat('HH:mm')
-                                      .format(trip.plannedStartTime!)
-                                  : '--:--',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textSecondary,
-                                fontFamily: 'Cairo',
+                            Flexible(
+                              child: Text(
+                                trip.plannedStartTime != null
+                                    ? DateFormat('HH:mm')
+                                        .format(trip.plannedStartTime!)
+                                    : '--:--',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                  fontFamily: 'Cairo',
+                                ),
                               ),
                             ),
                           ],
@@ -398,22 +400,28 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: trip.state.color.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      trip.state.arabicLabel,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: trip.state.color,
-                        fontFamily: 'Cairo',
+                  const SizedBox(width: 8),
+                  Flexible(
+                    flex: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: trip.state.color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        trip.state.arabicLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: trip.state.color,
+                          fontFamily: 'Cairo',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
@@ -422,20 +430,20 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
               const SizedBox(height: 12),
               const Divider(height: 1),
               const SizedBox(height: 12),
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   _buildInfoChip(
                     Icons.person_rounded,
                     trip.driverName ?? 'بدون سائق',
                     AppColors.primary,
                   ),
-                  const SizedBox(width: 12),
                   _buildInfoChip(
                     Icons.directions_bus_rounded,
                     trip.vehicleName ?? 'بدون مركبة',
                     AppColors.warning,
                   ),
-                  const SizedBox(width: 12),
                   _buildInfoChip(
                     Icons.people_rounded,
                     '${trip.totalPassengers}',
@@ -457,6 +465,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
 
   Widget _buildInfoChip(IconData icon, String label, Color color) {
     return Container(
+      constraints: const BoxConstraints(maxWidth: 150),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
@@ -467,12 +476,16 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: color,
-              fontFamily: 'Cairo',
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: color,
+                fontFamily: 'Cairo',
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

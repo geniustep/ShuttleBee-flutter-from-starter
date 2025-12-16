@@ -1,3 +1,4 @@
+import 'package:bridgecore_flutter/bridgecore_flutter.dart';
 import 'package:dio/dio.dart';
 
 import '../../../../core/enums/enums.dart';
@@ -79,32 +80,91 @@ class ShuttleBeeApiService {
     return items.map((e) => Trip.fromShuttleBeeLiveJson(_asMap(e))).toList();
   }
 
-  Future<List<Trip>> getMyTrips({TripState? state}) async {
-    final res = await _dio.get(
-      '/api/v1/shuttle/trips/my',
-      queryParameters: {
-        if (state != null) 'state': state.value,
-      },
+  /// جلب رحلات السائق الحالي باستخدام BridgeCore
+  ///
+  /// يستخدم `BridgeCore.instance.odoo.searchRead` على model `shuttle.trip`
+  /// بدلاً من endpoint مخصص لضمان التوافق مع BridgeCore.
+  Future<List<Trip>> getMyTrips({
+    TripState? state,
+    required int driverId,
+  }) async {
+    // بناء domain للبحث - الرحلات الخاصة بالسائق الحالي
+    final domain = <dynamic>[
+      ['driver_id', '=', driverId],
+    ];
+
+    // إضافة فلتر الحالة إذا كان موجوداً
+    if (state != null) {
+      domain.add(['state', '=', state.value]);
+    }
+
+    final result = await BridgeCore.instance.odoo.searchRead(
+      model: 'shuttle.trip',
+      domain: domain,
+      fields: [
+        'id',
+        'name',
+        'reference',
+        'date',
+        'trip_type',
+        'state',
+        'planned_start_time',
+        'planned_arrival_time',
+        'vehicle_id',
+        'passenger_count',
+        'current_latitude',
+        'current_longitude',
+        'last_gps_update',
+        'confirm_latitude',
+        'confirm_longitude',
+        'confirm_stop_id',
+        'confirm_note',
+        'confirmed_at',
+        'confirm_source',
+      ],
+      order: 'planned_start_time asc',
     );
-    final items = _extractList(res.data);
-    return items.map((e) => Trip.fromShuttleBeeLiveJson(_asMap(e))).toList();
+
+    return result.map((e) => Trip.fromOdoo(e)).toList();
   }
 
+  /// جلب نقاط GPS للرحلة باستخدام BridgeCore
+  ///
+  /// يستخدم `BridgeCore.instance.odoo.searchRead` على model `shuttle.gps.position`
+  /// بدلاً من endpoint مخصص لضمان التوافق مع BridgeCore.
   Future<List<GpsPoint>> getTripGpsPoints(
     int tripId, {
     DateTime? since,
     int limit = 500,
   }) async {
-    final res = await _dio.get(
-      '/api/v1/shuttle/trips/$tripId/gps',
-      queryParameters: {
-        if (since != null) 'since': since.toIso8601String(),
-        'limit': limit,
-      },
+    // بناء domain للبحث
+    final domain = <dynamic>[
+      ['trip_id', '=', tripId],
+    ];
+
+    // إضافة فلتر الوقت إذا كان موجوداً
+    if (since != null) {
+      domain.add(['timestamp', '>=', since.toIso8601String()]);
+    }
+
+    final result = await BridgeCore.instance.odoo.searchRead(
+      model: 'shuttle.gps.position',
+      domain: domain,
+      fields: [
+        'latitude',
+        'longitude',
+        'speed',
+        'heading',
+        'accuracy',
+        'timestamp',
+        'driver_id',
+        'vehicle_id',
+      ],
+      limit: limit,
+      order: 'timestamp asc',
     );
 
-    final items = _extractList(res.data);
-    return items.map((e) => GpsPoint.fromJson(_asMap(e))).toList();
+    return result.map((e) => GpsPoint.fromJson(e)).toList();
   }
 
   Future<void> postVehiclePosition({

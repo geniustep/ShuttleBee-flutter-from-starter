@@ -184,20 +184,18 @@ class PassengerGroup {
   Map<String, dynamic> toOdoo() {
     return {
       'name': name,
-      if (code != null) 'code': code,
-      if (driverId != null) 'driver_id': driverId,
-      if (vehicleId != null) 'vehicle_id': vehicleId,
+      'code': code ?? false,
+      'driver_id': driverId ?? false,
+      'vehicle_id': vehicleId ?? false,
       'total_seats': totalSeats,
       'trip_type': tripType.value,
-      if (destinationStopId != null) 'destination_stop_id': destinationStopId,
+      'destination_stop_id': destinationStopId ?? false,
       'use_company_destination': useCompanyDestination,
-      if (destinationLatitude != null)
-        'destination_latitude': destinationLatitude,
-      if (destinationLongitude != null)
-        'destination_longitude': destinationLongitude,
-      if (notes != null) 'notes': notes,
+      'destination_latitude': destinationLatitude ?? false,
+      'destination_longitude': destinationLongitude ?? false,
+      'notes': notes ?? false,
       'active': active,
-      if (subscriptionPrice != null) 'subscription_price': subscriptionPrice,
+      'subscription_price': subscriptionPrice ?? false,
       'billing_cycle': billingCycle.value,
       'auto_schedule_enabled': autoScheduleEnabled,
       'auto_schedule_weeks': autoScheduleWeeks,

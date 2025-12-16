@@ -76,6 +76,33 @@ abstract class TripRepository {
   /// Reset passenger status to planned (undo action for mistakes)
   Future<Either<Failure, TripLine>> resetPassengerToPlanned(int tripLineId);
 
+  /// Add a passenger to a trip
+  Future<Either<Failure, TripLine>> addPassengerToTrip({
+    required int tripId,
+    required int passengerId,
+    int seatCount = 1,
+    String? notes,
+    int? pickupStopId,
+    int? dropoffStopId,
+  });
+
+  /// Remove a passenger from a trip
+  Future<Either<Failure, void>> removePassengerFromTrip(int tripLineId);
+
+  /// Update a trip line (passenger in trip)
+  Future<Either<Failure, TripLine>> updateTripLine({
+    required int tripLineId,
+    int? seatCount,
+    String? notes,
+    int? pickupStopId,
+    int? dropoffStopId,
+    int? sequence,
+  });
+
+  /// Get passengers not in a specific trip (from the trip's group)
+  Future<Either<Failure, List<Map<String, dynamic>>>>
+      getAvailablePassengersForTrip(int tripId);
+
   /// Get dashboard statistics
   Future<Either<Failure, TripDashboardStats>> getDashboardStats(DateTime date);
 

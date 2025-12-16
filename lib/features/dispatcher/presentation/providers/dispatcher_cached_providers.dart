@@ -58,6 +58,28 @@ class DispatcherCacheKeys {
 
   static String vehicles({required int userId}) =>
       'dispatcher:$userId:vehicles';
+
+  /// All passengers cache key
+  static String allPassengers({required int userId}) =>
+      'dispatcher:$userId:all_passengers';
+
+  /// Single passenger profile cache key
+  static String passengerProfile({
+    required int userId,
+    required int passengerId,
+  }) =>
+      'dispatcher:$userId:passenger:$passengerId';
+
+  /// Passengers by group cache key
+  static String groupPassengers({
+    required int userId,
+    required int groupId,
+  }) =>
+      'dispatcher:$userId:group_passengers:$groupId';
+
+  /// Unassigned passengers cache key
+  static String unassignedPassengers({required int userId}) =>
+      'dispatcher:$userId:unassigned_passengers';
 }
 
 int _userId(Ref ref) => ref.read(authStateProvider).asData?.value.user?.id ?? 0;

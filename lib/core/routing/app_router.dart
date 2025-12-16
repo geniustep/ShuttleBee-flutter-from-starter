@@ -27,15 +27,21 @@ import '../../features/dispatcher/presentation/screens/dispatcher_vehicles_scree
 import '../../features/dispatcher/presentation/screens/dispatcher_monitor_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_groups_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_create_group_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_edit_group_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_create_trip_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_shell_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_create_vehicle_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_group_passengers_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_group_detail_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_passengers_board_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_create_passenger_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_passenger_detail_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_edit_passenger_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_holidays_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_holiday_detail_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_trip_detail_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_edit_trip_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_trip_passengers_screen.dart';
 import '../../features/groups/presentation/screens/group_schedules_screen.dart';
 import '../../features/passenger/presentation/screens/passenger_home_screen.dart';
 import '../../features/manager/presentation/screens/manager_home_screen.dart';
@@ -222,6 +228,22 @@ final routerProvider = Provider<GoRouter>((ref) {
                             passengerId: passengerId,
                           );
                         },
+                        routes: [
+                          GoRoute(
+                            path: 'edit',
+                            name: RouteNames.dispatcherEditPassenger,
+                            parentNavigatorKey: rootNavigatorKey,
+                            builder: (context, state) {
+                              final passengerId = int.parse(
+                                  state.pathParameters['passengerId']!);
+                              return DispatcherEditPassengerScreen(
+                                key: ValueKey(
+                                    'dispatcher_edit_passenger_$passengerId'),
+                                passengerId: passengerId,
+                              );
+                            },
+                          ),
+                        ],
                       ),
                       GoRoute(
                         path: 'groups/:groupId',
@@ -287,10 +309,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                     parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) {
                       final tripId = int.parse(state.pathParameters['tripId']!);
-                      // TODO: Replace with actual DispatcherTripDetailScreen
-                      return Scaffold(
-                        appBar: AppBar(title: const Text('تفاصيل الرحلة')),
-                        body: Center(child: Text('تفاصيل الرحلة رقم: $tripId')),
+                      return DispatcherTripDetailScreen(
+                        key: ValueKey('dispatcher_trip_detail_$tripId'),
+                        tripId: tripId,
                       );
                     },
                     routes: [
@@ -301,12 +322,22 @@ final routerProvider = Provider<GoRouter>((ref) {
                         builder: (context, state) {
                           final tripId =
                               int.parse(state.pathParameters['tripId']!);
-                          // TODO: Replace with actual EditTripScreen
-                          return Scaffold(
-                            appBar: AppBar(title: const Text('تعديل الرحلة')),
-                            body: Center(
-                              child: Text('تعديل الرحلة رقم: $tripId'),
-                            ),
+                          return DispatcherEditTripScreen(
+                            key: ValueKey('dispatcher_edit_trip_$tripId'),
+                            tripId: tripId,
+                          );
+                        },
+                      ),
+                      GoRoute(
+                        path: 'passengers',
+                        name: RouteNames.dispatcherTripPassengers,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (context, state) {
+                          final tripId =
+                              int.parse(state.pathParameters['tripId']!);
+                          return DispatcherTripPassengersScreen(
+                            key: ValueKey('dispatcher_trip_passengers_$tripId'),
+                            tripId: tripId,
                           );
                         },
                       ),
@@ -332,34 +363,32 @@ final routerProvider = Provider<GoRouter>((ref) {
                         const DispatcherCreateGroupScreen(),
                   ),
                   GoRoute(
-                    path: ':groupId/passengers',
-                    name: RouteNames.dispatcherGroupPassengers,
-                    parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) {
-                      final groupId =
-                          int.parse(state.pathParameters['groupId']!);
-                      return DispatcherGroupPassengersScreen(
-                        key: ValueKey('dispatcher_group_passengers_$groupId'),
-                        groupId: groupId,
-                      );
-                    },
-                  ),
-                  GoRoute(
                     path: ':groupId',
                     name: RouteNames.dispatcherGroupDetail,
                     parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) {
                       final groupId =
                           int.parse(state.pathParameters['groupId']!);
-                      // TODO: Replace with actual GroupDetailScreen
-                      return Scaffold(
-                        appBar: AppBar(title: const Text('تفاصيل المجموعة')),
-                        body: Center(
-                          child: Text('تفاصيل المجموعة رقم: $groupId'),
-                        ),
+                      return DispatcherGroupDetailScreen(
+                        key: ValueKey('dispatcher_group_detail_$groupId'),
+                        groupId: groupId,
                       );
                     },
                     routes: [
+                      GoRoute(
+                        path: 'passengers',
+                        name: RouteNames.dispatcherGroupPassengers,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (context, state) {
+                          final groupId =
+                              int.parse(state.pathParameters['groupId']!);
+                          return DispatcherGroupPassengersScreen(
+                            key: ValueKey(
+                                'dispatcher_group_passengers_$groupId'),
+                            groupId: groupId,
+                          );
+                        },
+                      ),
                       GoRoute(
                         path: 'edit',
                         name: RouteNames.dispatcherEditGroup,
@@ -367,12 +396,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                         builder: (context, state) {
                           final groupId =
                               int.parse(state.pathParameters['groupId']!);
-                          // TODO: Replace with actual EditGroupScreen
-                          return Scaffold(
-                            appBar: AppBar(title: const Text('تعديل المجموعة')),
-                            body: Center(
-                              child: Text('تعديل المجموعة رقم: $groupId'),
-                            ),
+                          return DispatcherEditGroupScreen(
+                            key: ValueKey('dispatcher_edit_group_$groupId'),
+                            groupId: groupId,
                           );
                         },
                       ),
