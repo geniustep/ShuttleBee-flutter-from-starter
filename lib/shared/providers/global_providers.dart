@@ -68,6 +68,13 @@ final localeProvider = StateNotifierProvider<LocaleNotifier, Locale>((ref) {
 class LocaleNotifier extends StateNotifier<Locale> {
   final PrefsService _prefs = PrefsService();
 
+  /// Supported locales
+  static const List<Locale> supportedLocales = [
+    Locale('en'),
+    Locale('ar'),
+    Locale('fr'),
+  ];
+
   LocaleNotifier() : super(const Locale('en')) {
     _loadLocale();
   }
@@ -84,11 +91,29 @@ class LocaleNotifier extends StateNotifier<Locale> {
     await _prefs.setString(StorageKeys.languageCode, locale.languageCode);
   }
 
+  /// Toggle between supported locales (en -> ar -> fr -> en)
   Future<void> toggleLocale() async {
-    final newLocale =
-        state.languageCode == 'en' ? const Locale('ar') : const Locale('en');
-    await setLocale(newLocale);
+    final currentIndex = supportedLocales.indexWhere(
+      (l) => l.languageCode == state.languageCode,
+    );
+    final nextIndex = (currentIndex + 1) % supportedLocales.length;
+    await setLocale(supportedLocales[nextIndex]);
   }
+
+  /// Get language name for display
+  String get currentLanguageName {
+    switch (state.languageCode) {
+      case 'ar':
+        return 'العربية';
+      case 'fr':
+        return 'Français';
+      default:
+        return 'English';
+    }
+  }
+
+  /// Check if current locale is RTL
+  bool get isRtl => state.languageCode == 'ar';
 }
 
 /// Network connectivity provider

@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/responsive_utils.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Dispatcher Shell Screen
 ///
@@ -89,9 +91,19 @@ class DispatcherShellScreen extends StatelessWidget {
     );
   }
 
+  // Navigation labels for desktop/tablet
+  List<String> _getLabels(AppLocalizations l10n) => [
+        l10n.monitor,
+        l10n.trips,
+        l10n.home,
+        l10n.groups,
+        l10n.vehicles,
+      ];
+
   @override
   Widget build(BuildContext context) {
     final baseTheme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     // Local theme override to make Dispatcher navigation use Dispatcher palette
     // without affecting the global app theme.
@@ -119,116 +131,216 @@ class DispatcherShellScreen extends StatelessWidget {
     );
 
     final allowExitFromDispatcher = navigationShell.currentIndex == 0;
-    final media = MediaQuery.of(context);
-    final keyboardOpen = media.viewInsets.bottom > 0;
     final selectedTabIndex = _tabIndexForBranch(navigationShell.currentIndex);
 
     return Theme(
       data: themed,
       child: PopScope(
-        // UX: داخل الـ dispatcher، زر الرجوع من أي تبويب غير "الرئيسية"
-        // يرجع للتبويب الرئيسي بدل إغلاق التطبيق.
         canPop: allowExitFromDispatcher,
         onPopInvoked: (didPop) {
           if (didPop) return;
-
-          // If user is on any non-home tab root, go back to home tab.
           if (navigationShell.currentIndex != 0) {
             navigationShell.goBranch(0, initialLocation: true);
           }
         },
-        child: Scaffold(
-          body: navigationShell,
-          bottomNavigationBar: keyboardOpen
-              ? null
-              : Theme(
-                  data: Theme.of(context).copyWith(
-                    splashFactory: NoSplash.splashFactory,
-                    highlightColor: Colors.transparent,
-                    splashColor: Colors.transparent,
-                    hoverColor: Colors.transparent,
-                  ),
-                  child: SizedBox(
-                    height: _barHeight,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        // Glass background (without clipping the lifted icon)
-                        Positioned(
-                          left: _barHorizontalPadding,
-                          right: _barHorizontalPadding,
-                          bottom: _barBottomGap + media.padding.bottom,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(28),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                              child: Container(
-                                height: _barBackgroundHeight,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.white.withValues(alpha: 0.12),
+        child: context.isMobile
+            ? _buildMobileLayout(context, selectedTabIndex)
+            : _buildDesktopLayout(context, l10n, selectedTabIndex),
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout(BuildContext context, int selectedTabIndex) {
+    final media = MediaQuery.of(context);
+    final keyboardOpen = media.viewInsets.bottom > 0;
+
+    return Scaffold(
+      body: navigationShell,
+      bottomNavigationBar: keyboardOpen
+          ? null
+          : Theme(
+              data: Theme.of(context).copyWith(
+                splashFactory: NoSplash.splashFactory,
+                highlightColor: Colors.transparent,
+                splashColor: Colors.transparent,
+                hoverColor: Colors.transparent,
+              ),
+              child: SizedBox(
+                height: _barHeight,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      left: _barHorizontalPadding,
+                      right: _barHorizontalPadding,
+                      bottom: _barBottomGap + media.padding.bottom,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(28),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                          child: Container(
+                            height: _barBackgroundHeight,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.white.withValues(alpha: 0.12),
+                                  Colors.white.withValues(alpha: 0.08),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(28),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.18),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.18),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: _barHorizontalPadding,
+                      right: _barHorizontalPadding,
+                      bottom: _barBottomGap + media.padding.bottom,
+                      height: _barBackgroundHeight,
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: Row(
+                          children: List.generate(_icons.length, (index) {
+                            final isSelected = index == selectedTabIndex;
+                            return Expanded(
+                              child: Semantics(
+                                button: true,
+                                selected: isSelected,
+                                label: 'dispatcher_tab_$index',
+                                child: InkResponse(
+                                  onTap: () => _onDestinationSelected(index),
+                                  radius: 28,
+                                  highlightShape: BoxShape.circle,
+                                  splashColor:
                                       Colors.white.withValues(alpha: 0.08),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
+                                  child: Center(
+                                    child: _getIcon(_icons[index], index),
                                   ),
-                                  borderRadius: BorderRadius.circular(28),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.18),
-                                    width: 1,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.18),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 10),
-                                    ),
-                                  ],
                                 ),
                               ),
-                            ),
-                          ),
+                            );
+                          }),
                         ),
-                        // Navigation items (kept vertically centered inside the glass background)
-                        Positioned(
-                          left: _barHorizontalPadding,
-                          right: _barHorizontalPadding,
-                          bottom: _barBottomGap + media.padding.bottom,
-                          height: _barBackgroundHeight,
-                          child: Material(
-                            type: MaterialType.transparency,
-                            child: Row(
-                              children: List.generate(_icons.length, (index) {
-                                final isSelected = index == selectedTabIndex;
-                                return Expanded(
-                                  child: Semantics(
-                                    button: true,
-                                    selected: isSelected,
-                                    label: 'dispatcher_tab_$index',
-                                    child: InkResponse(
-                                      onTap: () =>
-                                          _onDestinationSelected(index),
-                                      radius: 28,
-                                      highlightShape: BoxShape.circle,
-                                      splashColor:
-                                          Colors.white.withValues(alpha: 0.08),
-                                      child: Center(
-                                        child: _getIcon(_icons[index], index),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildDesktopLayout(
+    BuildContext context,
+    AppLocalizations l10n,
+    int selectedTabIndex,
+  ) {
+    final labels = _getLabels(l10n);
+    final isDesktop = context.isDesktop;
+
+    return Scaffold(
+      body: Row(
+        children: [
+          // Navigation Rail or Drawer based on screen size
+          if (isDesktop)
+            NavigationDrawer(
+              selectedIndex: selectedTabIndex,
+              onDestinationSelected: _onDestinationSelected,
+              backgroundColor: AppColors.dispatcherPrimary.withValues(alpha: 0.05),
+              children: [
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.dispatcherGradient,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.local_shipping_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        l10n.dispatcher,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.dispatcherPrimary,
+                            ),
+                      ),
+                    ],
                   ),
                 ),
-        ),
+                const Divider(),
+                ...List.generate(_icons.length, (index) {
+                  return NavigationDrawerDestination(
+                    icon: Icon(_icons[index]),
+                    selectedIcon: Icon(_icons[index]),
+                    label: Text(labels[index]),
+                  );
+                }),
+              ],
+            )
+          else
+            NavigationRail(
+              selectedIndex: selectedTabIndex,
+              onDestinationSelected: _onDestinationSelected,
+              backgroundColor: AppColors.dispatcherPrimary.withValues(alpha: 0.05),
+              labelType: NavigationRailLabelType.all,
+              leading: Container(
+                margin: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: AppColors.dispatcherGradient,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.local_shipping_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              destinations: List.generate(_icons.length, (index) {
+                return NavigationRailDestination(
+                  icon: Icon(_icons[index]),
+                  selectedIcon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.dispatcherPrimary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      _icons[index],
+                      color: AppColors.dispatcherPrimary,
+                    ),
+                  ),
+                  label: Text(labels[index]),
+                );
+              }),
+            ),
+          const VerticalDivider(width: 1, thickness: 1),
+          // Main content
+          Expanded(child: navigationShell),
+        ],
       ),
     );
   }

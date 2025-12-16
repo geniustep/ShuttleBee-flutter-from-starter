@@ -6,9 +6,12 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../../../core/widgets/role_switcher_widget.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/providers/global_providers.dart';
 import '../../../../shared/widgets/common/hero_header.dart';
 import '../../../../shared/widgets/common/stat_card.dart';
@@ -213,8 +216,31 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
   }
 
   Widget _buildQuickActions() {
+    final l10n = AppLocalizations.of(context);
+
+    // Responsive grid columns
+    final crossAxisCount = context.responsive(
+      mobile: 2,
+      tablet: 3,
+      desktop: 4,
+    );
+
+    // Responsive aspect ratio
+    final aspectRatio = context.responsive(
+      mobile: 1.5,
+      tablet: 1.3,
+      desktop: 1.4,
+    );
+
+    // Responsive padding
+    final padding = context.responsive(
+      mobile: 16.0,
+      tablet: 24.0,
+      desktop: 32.0,
+    );
+
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -234,75 +260,59 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
               ),
               const SizedBox(width: 12),
               Text(
-                'الإجراءات السريعة',
+                l10n.quickActions,
                 style: AppTypography.h5.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
           ),
           const SizedBox(height: 16),
           GridView.count(
-            crossAxisCount: 2,
+            crossAxisCount: crossAxisCount,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 1.5,
+            childAspectRatio: aspectRatio,
             children: [
-              // _buildActionCard(
-              //   icon: Icons.add_road_rounded,
-              //   label: 'إنشاء رحلة جديدة',
-              //   color: AppColors.primary,
-              //   delay: 0,
-              //   onTap: () =>
-              //       context.go('${RoutePaths.dispatcherHome}/trips/create'),
-              // ),
               _buildActionCard(
                 icon: Icons.list_alt_rounded,
-                label: 'إدارة الرحلات',
+                label: l10n.trips,
                 color: AppColors.success,
                 delay: 50,
                 onTap: () => context.go('${RoutePaths.dispatcherHome}/trips'),
               ),
               _buildActionCard(
                 icon: Icons.groups_rounded,
-                label: 'إدارة المجموعات',
+                label: l10n.groups,
                 color: AppColors.dispatcherPrimary,
                 delay: 150,
                 onTap: () => context.go('${RoutePaths.dispatcherHome}/groups'),
               ),
               _buildActionCard(
                 icon: Icons.event_busy_rounded,
-                label: 'إدارة العطل',
+                label: l10n.holidays,
                 color: AppColors.warning,
                 delay: 165,
                 onTap: () => context.go(RoutePaths.dispatcherHolidays),
               ),
               _buildActionCard(
                 icon: Icons.people_alt_rounded,
-                label: 'إدارة الركّاب',
+                label: l10n.passengers,
                 color: AppColors.primary,
                 delay: 175,
                 onTap: () => context.go(RoutePaths.dispatcherPassengers),
               ),
-              // _buildActionCard(
-              //   icon: Icons.person_add_alt_1_rounded,
-              //   label: 'إضافة راكب',
-              //   color: AppColors.success,
-              //   delay: 190,
-              //   onTap: () => context.go(RoutePaths.dispatcherCreatePassenger),
-              // ),
               _buildActionCard(
                 icon: Icons.directions_bus_rounded,
-                label: 'إدارة المركبات',
+                label: l10n.vehicles,
                 color: AppColors.warning,
                 delay: 100,
                 onTap: () =>
                     context.go('${RoutePaths.dispatcherHome}/vehicles'),
               ),
-
               _buildActionCard(
                 icon: Icons.map_rounded,
-                label: 'المراقبة الحية',
+                label: l10n.liveTracking,
                 color: AppColors.error,
                 delay: 200,
                 onTap: () => context.go('${RoutePaths.dispatcherHome}/monitor'),

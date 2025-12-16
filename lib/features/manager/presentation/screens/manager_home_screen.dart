@@ -8,8 +8,10 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../../../core/widgets/role_switcher_widget.dart';
 import '../../../../core/enums/user_role.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/common/hero_header.dart';
 import '../../../../shared/widgets/common/stat_card.dart';
 import '../../../auth/domain/entities/user.dart';
@@ -136,8 +138,31 @@ class _ManagerHomeScreenState extends ConsumerState<ManagerHomeScreen>
   }
 
   Widget _buildQuickNavigation() {
+    final l10n = AppLocalizations.of(context);
+
+    // Responsive grid columns
+    final crossAxisCount = context.responsive(
+      mobile: 2,
+      tablet: 3,
+      desktop: 4,
+    );
+
+    // Responsive aspect ratio
+    final aspectRatio = context.responsive(
+      mobile: 1.5,
+      tablet: 1.3,
+      desktop: 1.4,
+    );
+
+    // Responsive padding
+    final padding = context.responsive(
+      mobile: 16.0,
+      tablet: 24.0,
+      desktop: 32.0,
+    );
+
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -159,44 +184,44 @@ class _ManagerHomeScreenState extends ConsumerState<ManagerHomeScreen>
               ),
               const SizedBox(width: 12),
               Text(
-                'الإجراءات السريعة',
+                l10n.quickActions,
                 style: AppTypography.h5.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
           ),
           const SizedBox(height: 16),
           GridView.count(
-            crossAxisCount: 2,
+            crossAxisCount: crossAxisCount,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 1.5,
+            childAspectRatio: aspectRatio,
             children: [
               _buildNavCard(
                 icon: Icons.bar_chart_rounded,
-                label: 'التحليلات المتقدمة',
+                label: l10n.analytics,
                 color: AppColors.primary,
                 delay: 0,
                 onTap: () => context.go('${RoutePaths.managerHome}/analytics'),
               ),
               _buildNavCard(
                 icon: Icons.description_rounded,
-                label: 'التقارير',
+                label: l10n.reports,
                 color: AppColors.success,
                 delay: 50,
                 onTap: () => context.go('${RoutePaths.managerHome}/reports'),
               ),
               _buildNavCard(
                 icon: Icons.dashboard_customize_rounded,
-                label: 'نظرة عامة',
+                label: l10n.overview,
                 color: AppColors.warning,
                 delay: 100,
                 onTap: () => context.go('${RoutePaths.managerHome}/overview'),
               ),
               _buildNavCard(
                 icon: Icons.settings_rounded,
-                label: 'الإعدادات',
+                label: l10n.settings,
                 color: const Color(0xFF7B1FA2),
                 delay: 150,
                 onTap: () => context.go(RoutePaths.settings),
