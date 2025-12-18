@@ -3,21 +3,24 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/enums/enums.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../core/utils/responsive_utils.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/role_switcher_widget.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/loading/shimmer_loading.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../trips/domain/entities/trip.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/dispatcher_cached_providers.dart';
-import '../widgets/dispatcher_app_bar.dart';
-import '../widgets/dispatcher_search_field.dart';
+import '../widgets/dispatcher_unified_header.dart';
+import '../widgets/dispatcher_secondary_header.dart';
+import '../widgets/dispatcher_footer.dart';
+import '../widgets/dispatcher_action_fab.dart';
 
 /// Dispatcher Trips Screen - شاشة إدارة الرحلات للمرسل - ShuttleBee
 class DispatcherTripsScreen extends ConsumerStatefulWidget {
@@ -52,87 +55,43 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
 
   TripFilters get _tripFilters => TripFilters(
         fromDate: DateTime(
-            _selectedDate.year, _selectedDate.month, _selectedDate.day),
-        toDate: DateTime(_selectedDate.year, _selectedDate.month,
-            _selectedDate.day, 23, 59, 59),
+          _selectedDate.year,
+          _selectedDate.month,
+          _selectedDate.day,
+        ),
+        toDate: DateTime(
+          _selectedDate.year,
+          _selectedDate.month,
+          _selectedDate.day,
+          23,
+          59,
+          59,
+        ),
       );
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final tripsAsync = ref.watch(dispatcherTripsProvider(_tripFilters));
 
-    return WillPopScope(
-      onWillPop: () async {
-        // Close any open dialog/sheet first.
-        if (Navigator.of(context).canPop()) return true;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
         // From any Dispatcher sub-tab, go back to Dispatcher home.
         context.go(RoutePaths.dispatcherHome);
-        return false;
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
-        appBar: DispatcherAppBar(
-          title: 'إدارة الرحلات',
-          actions: [
-            const RoleSwitcherButton(),
-            _buildFilterButton(),
-            IconButton(
-              icon: const Icon(Icons.calendar_today_rounded),
-              onPressed: () => _selectDate(context),
-              tooltip: 'اختيار التاريخ',
-            ),
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              onPressed: () async {
-                final cache = ref.read(dispatcherCacheDataSourceProvider);
-                final userId =
-                    ref.read(authStateProvider).asData?.value.user?.id ?? 0;
-                if (userId != 0) {
-                  await cache.delete(
-                    DispatcherCacheKeys.trips(
-                        userId: userId, filters: _tripFilters),
-                  );
-                }
-                ref.invalidate(dispatcherTripsProvider(_tripFilters));
-              },
-              tooltip: 'تحديث',
-            ),
-          ],
-          bottom: TabBar(
-            controller: _tabController,
-            indicatorColor: Colors.white,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            tabs: const [
-              Tab(text: 'الكل'),
-              Tab(text: 'مخططة'),
-              Tab(text: 'جارية'),
-              Tab(text: 'منتهية'),
-            ],
-          ),
-        ),
         body: Column(
           children: [
-            // Date Header
-            _buildDateHeader(),
-            // Search
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: DispatcherSearchField(
-                hintText: 'ابحث عن رحلة/سائق/مركبة...',
-                value: _searchQuery,
-                onChanged: (v) => setState(() => _searchQuery = v),
-                onClear: () => setState(() => _searchQuery = ''),
-              ),
-            ).animate().fadeIn(duration: 250.ms),
-            // Active filters chips
-            if (_hasActiveFilters)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                child: _buildActiveFiltersRow(),
-              ).animate().fadeIn(duration: 200.ms),
+            // === Unified Header ===
+            _buildHeader(context, l10n, tripsAsync),
 
-            // Trips Content
+            // === شريط البحث والفلاتر (للموبايل فقط) ===
+            _buildMobileSearchSection(context),
+
+            // === Trips Content ===
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -146,93 +105,283 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          heroTag: 'dispatcher_trips_fab',
-          onPressed: () {
-            HapticFeedback.mediumImpact();
-            context.go('${RoutePaths.dispatcherHome}/trips/create');
+
+        // === Footer (Tablet/Desktop only) - شريط معلومات فقط ===
+        bottomNavigationBar: tripsAsync.maybeWhen(
+          data: (trips) {
+            final ongoing =
+                trips.where((t) => t.state == TripState.ongoing).length;
+            final planned =
+                trips.where((t) => t.state == TripState.planned).length;
+            final done = trips.where((t) => t.state == TripState.done).length;
+
+            return DispatcherFooter(
+              hideOnMobile: true,
+              info: Formatters.displayDate(_selectedDate),
+              stats: [
+                DispatcherFooterStat(
+                  icon: Icons.event_rounded,
+                  label: l10n.trips,
+                  value: Formatters.formatSimple(trips.length),
+                ),
+                if (ongoing > 0)
+                  DispatcherFooterStat(
+                    icon: Icons.play_circle_rounded,
+                    label: l10n.ongoing,
+                    value: Formatters.formatSimple(ongoing),
+                    color: AppColors.warning,
+                  ),
+                if (planned > 0)
+                  DispatcherFooterStat(
+                    icon: Icons.schedule_rounded,
+                    label: l10n.planned,
+                    value: Formatters.formatSimple(planned),
+                    color: AppColors.info,
+                  ),
+                if (done > 0)
+                  DispatcherFooterStat(
+                    icon: Icons.check_circle_rounded,
+                    label: l10n.completed,
+                    value: Formatters.formatSimple(done),
+                    color: AppColors.success,
+                  ),
+              ],
+              lastUpdated: DateTime.now(),
+              syncStatus: DispatcherSyncStatus.synced,
+            );
           },
-          icon: const Icon(Icons.add_rounded),
-          label:
-              const Text('رحلة جديدة', style: TextStyle(fontFamily: 'Cairo')),
-          backgroundColor: AppColors.dispatcherPrimary,
-          foregroundColor: Colors.white,
+          orElse: () => null,
+        ),
+
+        // === FAB (Mobile only) ===
+        floatingActionButton: DispatcherActionFAB(
+          actions: [
+            DispatcherFabAction(
+              icon: Icons.add_rounded,
+              label: l10n.createTrip,
+              isPrimary: true,
+              onPressed: () {
+                context.go('${RoutePaths.dispatcherHome}/trips/create');
+              },
+            ),
+            if (_hasActiveFilters)
+              DispatcherFabAction(
+                icon: Icons.clear_all_rounded,
+                label: l10n.clearFilters,
+                onPressed: () {
+                  setState(() {
+                    _tripTypeFilter = null;
+                    _onlyWithDriver = false;
+                    _onlyWithVehicle = false;
+                    _onlyWithGps = false;
+                  });
+                },
+              ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildDateHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.white,
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.dispatcherPrimary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🎯 HEADER BUILDER - يختلف حسب الجهاز
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildHeader(
+    BuildContext context,
+    AppLocalizations l10n,
+    AsyncValue<List<Trip>> tripsAsync,
+  ) {
+    return DispatcherUnifiedHeader(
+      title: l10n.tripsManagement,
+      subtitle:       tripsAsync.maybeWhen(
+        data: (trips) {
+          final ongoing =
+              trips.where((t) => t.state == TripState.ongoing).length;
+          return '${l10n.total}: ${Formatters.formatSimple(trips.length)} • ${l10n.ongoing}: ${Formatters.formatSimple(ongoing)}';
+        },
+        orElse: () => null,
+      ),
+      // البحث يظهر فقط على Tablet/Desktop (الموبايل له شريط منفصل)
+      searchHint: l10n.searchTrip,
+      searchValue: _searchQuery,
+      onSearchChanged: (v) => setState(() => _searchQuery = v),
+      onSearchClear: () => setState(() => _searchQuery = ''),
+      showSearch: !context.isMobile, // لا تظهر البحث في Header على الموبايل
+      onRefresh: () async {
+        final cache = ref.read(dispatcherCacheDataSourceProvider);
+        final userId = ref.read(authStateProvider).asData?.value.user?.id ?? 0;
+        if (userId != 0) {
+          await cache.delete(
+            DispatcherCacheKeys.trips(
+              userId: userId,
+              filters: _tripFilters,
             ),
-            child: const Icon(
-              Icons.event_rounded,
-              color: AppColors.dispatcherPrimary,
-              size: 24,
-            ),
+          );
+        }
+        ref.invalidate(dispatcherTripsProvider(_tripFilters));
+      },
+      isLoading: tripsAsync.isLoading,
+      actions: [
+        const RoleSwitcherButton(),
+        IconButton(
+          icon: const Icon(Icons.calendar_today_rounded),
+          color: Colors.white,
+          onPressed: () => _selectDate(context),
+          tooltip: l10n.selectDate,
+        ),
+        IconButton(
+          icon: Icon(
+            Icons.tune_rounded,
+            color: _hasActiveFilters ? AppColors.warning : Colors.white,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  DateFormat('EEEE', 'ar').format(_selectedDate),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                    fontFamily: 'Cairo',
-                  ),
-                ),
-                Text(
-                  DateFormat('d MMMM yyyy', 'ar').format(_selectedDate),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Cairo',
-                  ),
-                ),
-              ],
-            ),
+          onPressed: _openFiltersSheet,
+          tooltip: l10n.filter,
+        ),
+      ],
+      primaryActions: [
+        DispatcherHeaderAction(
+          icon: Icons.add_rounded,
+          label: l10n.createTrip,
+          isPrimary: true,
+          onPressed: () {
+            HapticFeedback.mediumImpact();
+            context.go('${RoutePaths.dispatcherHome}/trips/create');
+          },
+        ),
+        if (_hasActiveFilters)
+          DispatcherHeaderAction(
+            icon: Icons.clear_all_rounded,
+            label: l10n.clearFilters,
+            onPressed: () {
+              setState(() {
+                _tripTypeFilter = null;
+                _onlyWithDriver = false;
+                _onlyWithVehicle = false;
+                _onlyWithGps = false;
+              });
+            },
           ),
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left_rounded),
-                onPressed: () {
-                  setState(() {
-                    _selectedDate =
-                        _selectedDate.subtract(const Duration(days: 1));
-                  });
-                  ref.invalidate(dispatcherTripsProvider(_tripFilters));
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right_rounded),
-                onPressed: () {
-                  setState(() {
-                    _selectedDate = _selectedDate.add(const Duration(days: 1));
-                  });
-                  ref.invalidate(dispatcherTripsProvider(_tripFilters));
-                },
-              ),
-            ],
+      ],
+      stats: tripsAsync.maybeWhen(
+        data: (trips) => [
+          DispatcherHeaderStat(
+            icon: Icons.event_rounded,
+            label: Formatters.date(_selectedDate, pattern: 'd MMM'),
+            value: Formatters.formatSimple(trips.length),
+          ),
+          DispatcherHeaderStat(
+            icon: Icons.schedule_rounded,
+            label: l10n.planned,
+            value: Formatters.formatSimple(trips.where((t) => t.state == TripState.planned).length),
+          ),
+          DispatcherHeaderStat(
+            icon: Icons.play_circle_rounded,
+            label: l10n.ongoing,
+            value: Formatters.formatSimple(trips.where((t) => t.state == TripState.ongoing).length),
+          ),
+          DispatcherHeaderStat(
+            icon: Icons.check_circle_rounded,
+            label: l10n.completed,
+            value: Formatters.formatSimple(trips.where((t) => t.state == TripState.done).length),
           ),
         ],
+        orElse: () => [],
       ),
-    ).animate().fadeIn(duration: 300.ms);
+      filters: context.isMobile ? [] : _buildActiveFilterChips(),
+      bottom: TabBar(
+        controller: _tabController,
+        indicatorColor: Colors.white,
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.white70,
+        tabs: [
+          Tab(text: l10n.all),
+          Tab(text: l10n.planned),
+          Tab(text: l10n.ongoing),
+          Tab(text: l10n.completed),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 📱 MOBILE SEARCH SECTION - شريط البحث والفلاتر للموبايل فقط
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildMobileSearchSection(BuildContext context) {
+    if (!context.isMobile) return const SizedBox.shrink();
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // حقل البحث
+          Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: TextField(
+              style: const TextStyle(fontSize: 14, fontFamily: 'Cairo'),
+              decoration: InputDecoration(
+                hintText: AppLocalizations.of(context).searchTrip,
+                hintStyle: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 14,
+                  fontFamily: 'Cairo',
+                ),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: Colors.grey.shade500,
+                  size: 20,
+                ),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(
+                          Icons.clear_rounded,
+                          color: Colors.grey.shade500,
+                          size: 18,
+                        ),
+                        onPressed: () => setState(() => _searchQuery = ''),
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+              ),
+              onChanged: (v) => setState(() => _searchQuery = v),
+              textInputAction: TextInputAction.search,
+            ),
+          ),
+
+          // الفلاتر النشطة
+          if (_buildActiveFilterChips().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _buildActiveFilterChips()
+                    .map(
+                      (f) => Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: f,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _buildTripsTab(AsyncValue<List<Trip>> tripsAsync, TripState? filter) {
+    final l10n = AppLocalizations.of(context);
     return RefreshIndicator(
       onRefresh: () async {
         final cache = ref.read(dispatcherCacheDataSourceProvider);
@@ -266,8 +415,10 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
           }
           if (_onlyWithGps) {
             filteredTrips = filteredTrips
-                .where((t) =>
-                    t.currentLatitude != null && t.currentLongitude != null)
+                .where(
+                  (t) =>
+                      t.currentLatitude != null && t.currentLongitude != null,
+                )
                 .toList();
           }
 
@@ -276,9 +427,12 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
             filteredTrips = filteredTrips.where((t) {
               final name = t.name.toLowerCase();
               final driver = (t.driverName ?? '').toLowerCase();
+              final companion =
+                  (t.companionName ?? '').toLowerCase(); // NEW: المرافق
               final vehicle = (t.vehicleName ?? '').toLowerCase();
               return name.contains(q) ||
                   driver.contains(q) ||
+                  companion.contains(q) || // NEW: بحث في المرافق
                   vehicle.contains(q);
             }).toList();
           }
@@ -286,19 +440,19 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
           if (filteredTrips.isEmpty) {
             return EmptyState(
               icon: Icons.route_rounded,
-              title: 'لا توجد رحلات',
+              title: l10n.noTrips,
               message: filter == null
                   ? (_searchQuery.trim().isNotEmpty
-                      ? 'لا توجد نتائج مطابقة للبحث'
+                      ? l10n.noResultsMatching
                       : (_hasActiveFilters
-                          ? 'لا توجد نتائج مطابقة للفلاتر'
-                          : 'لا توجد رحلات مجدولة لهذا اليوم'))
-                  : (_searchQuery.trim().isNotEmpty
-                      ? 'لا توجد نتائج مطابقة للبحث'
+                          ? l10n.noResultsForFilters
+                          : l10n.noTripsForDay))
+                      : (_searchQuery.trim().isNotEmpty
+                      ? l10n.noResultsMatching
                       : (_hasActiveFilters
-                          ? 'لا توجد نتائج مطابقة للفلاتر'
-                          : 'لا توجد رحلات ${filter.arabicLabel}')),
-              buttonText: 'إنشاء رحلة جديدة',
+                          ? l10n.noResultsForFilters
+                          : '${l10n.noTrips} ${filter.getLocalizedLabel(context)}')),
+              buttonText: l10n.createNewTrip,
               onButtonPressed: () {
                 context.go('${RoutePaths.dispatcherHome}/trips/create');
               },
@@ -306,7 +460,12 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              context.isMobile ? 96 : 16, // مساحة إضافية للـ FAB على الهاتف
+            ),
             itemCount: filteredTrips.length,
             itemBuilder: (context, index) {
               final trip = filteredTrips[index];
@@ -385,8 +544,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                             Flexible(
                               child: Text(
                                 trip.plannedStartTime != null
-                                    ? DateFormat('HH:mm')
-                                        .format(trip.plannedStartTime!)
+                                    ? Formatters.time(trip.plannedStartTime, use24Hour: true)
                                     : '--:--',
                                 style: const TextStyle(
                                   fontSize: 13,
@@ -413,7 +571,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        trip.state.arabicLabel,
+                        trip.state.getLocalizedLabel(context),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -439,6 +597,13 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                     trip.driverName ?? 'بدون سائق',
                     AppColors.primary,
                   ),
+                  // NEW: عرض المرافق إذا كان موجوداً
+                  if (trip.companionName != null)
+                    _buildInfoChip(
+                      Icons.person_add_alt_rounded,
+                      trip.companionName!,
+                      AppColors.info,
+                    ),
                   _buildInfoChip(
                     Icons.directions_bus_rounded,
                     trip.vehicleName ?? 'بدون مركبة',
@@ -446,7 +611,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                   ),
                   _buildInfoChip(
                     Icons.people_rounded,
-                    '${trip.totalPassengers}',
+                    Formatters.formatSimple(trip.totalPassengers),
                     AppColors.success,
                   ),
                 ],
@@ -494,16 +659,27 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
   }
 
   Widget _buildLoadingState() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 5,
-      itemBuilder: (context, index) {
-        return const ShimmerCard(height: 140);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+        return ListView.builder(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            isMobile ? 96 : 16, // مساحة إضافية للـ FAB على الهاتف
+          ),
+          itemCount: 5,
+          itemBuilder: (context, index) {
+            return const ShimmerCard(height: 140);
+          },
+        );
       },
     );
   }
 
   Widget _buildErrorState(String error) {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -528,13 +704,15 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
               if (userId != 0) {
                 await cache.delete(
                   DispatcherCacheKeys.trips(
-                      userId: userId, filters: _tripFilters),
+                    userId: userId,
+                    filters: _tripFilters,
+                  ),
                 );
               }
               ref.invalidate(dispatcherTripsProvider(_tripFilters));
             },
             icon: const Icon(Icons.refresh_rounded),
-            label: const Text('إعادة المحاولة'),
+            label: Text(l10n.retry),
           ),
         ],
       ),
@@ -564,116 +742,61 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
       _onlyWithVehicle ||
       _onlyWithGps;
 
-  int get _activeFiltersCount {
-    var count = 0;
-    if (_tripTypeFilter != null) count++;
-    if (_onlyWithDriver) count++;
-    if (_onlyWithVehicle) count++;
-    if (_onlyWithGps) count++;
-    return count;
-  }
-
-  Widget _buildFilterButton() {
-    return IconButton(
-      tooltip: 'فلترة',
-      onPressed: _openFiltersSheet,
-      icon: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Icon(Icons.tune_rounded),
-          if (_activeFiltersCount > 0)
-            Positioned(
-              right: -6,
-              top: -6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(999),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  '$_activeFiltersCount',
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.dispatcherPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActiveFiltersRow() {
+  List<Widget> _buildActiveFilterChips() {
     final chips = <Widget>[];
 
     if (_tripTypeFilter != null) {
       chips.add(
-        InputChip(
-          label: Text(
-            _tripTypeFilter == TripType.pickup ? 'صعود' : 'نزول',
-            style: const TextStyle(fontFamily: 'Cairo'),
-          ),
-          onDeleted: () => setState(() => _tripTypeFilter = null),
+        DispatcherFilterChip(
+          label: _tripTypeFilter!.getLocalizedLabel(context),
+          isSelected: true,
+          onTap: () => setState(() => _tripTypeFilter = null),
+          icon: Icons.directions_bus_rounded,
+          color: AppColors.dispatcherPrimary,
         ),
       );
     }
+
     if (_onlyWithDriver) {
+      final l10n = AppLocalizations.of(context);
       chips.add(
-        InputChip(
-          label: const Text('بسائق', style: TextStyle(fontFamily: 'Cairo')),
-          onDeleted: () => setState(() => _onlyWithDriver = false),
+        DispatcherFilterChip(
+          label: l10n.withDriver,
+          isSelected: true,
+          onTap: () => setState(() => _onlyWithDriver = false),
+          icon: Icons.person_rounded,
+          color: AppColors.primary,
         ),
       );
     }
+
     if (_onlyWithVehicle) {
+      final l10n = AppLocalizations.of(context);
       chips.add(
-        InputChip(
-          label: const Text('بمركبة', style: TextStyle(fontFamily: 'Cairo')),
-          onDeleted: () => setState(() => _onlyWithVehicle = false),
+        DispatcherFilterChip(
+          label: l10n.withVehicle,
+          isSelected: true,
+          onTap: () => setState(() => _onlyWithVehicle = false),
+          icon: Icons.directions_bus_rounded,
+          color: AppColors.success,
         ),
       );
     }
+
     if (_onlyWithGps) {
+      final l10n = AppLocalizations.of(context);
       chips.add(
-        InputChip(
-          label: const Text('GPS متاح', style: TextStyle(fontFamily: 'Cairo')),
-          onDeleted: () => setState(() => _onlyWithGps = false),
+        DispatcherFilterChip(
+          label: l10n.withGps,
+          isSelected: true,
+          onTap: () => setState(() => _onlyWithGps = false),
+          icon: Icons.gps_fixed_rounded,
+          color: AppColors.warning,
         ),
       );
     }
 
-    chips.add(
-      TextButton.icon(
-        onPressed: () {
-          setState(() {
-            _tripTypeFilter = null;
-            _onlyWithDriver = false;
-            _onlyWithVehicle = false;
-            _onlyWithGps = false;
-          });
-        },
-        icon: const Icon(Icons.clear_all_rounded, size: 18),
-        label: const Text('مسح', style: TextStyle(fontFamily: 'Cairo')),
-      ),
-    );
-
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: chips,
-      ),
-    );
+    return chips;
   }
 
   Future<void> _openFiltersSheet() async {
@@ -726,13 +849,15 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          const Icon(Icons.tune_rounded,
-                              color: AppColors.dispatcherPrimary),
+                          const Icon(
+                            Icons.tune_rounded,
+                            color: AppColors.dispatcherPrimary,
+                          ),
                           const SizedBox(width: 10),
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'فلترة متقدمة',
-                              style: TextStyle(
+                              AppLocalizations.of(ctx).advancedFilters,
+                              style: const TextStyle(
                                 fontFamily: 'Cairo',
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -748,15 +873,17 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                                 localWithGps = false;
                               });
                             },
-                            child: const Text('إعادة ضبط',
-                                style: TextStyle(fontFamily: 'Cairo')),
+                            child: Text(
+                              AppLocalizations.of(ctx).reset,
+                              style: const TextStyle(fontFamily: 'Cairo'),
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'نوع الرحلة',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(ctx).tripType,
+                        style: const TextStyle(
                           fontFamily: 'Cairo',
                           fontWeight: FontWeight.w700,
                         ),
@@ -766,32 +893,39 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                         spacing: 10,
                         children: [
                           ChoiceChip(
-                            label: const Text('الكل',
-                                style: TextStyle(fontFamily: 'Cairo')),
+                            label: Text(
+                              AppLocalizations.of(ctx).all,
+                              style: const TextStyle(fontFamily: 'Cairo'),
+                            ),
                             selected: localTripType == null,
                             onSelected: (_) =>
                                 setLocal(() => localTripType = null),
                           ),
                           ChoiceChip(
-                            label: const Text('صعود',
-                                style: TextStyle(fontFamily: 'Cairo')),
+                            label: Text(
+                              AppLocalizations.of(ctx).pickup,
+                              style: const TextStyle(fontFamily: 'Cairo'),
+                            ),
                             selected: localTripType == TripType.pickup,
                             onSelected: (_) =>
                                 setLocal(() => localTripType = TripType.pickup),
                           ),
                           ChoiceChip(
-                            label: const Text('نزول',
-                                style: TextStyle(fontFamily: 'Cairo')),
+                            label: Text(
+                              AppLocalizations.of(ctx).dropoff,
+                              style: const TextStyle(fontFamily: 'Cairo'),
+                            ),
                             selected: localTripType == TripType.dropoff,
                             onSelected: (_) => setLocal(
-                                () => localTripType = TripType.dropoff),
+                              () => localTripType = TripType.dropoff,
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 18),
-                      const Text(
-                        'خيارات',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(ctx).options,
+                        style: const TextStyle(
                           fontFamily: 'Cairo',
                           fontWeight: FontWeight.w700,
                         ),
@@ -801,25 +935,31 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                         contentPadding: EdgeInsets.zero,
                         value: localWithDriver,
                         onChanged: (v) => setLocal(() => localWithDriver = v),
-                        activeColor: AppColors.dispatcherPrimary,
-                        title: const Text('فقط الرحلات التي لها سائق',
-                            style: TextStyle(fontFamily: 'Cairo')),
+                        activeThumbColor: AppColors.dispatcherPrimary,
+                        title: Text(
+                          AppLocalizations.of(ctx).onlyWithDriver,
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         value: localWithVehicle,
                         onChanged: (v) => setLocal(() => localWithVehicle = v),
-                        activeColor: AppColors.dispatcherPrimary,
-                        title: const Text('فقط الرحلات التي لها مركبة',
-                            style: TextStyle(fontFamily: 'Cairo')),
+                        activeThumbColor: AppColors.dispatcherPrimary,
+                        title: Text(
+                          AppLocalizations.of(ctx).onlyWithVehicle,
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         value: localWithGps,
                         onChanged: (v) => setLocal(() => localWithGps = v),
-                        activeColor: AppColors.dispatcherPrimary,
-                        title: const Text('فقط الرحلات التي لديها GPS',
-                            style: TextStyle(fontFamily: 'Cairo')),
+                        activeThumbColor: AppColors.dispatcherPrimary,
+                        title: Text(
+                          AppLocalizations.of(ctx).onlyWithGps,
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -827,8 +967,10 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () => Navigator.pop(ctx),
-                              child: const Text('إلغاء',
-                                  style: TextStyle(fontFamily: 'Cairo')),
+                              child: Text(
+                                AppLocalizations.of(ctx).cancel,
+                                style: const TextStyle(fontFamily: 'Cairo'),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -847,8 +989,10 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen>
                                 });
                                 Navigator.pop(ctx);
                               },
-                              child: const Text('تطبيق',
-                                  style: TextStyle(fontFamily: 'Cairo')),
+                              child: Text(
+                                AppLocalizations.of(ctx).apply,
+                                style: const TextStyle(fontFamily: 'Cairo'),
+                              ),
                             ),
                           ),
                         ],

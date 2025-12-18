@@ -5,6 +5,7 @@ import '../../../../core/enums/enums.dart';
 import '../../../../core/data/datasources/local_data_source.dart';
 import '../../../../shared/providers/global_providers.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/domain/entities/user.dart';
 import '../../../groups/domain/entities/passenger_group.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
 import '../../../trips/domain/entities/trip.dart';
@@ -80,6 +81,13 @@ class DispatcherCacheKeys {
   /// Unassigned passengers cache key
   static String unassignedPassengers({required int userId}) =>
       'dispatcher:$userId:unassigned_passengers';
+
+  /// Users by role cache key
+  static String usersByRole({
+    required int userId,
+    required String role,
+  }) =>
+      'dispatcher:$userId:users:$role';
 }
 
 int _userId(Ref ref) => ref.read(authStateProvider).asData?.value.user?.id ?? 0;
@@ -102,6 +110,13 @@ List<ShuttleVehicle> _decodeVehicles(dynamic cached) {
   final list = (cached as List<dynamic>).cast<dynamic>();
   return list
       .map((e) => ShuttleVehicle.fromJson(Map<String, dynamic>.from(e as Map)))
+      .toList();
+}
+
+List<User> _decodeUsers(dynamic cached) {
+  final list = (cached as List<dynamic>).cast<dynamic>();
+  return list
+      .map((e) => User.fromJson(Map<String, dynamic>.from(e as Map)))
       .toList();
 }
 
@@ -348,4 +363,116 @@ final dispatcherVehiclesProvider =
     ttl: const Duration(minutes: 10),
   );
   return vehicles;
+});
+
+/// Simple User model for user selection
+class SimpleUser {
+  final int id;
+  final String name;
+  final String? email;
+  final String? role;
+
+  const SimpleUser({
+    required this.id,
+    required this.name,
+    this.email,
+    this.role,
+  });
+
+  factory SimpleUser.fromOdoo(Map<String, dynamic> json) {
+    return SimpleUser(
+      id: json['id'] as int? ?? 0,
+      name: json['name'] as String? ?? '',
+      email: json['email'] as String? ?? json['login'] as String?,
+      role: json['shuttle_role'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'email': email,
+        'role': role,
+      };
+}
+
+/// Cache-first: users by role (driver, companion, dispatcher)
+final usersByRoleProvider = FutureProvider.autoDispose
+    .family<List<SimpleUser>, String>((ref, role) async {
+  final cache = ref.watch(dispatcherCacheDataSourceProvider);
+  final isOnline = ref.watch(isOnlineStateProvider);
+  final userId = _userId(ref);
+  if (userId == 0) return [];
+
+  final key = DispatcherCacheKeys.usersByRole(userId: userId, role: role);
+
+  // 1) Cache-first
+  final cached = await cache.get<List<dynamic>>(key);
+  if (cached != null) {
+    final users = (cached as List<dynamic>)
+        .map((e) => SimpleUser.fromOdoo(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    if (!isOnline) return users;
+    return users;
+  }
+
+  // 2) No cache: fetch if possible using bridgecore
+  if (!isOnline) return [];
+
+  try {
+    final client = ref.watch(bridgecoreClientProvider);
+    if (client == null) return [];
+
+    // Build domain based on role
+    List<dynamic> domain = [];
+    if (role == 'driver' || role == 'companion') {
+      // Get users who are drivers or companions
+      domain = [
+        [
+          'shuttle_role',
+          'in',
+          ['driver', 'companion']
+        ]
+      ];
+    } else if (role == 'dispatcher') {
+      // Get users who are dispatchers
+      domain = [
+        ['shuttle_role', '=', 'dispatcher']
+      ];
+    }
+
+    final users = await client.searchRead(
+      model: 'res.users',
+      domain: domain,
+      fields: ['id', 'name', 'email', 'login', 'shuttle_role'],
+      limit: 200,
+    );
+
+    final simpleUsers = users.map((u) => SimpleUser.fromOdoo(u)).toList();
+
+    await cache.save(
+      key: key,
+      data: users,
+      ttl: const Duration(minutes: 30),
+    );
+
+    return simpleUsers;
+  } catch (e) {
+    // Fallback to empty list on error
+    return [];
+  }
+});
+
+/// Provider for drivers and companions combined
+final driversAndCompanionsProvider =
+    FutureProvider.autoDispose<List<SimpleUser>>((ref) async {
+  final users = await ref.watch(usersByRoleProvider('driver').future);
+  return users;
+});
+
+/// Provider for dispatchers only
+final dispatchersProvider =
+    FutureProvider.autoDispose<List<SimpleUser>>((ref) async {
+  final users = await ref.watch(usersByRoleProvider('dispatcher').future);
+  return users;
 });

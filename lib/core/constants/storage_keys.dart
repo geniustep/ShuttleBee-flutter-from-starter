@@ -43,6 +43,12 @@ class StorageKeys {
   /// Language code
   static const String languageCode = 'language_code';
 
+  /// Use Arabic numerals (٠-٩) instead of Western numerals (0-9) when Arabic locale
+  static const String useArabicNumerals = 'use_arabic_numerals';
+
+  /// Date format preference (short/medium/long/full)
+  static const String dateFormat = 'date_format';
+
   /// First launch flag
   static const String isFirstLaunch = 'is_first_launch';
 

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../domain/entities/dispatcher_holiday.dart';
 import '../providers/dispatcher_holiday_providers.dart';
 
@@ -97,15 +98,25 @@ class DispatcherHolidaysScreen extends ConsumerWidget {
                   );
                 }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: displayed.length,
-                  itemBuilder: (context, index) => _buildHolidayCard(
-                    context,
-                    ref,
-                    displayed[index],
-                    index,
-                  ),
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isMobile = constraints.maxWidth < 600;
+                    return ListView.builder(
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        16,
+                        16,
+                        isMobile ? 96 : 16, // مساحة إضافية للـ FAB على الهاتف
+                      ),
+                      itemCount: displayed.length,
+                      itemBuilder: (context, index) => _buildHolidayCard(
+                        context,
+                        ref,
+                        displayed[index],
+                        index,
+                      ),
+                    );
+                  },
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -438,7 +449,7 @@ class DispatcherHolidaysScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             Text(
               title,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Cairo',
@@ -558,7 +569,9 @@ class DispatcherHolidaysScreen extends ConsumerWidget {
   }
 
   Future<void> _showAddHolidayDialog(
-      BuildContext context, WidgetRef ref) async {
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final created = await showDialog<DispatcherHoliday?>(
       context: context,
       builder: (_) => const _AddGlobalHolidayDialog(),
@@ -579,7 +592,7 @@ class DispatcherHolidaysScreen extends ConsumerWidget {
   }
 
   static String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+    return Formatters.displayDate(date);
   }
 }
 

@@ -177,23 +177,33 @@ class _DispatcherGroupPassengersScreenState
         ref.invalidate(dispatcherGroupPassengersProvider(groupId));
         ref.invalidate(dispatcherUnassignedPassengersProvider);
       },
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        itemCount: filtered.length + 1,
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return _buildSummaryCard(
-              passengersCount: filtered.length,
-              vehicleSeats: vehicleSeats,
-              occupiedSeats: occupiedSeats,
-            );
-          }
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 600;
+          return ListView.builder(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              12,
+              16,
+              isMobile ? 96 : 16, // مساحة إضافية للـ FAB على الهاتف
+            ),
+            itemCount: filtered.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return _buildSummaryCard(
+                  passengersCount: filtered.length,
+                  vehicleSeats: vehicleSeats,
+                  occupiedSeats: occupiedSeats,
+                );
+              }
 
-          final line = filtered[index - 1];
-          return _buildPassengerCard(
-            context,
-            groupId: groupId,
-            line: line,
+              final line = filtered[index - 1];
+              return _buildPassengerCard(
+                context,
+                groupId: groupId,
+                line: line,
+              );
+            },
           );
         },
       ),
@@ -409,8 +419,11 @@ class _DispatcherGroupPassengersScreenState
                     onSelected: (v) {
                       switch (v) {
                         case 'edit':
-                          _openEditLineDialog(context,
-                              groupId: groupId, line: line);
+                          _openEditLineDialog(
+                            context,
+                            groupId: groupId,
+                            line: line,
+                          );
                           break;
                         case 'move':
                           _openMoveToGroupSheet(
@@ -420,8 +433,11 @@ class _DispatcherGroupPassengersScreenState
                           );
                           break;
                         case 'remove':
-                          _confirmUnassign(context,
-                              groupId: groupId, lineId: line.id);
+                          _confirmUnassign(
+                            context,
+                            groupId: groupId,
+                            lineId: line.id,
+                          );
                           break;
                       }
                     },
@@ -432,8 +448,10 @@ class _DispatcherGroupPassengersScreenState
                           children: [
                             Icon(Icons.edit_rounded),
                             SizedBox(width: 10),
-                            Text('تعديل',
-                                style: TextStyle(fontFamily: 'Cairo')),
+                            Text(
+                              'تعديل',
+                              style: TextStyle(fontFamily: 'Cairo'),
+                            ),
                           ],
                         ),
                       ),
@@ -454,13 +472,18 @@ class _DispatcherGroupPassengersScreenState
                         value: 'remove',
                         child: Row(
                           children: [
-                            Icon(Icons.person_remove_alt_1_rounded,
-                                color: AppColors.error),
+                            Icon(
+                              Icons.person_remove_alt_1_rounded,
+                              color: AppColors.error,
+                            ),
                             SizedBox(width: 10),
-                            Text('إزالة من المجموعة',
-                                style: TextStyle(
-                                    fontFamily: 'Cairo',
-                                    color: AppColors.error)),
+                            Text(
+                              'إزالة من المجموعة',
+                              style: TextStyle(
+                                fontFamily: 'Cairo',
+                                color: AppColors.error,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -540,10 +563,20 @@ class _DispatcherGroupPassengersScreenState
   }
 
   Widget _buildLoadingState() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 6,
-      itemBuilder: (_, __) => const ShimmerCard(height: 120),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+        return ListView.builder(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            isMobile ? 96 : 16, // مساحة إضافية للـ FAB على الهاتف
+          ),
+          itemCount: 6,
+          itemBuilder: (_, __) => const ShimmerCard(height: 120),
+        );
+      },
     );
   }
 
@@ -554,8 +587,11 @@ class _DispatcherGroupPassengersScreenState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                size: 64, color: AppColors.error),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 64,
+              color: AppColors.error,
+            ),
             const SizedBox(height: 12),
             Text(
               error,
@@ -566,11 +602,14 @@ class _DispatcherGroupPassengersScreenState
             ElevatedButton.icon(
               onPressed: () {
                 ref.invalidate(
-                    dispatcherGroupPassengersProvider(widget.groupId));
+                  dispatcherGroupPassengersProvider(widget.groupId),
+                );
               },
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('إعادة المحاولة',
-                  style: TextStyle(fontFamily: 'Cairo')),
+              label: const Text(
+                'إعادة المحاولة',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
             ),
           ],
         ),

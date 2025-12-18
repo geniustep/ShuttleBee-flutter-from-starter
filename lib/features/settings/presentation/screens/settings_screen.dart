@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/utils/responsive_utils.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/providers/global_providers.dart';
 import '../widgets/settings_section.dart';
@@ -19,6 +20,8 @@ class SettingsScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final themeMode = ref.watch(themeModeProvider);
     final locale = ref.watch(localeProvider);
+    final useArabicNumerals = ref.watch(arabicNumeralsProvider);
+    final dateFormat = ref.watch(dateFormatProvider);
 
     // Responsive layout
     final maxWidth = context.formMaxWidth;
@@ -42,9 +45,10 @@ class SettingsScreen extends ConsumerWidget {
                   SettingsTile(
                     icon: Icons.person_outline,
                     title: l10n.profile,
-                    subtitle: l10n.translate('manage_profile') != 'manage_profile'
-                        ? l10n.translate('manage_profile')
-                        : 'Manage your profile information',
+                    subtitle:
+                        l10n.translate('manage_profile') != 'manage_profile'
+                            ? l10n.translate('manage_profile')
+                            : 'Manage your profile information',
                     onTap: () => context.push(RoutePaths.profile),
                   ),
                 ],
@@ -68,6 +72,22 @@ class SettingsScreen extends ConsumerWidget {
                     subtitle: _getLanguageName(locale.languageCode),
                     onTap: () => _showLanguageDialog(context, ref, l10n),
                   ),
+                  // Only show numeral system setting for Arabic language
+                  if (locale.languageCode == 'ar')
+                    SettingsTile(
+                      icon: Icons.pin_outlined,
+                      title: l10n.translate('numeral_system'),
+                      subtitle: useArabicNumerals
+                          ? l10n.translate('arabic_numerals')
+                          : l10n.translate('western_numerals'),
+                      onTap: () => _showNumeralSystemDialog(context, ref, l10n),
+                    ),
+                  SettingsTile(
+                    icon: Icons.calendar_today_outlined,
+                    title: l10n.translate('date_format'),
+                    subtitle: _getDateFormatText(dateFormat, l10n),
+                    onTap: () => _showDateFormatDialog(context, ref, l10n),
+                  ),
                 ],
               ),
 
@@ -80,9 +100,10 @@ class SettingsScreen extends ConsumerWidget {
                   SettingsTile(
                     icon: Icons.cloud_sync_outlined,
                     title: l10n.syncStatus,
-                    subtitle: l10n.translate('manage_offline') != 'manage_offline'
-                        ? l10n.translate('manage_offline')
-                        : 'Manage offline settings',
+                    subtitle:
+                        l10n.translate('manage_offline') != 'manage_offline'
+                            ? l10n.translate('manage_offline')
+                            : 'Manage offline settings',
                     onTap: () => context.push(RoutePaths.offlineSettings),
                   ),
                   SettingsTile(
@@ -149,7 +170,21 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  void _showThemeDialog(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+  String _getDateFormatText(DateFormatType format, AppLocalizations l10n) {
+    switch (format) {
+      case DateFormatType.short:
+        return l10n.translate('date_format_short');
+      case DateFormatType.medium:
+        return l10n.translate('date_format_medium');
+      case DateFormatType.long:
+        return l10n.translate('date_format_long');
+      case DateFormatType.full:
+        return l10n.translate('date_format_full');
+    }
+  }
+
+  void _showThemeDialog(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -190,7 +225,8 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showLanguageDialog(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+  void _showLanguageDialog(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -225,6 +261,106 @@ class SettingsScreen extends ConsumerWidget {
               groupValue: ref.read(localeProvider).languageCode,
               onChanged: (value) {
                 ref.read(localeProvider.notifier).setLocale(Locale(value!));
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showNumeralSystemDialog(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.translate('numeral_system')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RadioListTile<bool>(
+              title: Text(l10n.translate('western_numerals')),
+              subtitle: const Text('0-9'),
+              value: false,
+              groupValue: ref.read(arabicNumeralsProvider),
+              onChanged: (value) {
+                ref
+                    .read(arabicNumeralsProvider.notifier)
+                    .setUseArabicNumerals(value!);
+                Navigator.pop(context);
+              },
+            ),
+            RadioListTile<bool>(
+              title: Text(l10n.translate('arabic_numerals')),
+              subtitle: const Text('٠-٩'),
+              value: true,
+              groupValue: ref.read(arabicNumeralsProvider),
+              onChanged: (value) {
+                ref
+                    .read(arabicNumeralsProvider.notifier)
+                    .setUseArabicNumerals(value!);
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDateFormatDialog(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.translate('date_format')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RadioListTile<DateFormatType>(
+              title: Text(l10n.translate('date_format_short')),
+              subtitle: Text(l10n.translate('date_format_short_example')),
+              value: DateFormatType.short,
+              groupValue: ref.read(dateFormatProvider),
+              onChanged: (value) {
+                ref.read(dateFormatProvider.notifier).setDateFormat(value!);
+                Navigator.pop(context);
+              },
+            ),
+            RadioListTile<DateFormatType>(
+              title: Text(l10n.translate('date_format_medium')),
+              subtitle: Text(l10n.translate('date_format_medium_example')),
+              value: DateFormatType.medium,
+              groupValue: ref.read(dateFormatProvider),
+              onChanged: (value) {
+                ref.read(dateFormatProvider.notifier).setDateFormat(value!);
+                Navigator.pop(context);
+              },
+            ),
+            RadioListTile<DateFormatType>(
+              title: Text(l10n.translate('date_format_long')),
+              subtitle: Text(l10n.translate('date_format_long_example')),
+              value: DateFormatType.long,
+              groupValue: ref.read(dateFormatProvider),
+              onChanged: (value) {
+                ref.read(dateFormatProvider.notifier).setDateFormat(value!);
+                Navigator.pop(context);
+              },
+            ),
+            RadioListTile<DateFormatType>(
+              title: Text(l10n.translate('date_format_full')),
+              subtitle: Text(l10n.translate('date_format_full_example')),
+              value: DateFormatType.full,
+              groupValue: ref.read(dateFormatProvider),
+              onChanged: (value) {
+                ref.read(dateFormatProvider.notifier).setDateFormat(value!);
                 Navigator.pop(context);
               },
             ),

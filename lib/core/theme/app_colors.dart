@@ -21,14 +21,23 @@ class AppColors {
   static const Color onSecondaryContainer = Color(0xFFE65100);
 
   // === Role Colors (ShuttleBee) ===
-  // Dispatcher palette (Purple)
-  static const Color dispatcherPrimary = Color(0xFF7B1FA2);
-  static const Color dispatcherPrimaryDark = Color(0xFF4A148C);
-  static const Color dispatcherPrimaryMid = Color(0xFF6A1B9A);
-  static const Color dispatcherPrimaryLight = Color(0xFF9C27B0);
+  // Dispatcher palette (Purple) - محسّن
+  static const Color dispatcherPrimary =
+      Color(0xFF8B5CF6); // Purple 500 - لون رئيسي أكثر حداثة
+  static const Color dispatcherPrimaryDark =
+      Color(0xFF6D28D9); // Purple 700 - أغمق
+  static const Color dispatcherPrimaryMid =
+      Color(0xFF7C3AED); // Purple 600 - متوسط
+  static const Color dispatcherPrimaryLight =
+      Color(0xFFA78BFA); // Purple 400 - أفتح
+  static const Color dispatcherPrimaryLighter =
+      Color(0xFFC4B5FD); // Purple 300 - أفتح جداً
+  static const Color dispatcherBackground =
+      Color(0xFFFAF5FF); // Purple 50 - خلفية فاتحة
 
   // === Neutral Colors ===
   static const Color background = Color(0xFFFAFAFA);
+  static const Color backgroundLight = Color(0xFFF8FAFC); // خلفية فاتحة جداً
   static const Color surface = Color(0xFFFFFFFF);
   static const Color surfaceVariant = Color(0xFFF3F4F6);
   static const Color surfaceDim = Color(0xFFE5E7EB);
@@ -47,9 +56,9 @@ class AppColors {
   static const Color successLight = Color(0xFFC8E6C9);
   static const Color onSuccess = Color(0xFFFFFFFF);
 
-  static const Color warning = Color(0xFFFFC107);
-  static const Color warningLight = Color(0xFFFFF9C4);
-  static const Color onWarning = Color(0xFF000000);
+  static const Color warning = Color(0xFF5C6BC0);
+  static const Color warningLight = Color(0xFFE8EAF6);
+  static const Color onWarning = Color(0xFFFFFFFF);
 
   static const Color error = Color(0xFFF44336);
   static const Color errorLight = Color(0xFFFFCDD2);
@@ -150,4 +159,15 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  static const LinearGradient dispatcherGradientLight = LinearGradient(
+    colors: [dispatcherPrimaryLight, dispatcherPrimary, dispatcherPrimaryMid],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // === Card Shadow Colors ===
+  static const Color cardShadowLight = Color(0x0A000000); // ظل خفيف للبطاقات
+  static const Color cardShadowMedium = Color(0x14000000); // ظل متوسط
+  static const Color cardShadowStrong = Color(0x1F000000); // ظل قوي
 }

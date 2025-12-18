@@ -100,6 +100,8 @@ class AppLocalizations {
       'inactive': 'Inactive',
       'enabled': 'Enabled',
       'disabled': 'Disabled',
+      'header': 'Header',
+      'footer': 'Footer',
       'status': 'Status',
       'name': 'Name',
       'description': 'Description',
@@ -187,6 +189,21 @@ class AppLocalizations {
       'light_mode': 'Light Mode',
       'dark_mode': 'Dark Mode',
       'system_default': 'System Default',
+
+      // Number & Date Format Settings
+      'number_format': 'Number Format',
+      'numeral_system': 'Numeral System',
+      'western_numerals': 'Western Numerals (0-9)',
+      'arabic_numerals': 'Arabic Numerals (٠-٩)',
+      'date_format': 'Date Format',
+      'date_format_short': 'Short',
+      'date_format_medium': 'Medium',
+      'date_format_long': 'Long',
+      'date_format_full': 'Full',
+      'date_format_short_example': '01/12/2024',
+      'date_format_medium_example': '01 Dec 2024',
+      'date_format_long_example': '01 December 2024',
+      'date_format_full_example': 'Sunday, 01 December 2024',
       'notifications_settings': 'Notification Settings',
       'privacy_security': 'Privacy & Security',
       'about_app': 'About App',
@@ -200,6 +217,7 @@ class AppLocalizations {
       'online': 'Online',
       'offline_mode': 'Offline Mode',
       'sync': 'Sync',
+      'synced': 'Synced',
       'syncing': 'Syncing...',
       'sync_complete': 'Sync complete',
       'sync_failed': 'Sync failed',
@@ -212,6 +230,7 @@ class AppLocalizations {
       'will_sync_when_online': 'Will sync when online',
       'cache_management': 'Cache Management',
       'clear_cache': 'Clear Cache',
+      'online_now': 'Online now',
 
       // Notifications
       'notifications': 'Notifications',
@@ -251,6 +270,7 @@ class AppLocalizations {
 
       // Trips
       'trips': 'Trips',
+      'trips_management': 'Trips Management',
       'trip': 'Trip',
       'trip_details': 'Trip Details',
       'create_trip': 'Create Trip',
@@ -280,9 +300,88 @@ class AppLocalizations {
       'active_trips': 'Active Trips',
       'live_tracking': 'Live Tracking',
       'track_trip': 'Track Trip',
+      'planned': 'Planned',
+      'ongoing': 'Ongoing',
+      'draft': 'Draft',
+      'clear_filters': 'Clear Filters',
+      'create_new_trip': 'Create New Trip',
+      'search_trip': 'Search for a trip/driver/vehicle...',
+      'no_trips_for_day': 'No trips scheduled for this day',
+      'no_results_matching': 'No results matching',
+      'no_results_for_filters': 'No results matching filters',
+      'advanced_filters': 'Advanced Filters',
+      'trip_type': 'Trip Type',
+      'with_driver': 'With Driver',
+      'with_vehicle': 'With Vehicle',
+      'with_gps': 'With GPS',
+      'only_with_driver': 'Only trips with a driver',
+      'only_with_vehicle': 'Only trips with a vehicle',
+      'only_with_gps': 'Only trips with GPS',
+      'select_date': 'Select Date',
+      'companion': 'Companion',
+      'no_companion': 'No Companion',
+      'status_and_time': 'Status & Time',
+      'driver_and_vehicle': 'Driver & Vehicle',
+      'not_assigned': 'Not Assigned',
+      'plate_number': 'Plate Number',
+      'started_actually': 'Actually Started',
+      'ended_actually': 'Actually Ended',
+      'are_you_sure_start': 'Do you want to start this trip now?',
+      'are_you_sure_end': 'Do you want to end this trip?',
+      'are_you_sure_cancel':
+          'Are you sure you want to cancel this trip? This action cannot be undone.',
+      'trip_started': 'Trip started',
+      'trip_ended': 'Trip ended',
+      'trip_cancelled': 'Trip cancelled',
+      'failed_to_start': 'Failed to start trip',
+      'failed_to_end': 'Failed to end trip',
+      'failed_to_cancel': 'Failed to cancel trip',
+      'back_to_trips': 'Back to Trips',
+      'trip_not_found': 'Trip not found',
+      'generate_from_group': 'Generate from Group',
+      'manual_trip': 'Manual Trip',
+      'generate_trips': 'Generate Trips',
+      'generate_trips_from_group': 'Generate trips from a group',
+      'select_group_to_generate':
+          'Select an existing group to automatically generate trips based on its schedules',
+      'create_manual_trip': 'Create a trip manually',
+      'create_manual_trip_desc':
+          'Manually specify trip details without relying on a group schedule',
+      'basic_info': 'Basic Information',
+      'trip_name': 'Trip Name',
+      'trip_name_example': 'Example: Morning Trip - North Area',
+      'generation_options': 'Generation Options',
+      'weeks_to_generate': 'Weeks to Generate',
+      'will_generate_trips': 'Will generate trips for',
+      'weeks_ahead': 'weeks ahead based on group schedules',
+      'week': 'week',
+      'generating': 'Generating...',
+      'creating': 'Creating...',
+      'no_active_groups': 'No active groups. Create a group first.',
+      'no_drivers_available': 'No drivers available',
+      'trips_generated_successfully': 'trips generated successfully',
+      'view_all_trips': 'View All Trips',
+      'generated_trips': 'Generated Trips',
+      'and_more': 'and',
+      'more_trips': 'more trips...',
+      'no_trips_generated':
+          'No trips generated. Make sure the group has schedules.',
+      'companion_optional': 'Companion (Optional)',
+      'select_companion': 'Select Companion',
+      'select_driver': 'Select Driver',
+      'select_group': 'Select Group',
+      'select_vehicle': 'Select Vehicle',
+      'no_group': 'No Group',
+      'no_vehicle': 'No Vehicle',
+      'no_license_plate': 'No License Plate',
+      'please_select_driver': 'Please select a driver',
+      'failed_to_load_groups': 'Failed to load groups',
+      'error_creating_trip': 'Error creating trip',
+      'cannot_access_trip_repository': 'Cannot access trip repository',
 
       // Passengers
       'passengers': 'Passengers',
+      'passengers_management': 'Passengers Management',
       'passenger': 'Passenger',
       'passenger_details': 'Passenger Details',
       'add_passenger': 'Add Passenger',
@@ -299,9 +398,40 @@ class AppLocalizations {
       'not_boarded': 'Not Boarded',
       'absent': 'Absent',
       'present': 'Present',
+      'all_passengers': 'All Passengers',
+      'unassigned': 'Unassigned',
+      'by_groups': 'By Groups',
+      'distribution_board': 'Distribution Board',
+      'search_all_passengers': 'Search all passengers...',
+      'search_unassigned': 'Search unassigned...',
+      'search_group': 'Search for a group...',
+      'quick_search_board': 'Quick search in board...',
+      'add_new_passenger': 'Add New Passenger',
+      'no_matching_results': 'No matching results',
+      'no_passengers_in_system': 'No passengers in the system.',
+      'all_assigned_to_groups':
+          'All current passengers are assigned to groups.',
+      'create_group_first': 'Create a group first then add passengers.',
+      'move_to_group': 'Move to Group',
+      'move': 'Move',
+      'assign': 'Assign',
+      'empty': 'Empty',
+      'pickup': 'Pickup',
+      'dropoff': 'Drop-off',
+      'edit_profile': 'Edit Profile',
+      'change_location': 'Change Location',
+      'mark_absent': 'Mark Absent',
+      'cannot_connect_server': 'Cannot connect to server',
+      'absence_recorded': 'Absence recorded for',
+      'in': 'in',
+      'absence_failed': 'Failed to record absence',
+      'father': 'Father',
+      'mother': 'Mother',
+      'no_groups_available': 'No groups available',
 
       // Vehicles
       'vehicles': 'Vehicles',
+      'vehicles_management': 'Vehicles Management',
       'vehicle': 'Vehicle',
       'vehicle_details': 'Vehicle Details',
       'add_vehicle': 'Add Vehicle',
@@ -319,6 +449,7 @@ class AppLocalizations {
 
       // Groups
       'groups': 'Groups',
+      'groups_management': 'Groups Management',
       'group': 'Group',
       'group_details': 'Group Details',
       'create_group': 'Create Group',
@@ -330,6 +461,30 @@ class AppLocalizations {
       'no_groups': 'No groups',
       'schedules': 'Schedules',
       'schedule': 'Schedule',
+      'new_group': 'New Group',
+      'search_group_hint': 'Search for a group...',
+      'active_only': 'Active Only',
+      'with_destination': 'With Destination',
+      'linked_to_driver': 'Linked to Driver',
+      'linked_to_vehicle': 'Linked to Vehicle',
+      'has_destination': 'Has Destination',
+      'group_filters': 'Group Filters',
+      'showing_of': 'Showing',
+      'of_text': 'of',
+      'no_groups_found': 'No groups found',
+      'no_matching_search': 'No results matching search',
+      'no_groups_created': 'No groups created yet',
+      'generate_trip': 'Generate Trip',
+      'manage_schedules': 'Manage Schedules',
+      'view_passengers': 'View Passengers',
+      'delete_group': 'Delete Group',
+      'delete_group_title': 'Delete Group',
+      'delete_group_confirm':
+          'Are you sure you want to delete group "{name}"?\n\nThis action cannot be undone.',
+      'group_deleted': 'Group "{name}" deleted successfully',
+      'failed_to_delete_group': 'Failed to delete group, try again',
+      'passenger_singular': 'passenger',
+      'both_pickup_dropoff': 'Pickup & Drop-off',
 
       // Stops
       'stops': 'Stops',
@@ -397,6 +552,17 @@ class AppLocalizations {
       'afternoon': 'Afternoon',
       'evening': 'Evening',
       'night': 'Night',
+      'monday': 'Monday',
+      'tuesday': 'Tuesday',
+      'wednesday': 'Wednesday',
+      'thursday': 'Thursday',
+      'friday': 'Friday',
+      'saturday': 'Saturday',
+      'sunday': 'Sunday',
+      'per_trip': 'Per Trip',
+      'monthly': 'Monthly',
+      'per_term': 'Per Term',
+      'billing_cycle': 'Billing Cycle',
 
       // Holidays
       'holidays': 'Holidays',
@@ -418,13 +584,24 @@ class AppLocalizations {
       // Stats
       'statistics': 'Statistics',
       'stats': 'Stats',
+      'today_statistics': 'Today\'s Statistics',
       'total_trips': 'Total Trips',
+      'total_trips_today': 'Total Trips Today',
       'total_passengers': 'Total Passengers',
       'total_vehicles': 'Total Vehicles',
       'total_distance': 'Total Distance',
       'average': 'Average',
       'performance': 'Performance',
       'efficiency': 'Efficiency',
+      'fleet_status': 'Fleet Status',
+      'fleet_utilization': 'Fleet Utilization Rate',
+      'fleet_in_use': 'of fleet in use',
+      'active_vehicles': 'Active Vehicles',
+      'active_drivers': 'Active Drivers',
+      'ongoing_trips': 'Ongoing Trips',
+      'live_monitoring': 'Live Monitoring',
+      'active_trips_now': 'active trips now',
+      'view_sync_status': 'View Sync Status',
 
       // Companies
       'company': 'Company',
@@ -476,7 +653,8 @@ class AppLocalizations {
       'onboarding_title_1': 'Track Your Trips',
       'onboarding_title_2': 'Real-time Updates',
       'onboarding_title_3': 'Safe & Reliable',
-      'onboarding_desc_1': 'Monitor all your transportation activities in one place',
+      'onboarding_desc_1':
+          'Monitor all your transportation activities in one place',
       'onboarding_desc_2': 'Get instant notifications about trip status',
       'onboarding_desc_3': 'Ensure safe transportation for everyone',
 
@@ -491,7 +669,6 @@ class AppLocalizations {
       // Misc
       'real_time_updates': 'Real-time Updates',
       'connected': 'Connected',
-      'disconnected': 'Disconnected',
       'audit_trail': 'Audit Trail',
       'form_builder': 'Form Builder',
       'required_field': 'Required Field',
@@ -500,6 +677,16 @@ class AppLocalizations {
       'customers': 'Customers',
       'sales_overview': 'Sales Overview',
       'orders_by_status': 'Orders by Status',
+
+      // Role Switcher
+      'view_as': 'View as',
+      'original': 'Original',
+      'original_role': 'Original Role',
+      'return': 'Return',
+      'you_are_viewing_as': 'You are viewing the app as',
+      'switched_to_view': 'Switched to view',
+      'returned_to_view': 'Returned to view',
+      'switch_role': 'Switch Role',
     },
     'ar': {
       // App
@@ -562,6 +749,8 @@ class AppLocalizations {
       'inactive': 'غير نشط',
       'enabled': 'مفعّل',
       'disabled': 'معطّل',
+      'header': 'رأس الصفحة',
+      'footer': 'تذييل الصفحة',
       'status': 'الحالة',
       'name': 'الاسم',
       'description': 'الوصف',
@@ -649,6 +838,21 @@ class AppLocalizations {
       'light_mode': 'الوضع الفاتح',
       'dark_mode': 'الوضع الداكن',
       'system_default': 'الإعداد الافتراضي',
+
+      // Number & Date Format Settings
+      'number_format': 'تنسيق الأرقام',
+      'numeral_system': 'نظام الأرقام',
+      'western_numerals': 'أرقام فرنسية (0-9)',
+      'arabic_numerals': 'أرقام عربية (٠-٩)',
+      'date_format': 'تنسيق التاريخ',
+      'date_format_short': 'مختصر',
+      'date_format_medium': 'متوسط',
+      'date_format_long': 'طويل',
+      'date_format_full': 'كامل',
+      'date_format_short_example': '01/12/2024',
+      'date_format_medium_example': '01 ديسمبر 2024',
+      'date_format_long_example': '01 ديسمبر 2024',
+      'date_format_full_example': 'الأحد، 01 ديسمبر 2024',
       'notifications_settings': 'إعدادات الإشعارات',
       'privacy_security': 'الخصوصية والأمان',
       'about_app': 'حول التطبيق',
@@ -662,6 +866,7 @@ class AppLocalizations {
       'online': 'متصل',
       'offline_mode': 'وضع عدم الاتصال',
       'sync': 'مزامنة',
+      'synced': 'متزامن',
       'syncing': 'جاري المزامنة...',
       'sync_complete': 'تمت المزامنة',
       'sync_failed': 'فشلت المزامنة',
@@ -674,6 +879,7 @@ class AppLocalizations {
       'will_sync_when_online': 'ستتم المزامنة عند الاتصال',
       'cache_management': 'إدارة ذاكرة التخزين المؤقت',
       'clear_cache': 'مسح ذاكرة التخزين المؤقت',
+      'online_now': 'متصل الآن',
 
       // Notifications
       'notifications': 'الإشعارات',
@@ -713,6 +919,7 @@ class AppLocalizations {
 
       // Trips
       'trips': 'الرحلات',
+      'trips_management': 'إدارة الرحلات',
       'trip': 'رحلة',
       'trip_details': 'تفاصيل الرحلة',
       'create_trip': 'إنشاء رحلة',
@@ -742,9 +949,88 @@ class AppLocalizations {
       'active_trips': 'الرحلات النشطة',
       'live_tracking': 'التتبع المباشر',
       'track_trip': 'تتبع الرحلة',
+      'planned': 'مخططة',
+      'ongoing': 'جارية',
+      'draft': 'مسودة',
+      'clear_filters': 'مسح الفلاتر',
+      'create_new_trip': 'إنشاء رحلة جديدة',
+      'search_trip': 'ابحث عن رحلة/سائق/مركبة...',
+      'no_trips_for_day': 'لا توجد رحلات مجدولة لهذا اليوم',
+      'no_results_matching': 'لا توجد نتائج مطابقة',
+      'no_results_for_filters': 'لا توجد نتائج مطابقة للفلاتر',
+      'advanced_filters': 'فلترة متقدمة',
+      'trip_type': 'نوع الرحلة',
+      'with_driver': 'بسائق',
+      'with_vehicle': 'بمركبة',
+      'with_gps': 'مع GPS',
+      'only_with_driver': 'فقط الرحلات التي لها سائق',
+      'only_with_vehicle': 'فقط الرحلات التي لها مركبة',
+      'only_with_gps': 'فقط الرحلات التي لديها GPS',
+      'select_date': 'اختيار التاريخ',
+      'companion': 'المرافق',
+      'no_companion': 'بدون مرافق',
+      'status_and_time': 'الحالة والوقت',
+      'driver_and_vehicle': 'السائق والمركبة',
+      'not_assigned': 'لم يتم التعيين',
+      'plate_number': 'رقم اللوحة',
+      'started_actually': 'بدأت فعلياً',
+      'ended_actually': 'انتهت فعلياً',
+      'are_you_sure_start': 'هل تريد بدء هذه الرحلة الآن؟',
+      'are_you_sure_end': 'هل تريد إنهاء هذه الرحلة؟',
+      'are_you_sure_cancel':
+          'هل أنت متأكد من إلغاء هذه الرحلة؟ لا يمكن التراجع عن هذا الإجراء.',
+      'trip_started': 'تم بدء الرحلة',
+      'trip_ended': 'تم إنهاء الرحلة',
+      'trip_cancelled': 'تم إلغاء الرحلة',
+      'failed_to_start': 'فشل بدء الرحلة',
+      'failed_to_end': 'فشل إنهاء الرحلة',
+      'failed_to_cancel': 'فشل إلغاء الرحلة',
+      'back_to_trips': 'العودة للرحلات',
+      'trip_not_found': 'الرحلة غير موجودة',
+      'generate_from_group': 'من مجموعة',
+      'manual_trip': 'رحلة يدوية',
+      'generate_trips': 'توليد الرحلات',
+      'generate_trips_from_group': 'توليد رحلات من مجموعة',
+      'select_group_to_generate':
+          'اختر مجموعة موجودة لتوليد الرحلات تلقائياً بناءً على جداولها المحددة',
+      'create_manual_trip': 'إنشاء رحلة يدوياً',
+      'create_manual_trip_desc':
+          'قم بتحديد تفاصيل الرحلة يدوياً بدون الاعتماد على جدول مجموعة',
+      'basic_info': 'المعلومات الأساسية',
+      'trip_name': 'اسم الرحلة',
+      'trip_name_example': 'مثال: رحلة الصباح - المنطقة الشمالية',
+      'generation_options': 'خيارات التوليد',
+      'weeks_to_generate': 'عدد الأسابيع للتوليد',
+      'will_generate_trips': 'سيتم توليد الرحلات لـ',
+      'weeks_ahead': 'قادمة بناءً على جداول المجموعة',
+      'week': 'أسبوع',
+      'generating': 'جاري التوليد...',
+      'creating': 'جاري الإنشاء...',
+      'no_active_groups': 'لا توجد مجموعات نشطة. قم بإنشاء مجموعة أولاً.',
+      'no_drivers_available': 'لا توجد سائقين متاحين',
+      'trips_generated_successfully': 'تم توليد الرحلات بنجاح',
+      'view_all_trips': 'عرض جميع الرحلات',
+      'generated_trips': 'الرحلات المولدة',
+      'and_more': 'و',
+      'more_trips': 'رحلة أخرى...',
+      'no_trips_generated':
+          'لم يتم توليد أي رحلات. تأكد من وجود جداول للمجموعة.',
+      'companion_optional': 'المرافق (اختياري)',
+      'select_companion': 'اختر المرافق',
+      'select_driver': 'اختر السائق',
+      'select_group': 'اختر المجموعة',
+      'select_vehicle': 'اختر المركبة',
+      'no_group': 'بدون مجموعة',
+      'no_vehicle': 'بدون مركبة',
+      'no_license_plate': 'بدون لوحة',
+      'please_select_driver': 'يرجى اختيار السائق',
+      'failed_to_load_groups': 'فشل في تحميل المجموعات',
+      'error_creating_trip': 'خطأ في إنشاء الرحلة',
+      'cannot_access_trip_repository': 'لا يمكن الوصول إلى مستودع الرحلات',
 
       // Passengers
       'passengers': 'الركاب',
+      'passengers_management': 'إدارة الركاب',
       'passenger': 'راكب',
       'passenger_details': 'تفاصيل الراكب',
       'add_passenger': 'إضافة راكب',
@@ -761,9 +1047,39 @@ class AppLocalizations {
       'not_boarded': 'لم يصعد',
       'absent': 'غائب',
       'present': 'حاضر',
+      'all_passengers': 'جميع الركاب',
+      'unassigned': 'غير مدرجين',
+      'by_groups': 'حسب المجموعات',
+      'distribution_board': 'لوحة التوزيع',
+      'search_all_passengers': 'ابحث في جميع الركاب...',
+      'search_unassigned': 'ابحث في غير المدرجين...',
+      'search_group': 'ابحث عن مجموعة...',
+      'quick_search_board': 'بحث سريع في اللوحة...',
+      'add_new_passenger': 'إضافة راكب جديد',
+      'no_matching_results': 'لا توجد نتائج مطابقة',
+      'no_passengers_in_system': 'لا يوجد ركاب في النظام.',
+      'all_assigned_to_groups': 'كل الركاب الحاليين مرتبطين بمجموعات.',
+      'create_group_first': 'أنشئ مجموعة أولاً ثم أضف الركّاب.',
+      'move_to_group': 'نقل إلى مجموعة',
+      'move': 'نقل',
+      'assign': 'تعيين',
+      'empty': 'فارغ',
+      'pickup': 'صعود',
+      'dropoff': 'نزول',
+      'edit_profile': 'تعديل الملف الشخصي',
+      'change_location': 'تغيير الموقع',
+      'mark_absent': 'تسجيل غياب',
+      'cannot_connect_server': 'لا يمكن الاتصال بالخادم',
+      'absence_recorded': 'تم تسجيل غياب',
+      'in': 'في',
+      'absence_failed': 'فشل تسجيل الغياب',
+      'father': 'الأب',
+      'mother': 'الأم',
+      'no_groups_available': 'لا توجد مجموعات متاحة',
 
       // Vehicles
       'vehicles': 'المركبات',
+      'vehicles_management': 'إدارة المركبات',
       'vehicle': 'مركبة',
       'vehicle_details': 'تفاصيل المركبة',
       'add_vehicle': 'إضافة مركبة',
@@ -781,6 +1097,7 @@ class AppLocalizations {
 
       // Groups
       'groups': 'المجموعات',
+      'groups_management': 'إدارة المجموعات',
       'group': 'مجموعة',
       'group_details': 'تفاصيل المجموعة',
       'create_group': 'إنشاء مجموعة',
@@ -792,6 +1109,30 @@ class AppLocalizations {
       'no_groups': 'لا توجد مجموعات',
       'schedules': 'الجداول',
       'schedule': 'جدول',
+      'new_group': 'مجموعة جديدة',
+      'search_group_hint': 'ابحث عن مجموعة...',
+      'active_only': 'نشطة فقط',
+      'with_destination': 'لها وجهة',
+      'linked_to_driver': 'مرتبطة بسائق',
+      'linked_to_vehicle': 'مرتبطة بمركبة',
+      'has_destination': 'لها وجهة',
+      'group_filters': 'فلترة المجموعات',
+      'showing_of': 'عرض',
+      'of_text': 'من',
+      'no_groups_found': 'لا توجد مجموعات',
+      'no_matching_search': 'لم يتم العثور على نتائج للبحث',
+      'no_groups_created': 'لم يتم إنشاء أي مجموعة بعد',
+      'generate_trip': 'توليد رحلة',
+      'manage_schedules': 'إدارة الجداول',
+      'view_passengers': 'عرض الركاب',
+      'delete_group': 'حذف المجموعة',
+      'delete_group_title': 'حذف المجموعة',
+      'delete_group_confirm':
+          'هل أنت متأكد من حذف مجموعة "{name}"؟\n\nهذه العملية لا يمكن التراجع عنها.',
+      'group_deleted': 'تم حذف المجموعة "{name}" بنجاح',
+      'failed_to_delete_group': 'تعذر حذف المجموعة، حاول مرة أخرى',
+      'passenger_singular': 'راكب',
+      'both_pickup_dropoff': 'صعود ونزول',
 
       // Stops
       'stops': 'المحطات',
@@ -859,6 +1200,17 @@ class AppLocalizations {
       'afternoon': 'ظهراً',
       'evening': 'مساءً',
       'night': 'ليلاً',
+      'monday': 'الإثنين',
+      'tuesday': 'الثلاثاء',
+      'wednesday': 'الأربعاء',
+      'thursday': 'الخميس',
+      'friday': 'الجمعة',
+      'saturday': 'السبت',
+      'sunday': 'الأحد',
+      'per_trip': 'لكل رحلة',
+      'monthly': 'شهرياً',
+      'per_term': 'لكل فصل',
+      'billing_cycle': 'دورة الفوترة',
 
       // Holidays
       'holidays': 'العطل',
@@ -880,13 +1232,24 @@ class AppLocalizations {
       // Stats
       'statistics': 'الإحصائيات',
       'stats': 'إحصائيات',
+      'today_statistics': 'إحصائيات اليوم',
       'total_trips': 'إجمالي الرحلات',
+      'total_trips_today': 'إجمالي الرحلات',
       'total_passengers': 'إجمالي الركاب',
       'total_vehicles': 'إجمالي المركبات',
       'total_distance': 'إجمالي المسافة',
       'average': 'المتوسط',
       'performance': 'الأداء',
       'efficiency': 'الكفاءة',
+      'fleet_status': 'حالة الأسطول',
+      'fleet_utilization': 'معدل استخدام الأسطول',
+      'fleet_in_use': 'من الأسطول قيد الاستخدام',
+      'active_vehicles': 'المركبات النشطة',
+      'active_drivers': 'السائقين النشطين',
+      'ongoing_trips': 'رحلات جارية',
+      'live_monitoring': 'المراقبة الحية',
+      'active_trips_now': 'رحلة نشطة الآن',
+      'view_sync_status': 'عرض حالة المزامنة',
 
       // Companies
       'company': 'الشركة',
@@ -953,7 +1316,6 @@ class AppLocalizations {
       // Misc
       'real_time_updates': 'التحديثات الفورية',
       'connected': 'متصل',
-      'disconnected': 'غير متصل',
       'audit_trail': 'سجل التدقيق',
       'form_builder': 'منشئ النماذج',
       'required_field': 'حقل مطلوب',
@@ -962,6 +1324,16 @@ class AppLocalizations {
       'customers': 'العملاء',
       'sales_overview': 'نظرة عامة على المبيعات',
       'orders_by_status': 'الطلبات حسب الحالة',
+
+      // Role Switcher
+      'view_as': 'عرض كـ',
+      'original': 'الأصلي',
+      'original_role': 'الدور الأصلي',
+      'return': 'العودة',
+      'you_are_viewing_as': 'أنت تعرض التطبيق كـ',
+      'switched_to_view': 'تم التبديل إلى عرض',
+      'returned_to_view': 'تم العودة إلى عرض',
+      'switch_role': 'تبديل الدور',
     },
     'fr': {
       // App
@@ -1024,6 +1396,8 @@ class AppLocalizations {
       'inactive': 'Inactif',
       'enabled': 'Activé',
       'disabled': 'Désactivé',
+      'header': 'En-tête',
+      'footer': 'Pied de page',
       'status': 'Statut',
       'name': 'Nom',
       'description': 'Description',
@@ -1111,6 +1485,21 @@ class AppLocalizations {
       'light_mode': 'Mode clair',
       'dark_mode': 'Mode sombre',
       'system_default': 'Par défaut du système',
+
+      // Number & Date Format Settings
+      'number_format': 'Format des nombres',
+      'numeral_system': 'Système numérique',
+      'western_numerals': 'Chiffres occidentaux (0-9)',
+      'arabic_numerals': 'Chiffres arabes (٠-٩)',
+      'date_format': 'Format de date',
+      'date_format_short': 'Court',
+      'date_format_medium': 'Moyen',
+      'date_format_long': 'Long',
+      'date_format_full': 'Complet',
+      'date_format_short_example': '01/12/2024',
+      'date_format_medium_example': '01 déc. 2024',
+      'date_format_long_example': '01 décembre 2024',
+      'date_format_full_example': 'dimanche 01 décembre 2024',
       'notifications_settings': 'Paramètres de notification',
       'privacy_security': 'Confidentialité et sécurité',
       'about_app': "À propos de l'application",
@@ -1124,6 +1513,7 @@ class AppLocalizations {
       'online': 'En ligne',
       'offline_mode': 'Mode hors ligne',
       'sync': 'Synchroniser',
+      'synced': 'Synchronisé',
       'syncing': 'Synchronisation...',
       'sync_complete': 'Synchronisation terminée',
       'sync_failed': 'Échec de la synchronisation',
@@ -1136,6 +1526,7 @@ class AppLocalizations {
       'will_sync_when_online': 'Sera synchronisé en ligne',
       'cache_management': 'Gestion du cache',
       'clear_cache': 'Vider le cache',
+      'online_now': 'En ligne maintenant',
 
       // Notifications
       'notifications': 'Notifications',
@@ -1175,6 +1566,7 @@ class AppLocalizations {
 
       // Trips
       'trips': 'Trajets',
+      'trips_management': 'Gestion des Trajets',
       'trip': 'Trajet',
       'trip_details': 'Détails du trajet',
       'create_trip': 'Créer un trajet',
@@ -1204,9 +1596,89 @@ class AppLocalizations {
       'active_trips': 'Trajets actifs',
       'live_tracking': 'Suivi en direct',
       'track_trip': 'Suivre le trajet',
+      'planned': 'Planifié',
+      'ongoing': 'En cours',
+      'draft': 'Brouillon',
+      'clear_filters': 'Effacer les filtres',
+      'create_new_trip': 'Créer un nouveau trajet',
+      'search_trip': 'Rechercher un trajet/chauffeur/véhicule...',
+      'no_trips_for_day': 'Aucun trajet prévu pour ce jour',
+      'no_results_matching': 'Aucun résultat correspondant',
+      'no_results_for_filters': 'Aucun résultat correspondant aux filtres',
+      'advanced_filters': 'Filtres avancés',
+      'trip_type': 'Type de trajet',
+      'with_driver': 'Avec chauffeur',
+      'with_vehicle': 'Avec véhicule',
+      'with_gps': 'Avec GPS',
+      'only_with_driver': 'Seulement les trajets avec un chauffeur',
+      'only_with_vehicle': 'Seulement les trajets avec un véhicule',
+      'only_with_gps': 'Seulement les trajets avec GPS',
+      'select_date': 'Sélectionner la date',
+      'companion': 'Accompagnateur',
+      'no_companion': 'Sans accompagnateur',
+      'status_and_time': 'Statut & Heure',
+      'driver_and_vehicle': 'Chauffeur & Véhicule',
+      'not_assigned': 'Non assigné',
+      'plate_number': "Numéro de plaque",
+      'started_actually': 'Commencé effectivement',
+      'ended_actually': 'Terminé effectivement',
+      'are_you_sure_start': 'Voulez-vous démarrer ce trajet maintenant?',
+      'are_you_sure_end': 'Voulez-vous terminer ce trajet?',
+      'are_you_sure_cancel':
+          'Êtes-vous sûr de vouloir annuler ce trajet? Cette action ne peut pas être annulée.',
+      'trip_started': 'Trajet démarré',
+      'trip_ended': 'Trajet terminé',
+      'trip_cancelled': 'Trajet annulé',
+      'failed_to_start': 'Échec du démarrage du trajet',
+      'failed_to_end': 'Échec de la fin du trajet',
+      'failed_to_cancel': "Échec de l'annulation du trajet",
+      'back_to_trips': 'Retour aux trajets',
+      'trip_not_found': 'Trajet non trouvé',
+      'generate_from_group': 'Depuis un groupe',
+      'manual_trip': 'Trajet manuel',
+      'generate_trips': 'Générer des trajets',
+      'generate_trips_from_group': 'Générer des trajets depuis un groupe',
+      'select_group_to_generate':
+          'Sélectionnez un groupe existant pour générer automatiquement des trajets basés sur ses horaires',
+      'create_manual_trip': 'Créer un trajet manuellement',
+      'create_manual_trip_desc':
+          'Spécifiez manuellement les détails du trajet sans dépendre d\'un horaire de groupe',
+      'basic_info': 'Informations de base',
+      'trip_name': 'Nom du trajet',
+      'trip_name_example': 'Exemple: Trajet du matin - Zone Nord',
+      'generation_options': 'Options de génération',
+      'weeks_to_generate': 'Semaines à générer',
+      'will_generate_trips': 'Générera des trajets pour',
+      'weeks_ahead': 'semaines à venir basés sur les horaires du groupe',
+      'week': 'semaine',
+      'generating': 'Génération...',
+      'creating': 'Création...',
+      'no_active_groups': 'Aucun groupe actif. Créez d\'abord un groupe.',
+      'no_drivers_available': 'Aucun chauffeur disponible',
+      'trips_generated_successfully': 'trajets générés avec succès',
+      'view_all_trips': 'Voir tous les trajets',
+      'generated_trips': 'Trajets générés',
+      'and_more': 'et',
+      'more_trips': 'trajets de plus...',
+      'no_trips_generated':
+          'Aucun trajet généré. Assurez-vous que le groupe a des horaires.',
+      'companion_optional': 'Accompagnateur (Optionnel)',
+      'select_companion': 'Sélectionner un accompagnateur',
+      'select_driver': 'Sélectionner le chauffeur',
+      'select_group': 'Sélectionner le groupe',
+      'select_vehicle': 'Sélectionner le véhicule',
+      'no_group': 'Aucun groupe',
+      'no_vehicle': 'Aucun véhicule',
+      'no_license_plate': 'Aucune plaque',
+      'please_select_driver': 'Veuillez sélectionner un chauffeur',
+      'failed_to_load_groups': 'Échec du chargement des groupes',
+      'error_creating_trip': 'Erreur lors de la création du trajet',
+      'cannot_access_trip_repository':
+          'Impossible d\'accéder au référentiel de trajets',
 
       // Passengers
       'passengers': 'Passagers',
+      'passengers_management': 'Gestion des Passagers',
       'passenger': 'Passager',
       'passenger_details': 'Détails du passager',
       'add_passenger': 'Ajouter un passager',
@@ -1223,9 +1695,41 @@ class AppLocalizations {
       'not_boarded': 'Non embarqué',
       'absent': 'Absent',
       'present': 'Présent',
+      'all_passengers': 'Tous les passagers',
+      'unassigned': 'Non assignés',
+      'by_groups': 'Par groupes',
+      'distribution_board': 'Tableau de distribution',
+      'search_all_passengers': 'Rechercher tous les passagers...',
+      'search_unassigned': 'Rechercher non assignés...',
+      'search_group': 'Rechercher un groupe...',
+      'quick_search_board': 'Recherche rapide dans le tableau...',
+      'add_new_passenger': 'Ajouter un nouveau passager',
+      'no_matching_results': 'Aucun résultat correspondant',
+      'no_passengers_in_system': 'Aucun passager dans le système.',
+      'all_assigned_to_groups':
+          'Tous les passagers actuels sont assignés à des groupes.',
+      'create_group_first':
+          "Créez d'abord un groupe puis ajoutez des passagers.",
+      'move_to_group': 'Déplacer vers un groupe',
+      'move': 'Déplacer',
+      'assign': 'Assigner',
+      'empty': 'Vide',
+      'pickup': 'Embarquement',
+      'dropoff': 'Débarquement',
+      'edit_profile': 'Modifier le profil',
+      'change_location': 'Changer l\'emplacement',
+      'mark_absent': 'Marquer absent',
+      'cannot_connect_server': 'Impossible de se connecter au serveur',
+      'absence_recorded': 'Absence enregistrée pour',
+      'in': 'dans',
+      'absence_failed': 'Échec de l\'enregistrement de l\'absence',
+      'father': 'Père',
+      'mother': 'Mère',
+      'no_groups_available': 'Aucun groupe disponible',
 
       // Vehicles
       'vehicles': 'Véhicules',
+      'vehicles_management': 'Gestion des Véhicules',
       'vehicle': 'Véhicule',
       'vehicle_details': 'Détails du véhicule',
       'add_vehicle': 'Ajouter un véhicule',
@@ -1243,6 +1747,7 @@ class AppLocalizations {
 
       // Groups
       'groups': 'Groupes',
+      'groups_management': 'Gestion des Groupes',
       'group': 'Groupe',
       'group_details': 'Détails du groupe',
       'create_group': 'Créer un groupe',
@@ -1254,6 +1759,30 @@ class AppLocalizations {
       'no_groups': 'Aucun groupe',
       'schedules': 'Horaires',
       'schedule': 'Horaire',
+      'new_group': 'Nouveau groupe',
+      'search_group_hint': 'Rechercher un groupe...',
+      'active_only': 'Actifs seulement',
+      'with_destination': 'Avec destination',
+      'linked_to_driver': 'Lié à un chauffeur',
+      'linked_to_vehicle': 'Lié à un véhicule',
+      'has_destination': 'A une destination',
+      'group_filters': 'Filtres de groupes',
+      'showing_of': 'Affichage de',
+      'of_text': 'sur',
+      'no_groups_found': 'Aucun groupe trouvé',
+      'no_matching_search': 'Aucun résultat correspondant à la recherche',
+      'no_groups_created': 'Aucun groupe créé pour le moment',
+      'generate_trip': 'Générer un trajet',
+      'manage_schedules': 'Gérer les horaires',
+      'view_passengers': 'Voir les passagers',
+      'delete_group': 'Supprimer le groupe',
+      'delete_group_title': 'Supprimer le groupe',
+      'delete_group_confirm':
+          'Êtes-vous sûr de vouloir supprimer le groupe "{name}"?\n\nCette action ne peut pas être annulée.',
+      'group_deleted': 'Groupe "{name}" supprimé avec succès',
+      'failed_to_delete_group': 'Échec de la suppression du groupe, réessayez',
+      'passenger_singular': 'passager',
+      'both_pickup_dropoff': 'Embarquement & Débarquement',
 
       // Stops
       'stops': 'Arrêts',
@@ -1321,6 +1850,17 @@ class AppLocalizations {
       'afternoon': 'Après-midi',
       'evening': 'Soir',
       'night': 'Nuit',
+      'monday': 'Lundi',
+      'tuesday': 'Mardi',
+      'wednesday': 'Mercredi',
+      'thursday': 'Jeudi',
+      'friday': 'Vendredi',
+      'saturday': 'Samedi',
+      'sunday': 'Dimanche',
+      'per_trip': 'Par trajet',
+      'monthly': 'Mensuel',
+      'per_term': 'Par trimestre',
+      'billing_cycle': 'Cycle de facturation',
 
       // Holidays
       'holidays': 'Vacances',
@@ -1400,8 +1940,10 @@ class AppLocalizations {
       'onboarding_title_1': 'Suivez vos trajets',
       'onboarding_title_2': 'Mises à jour en temps réel',
       'onboarding_title_3': 'Sûr et fiable',
-      'onboarding_desc_1': 'Surveillez toutes vos activités de transport en un seul endroit',
-      'onboarding_desc_2': 'Recevez des notifications instantanées sur le statut du trajet',
+      'onboarding_desc_1':
+          'Surveillez toutes vos activités de transport en un seul endroit',
+      'onboarding_desc_2':
+          'Recevez des notifications instantanées sur le statut du trajet',
       'onboarding_desc_3': 'Assurez un transport sécurisé pour tous',
 
       // Validation
@@ -1531,6 +2073,8 @@ class AppLocalizations {
   String get phone => translate('phone');
   String get address => translate('address');
   String get location => translate('location');
+  String get header => translate('header');
+  String get footer => translate('footer');
 
   // Auth
   String get login => translate('login');
@@ -1596,6 +2140,7 @@ class AppLocalizations {
   String get online => translate('online');
   String get offlineMode => translate('offline_mode');
   String get sync => translate('sync');
+  String get synced => translate('synced');
   String get syncing => translate('syncing');
   String get syncComplete => translate('sync_complete');
   String get syncFailed => translate('sync_failed');
@@ -1608,6 +2153,7 @@ class AppLocalizations {
   String get willSyncWhenOnline => translate('will_sync_when_online');
   String get cacheManagement => translate('cache_management');
   String get clearCache => translate('clear_cache');
+  String get onlineNow => translate('online_now');
 
   // Notifications
   String get notifications => translate('notifications');
@@ -1647,6 +2193,7 @@ class AppLocalizations {
 
   // Trips
   String get trips => translate('trips');
+  String get tripsManagement => translate('trips_management');
   String get trip => translate('trip');
   String get tripDetails => translate('trip_details');
   String get createTrip => translate('create_trip');
@@ -1679,6 +2226,7 @@ class AppLocalizations {
 
   // Passengers
   String get passengers => translate('passengers');
+  String get passengersManagement => translate('passengers_management');
   String get passenger => translate('passenger');
   String get passengerDetails => translate('passenger_details');
   String get addPassenger => translate('add_passenger');
@@ -1695,9 +2243,39 @@ class AppLocalizations {
   String get notBoarded => translate('not_boarded');
   String get absent => translate('absent');
   String get present => translate('present');
+  String get allPassengers => translate('all_passengers');
+  String get unassigned => translate('unassigned');
+  String get byGroups => translate('by_groups');
+  String get distributionBoard => translate('distribution_board');
+  String get searchAllPassengers => translate('search_all_passengers');
+  String get searchUnassigned => translate('search_unassigned');
+  String get searchGroup => translate('search_group');
+  String get quickSearchBoard => translate('quick_search_board');
+  String get addNewPassenger => translate('add_new_passenger');
+  String get noMatchingResults => translate('no_matching_results');
+  String get noPassengersInSystem => translate('no_passengers_in_system');
+  String get allAssignedToGroups => translate('all_assigned_to_groups');
+  String get createGroupFirst => translate('create_group_first');
+  String get moveToGroup => translate('move_to_group');
+  String get move => translate('move');
+  String get assign => translate('assign');
+  String get empty => translate('empty');
+  String get pickup => translate('pickup');
+  String get dropoff => translate('dropoff');
+  String get editProfile => translate('edit_profile');
+  String get changeLocation => translate('change_location');
+  String get markAbsent => translate('mark_absent');
+  String get cannotConnectServer => translate('cannot_connect_server');
+  String get absenceRecorded => translate('absence_recorded');
+  String get inText => translate('in');
+  String get absenceFailed => translate('absence_failed');
+  String get father => translate('father');
+  String get mother => translate('mother');
+  String get noGroupsAvailable => translate('no_groups_available');
 
   // Vehicles
   String get vehicles => translate('vehicles');
+  String get vehiclesManagement => translate('vehicles_management');
   String get vehicle => translate('vehicle');
   String get vehicleDetails => translate('vehicle_details');
   String get addVehicle => translate('add_vehicle');
@@ -1715,6 +2293,7 @@ class AppLocalizations {
 
   // Groups
   String get groups => translate('groups');
+  String get groupsManagement => translate('groups_management');
   String get group => translate('group');
   String get groupDetails => translate('group_details');
   String get createGroup => translate('create_group');
@@ -1814,13 +2393,25 @@ class AppLocalizations {
   // Stats
   String get statistics => translate('statistics');
   String get stats => translate('stats');
+  String get todayStatistics => translate('today_statistics');
   String get totalTrips => translate('total_trips');
+  String get totalTripsToday => translate('total_trips_today');
   String get totalPassengers => translate('total_passengers');
   String get totalVehicles => translate('total_vehicles');
   String get totalDistance => translate('total_distance');
   String get average => translate('average');
   String get performance => translate('performance');
   String get efficiency => translate('efficiency');
+  String get fleetStatus => translate('fleet_status');
+  String get fleetUtilization => translate('fleet_utilization');
+  String get fleetInUse => translate('fleet_in_use');
+  String get activeVehicles => translate('active_vehicles');
+  String get activeDrivers => translate('active_drivers');
+  String get ongoingTrips => translate('ongoing_trips');
+  String get liveMonitoring => translate('live_monitoring');
+  String get activeTripsNow => translate('active_trips_now');
+  String get viewSyncStatus => translate('view_sync_status');
+  // Note: disconnected is already available from Offline & Sync section
 
   // Companies
   String get company => translate('company');
@@ -1896,6 +2487,134 @@ class AppLocalizations {
   String get customers => translate('customers');
   String get salesOverview => translate('sales_overview');
   String get ordersByStatus => translate('orders_by_status');
+
+  // Role Switcher
+  String get viewAs => translate('view_as');
+  String get original => translate('original');
+  String get originalRole => translate('original_role');
+  String get returnText => translate('return');
+  String get youAreViewingAs => translate('you_are_viewing_as');
+  String get switchedToView => translate('switched_to_view');
+  String get returnedToView => translate('returned_to_view');
+  String get switchRole => translate('switch_role');
+
+  // Additional Trip Getters
+  String get planned => translate('planned');
+  String get ongoing => translate('ongoing');
+  String get draft => translate('draft');
+  String get clearFilters => translate('clear_filters');
+  String get createNewTrip => translate('create_new_trip');
+  String get searchTrip => translate('search_trip');
+  String get noTripsForDay => translate('no_trips_for_day');
+  String get noResultsMatching => translate('no_results_matching');
+  String get noResultsForFilters => translate('no_results_for_filters');
+  String get advancedFilters => translate('advanced_filters');
+  String get tripType => translate('trip_type');
+  String get withDriver => translate('with_driver');
+  String get withVehicle => translate('with_vehicle');
+  String get withGps => translate('with_gps');
+  String get onlyWithDriver => translate('only_with_driver');
+  String get onlyWithVehicle => translate('only_with_vehicle');
+  String get onlyWithGps => translate('only_with_gps');
+  String get selectDate => translate('select_date');
+  String get companion => translate('companion');
+  String get noCompanion => translate('no_companion');
+  String get statusAndTime => translate('status_and_time');
+  String get driverAndVehicle => translate('driver_and_vehicle');
+  String get notAssigned => translate('not_assigned');
+  String get plateNumber => translate('plate_number');
+  String get startedActually => translate('started_actually');
+  String get endedActually => translate('ended_actually');
+  String get areYouSureStart => translate('are_you_sure_start');
+  String get areYouSureEnd => translate('are_you_sure_end');
+  String get areYouSureCancel => translate('are_you_sure_cancel');
+  String get tripStarted => translate('trip_started');
+  String get tripEnded => translate('trip_ended');
+  String get tripCancelled => translate('trip_cancelled');
+  String get failedToStart => translate('failed_to_start');
+  String get failedToEnd => translate('failed_to_end');
+  String get failedToCancel => translate('failed_to_cancel');
+  String get backToTrips => translate('back_to_trips');
+  String get tripNotFound => translate('trip_not_found');
+  String get generateFromGroup => translate('generate_from_group');
+  String get manualTrip => translate('manual_trip');
+  String get generateTrips => translate('generate_trips');
+  String get generateTripsFromGroup => translate('generate_trips_from_group');
+  String get selectGroupToGenerate => translate('select_group_to_generate');
+  String get createManualTrip => translate('create_manual_trip');
+  String get createManualTripDesc => translate('create_manual_trip_desc');
+  String get basicInfo => translate('basic_info');
+  String get tripName => translate('trip_name');
+  String get tripNameExample => translate('trip_name_example');
+  String get generationOptions => translate('generation_options');
+  String get weeksToGenerate => translate('weeks_to_generate');
+  String get willGenerateTrips => translate('will_generate_trips');
+  String get weeksAhead => translate('weeks_ahead');
+  String get week => translate('week');
+  String get generating => translate('generating');
+  String get creating => translate('creating');
+  String get noActiveGroups => translate('no_active_groups');
+  String get noDriversAvailable => translate('no_drivers_available');
+  String get tripsGeneratedSuccessfully =>
+      translate('trips_generated_successfully');
+  String get viewAllTrips => translate('view_all_trips');
+  String get generatedTrips => translate('generated_trips');
+  String get andMore => translate('and_more');
+  String get moreTrips => translate('more_trips');
+  String get noTripsGenerated => translate('no_trips_generated');
+  String get companionOptional => translate('companion_optional');
+  String get selectCompanion => translate('select_companion');
+  String get selectDriver => translate('select_driver');
+  String get selectGroup => translate('select_group');
+  String get selectVehicle => translate('select_vehicle');
+  String get noGroup => translate('no_group');
+  String get noVehicle => translate('no_vehicle');
+  String get noLicensePlate => translate('no_license_plate');
+  String get pleaseSelectDriver => translate('please_select_driver');
+  String get failedToLoadGroups => translate('failed_to_load_groups');
+  String get errorCreatingTrip => translate('error_creating_trip');
+  String get cannotAccessTripRepository =>
+      translate('cannot_access_trip_repository');
+
+  // Additional Group Getters
+  String get newGroup => translate('new_group');
+  String get searchGroupHint => translate('search_group_hint');
+  String get activeOnly => translate('active_only');
+  String get withDestination => translate('with_destination');
+  String get linkedToDriver => translate('linked_to_driver');
+  String get linkedToVehicle => translate('linked_to_vehicle');
+  String get hasDestination => translate('has_destination');
+  String get groupFilters => translate('group_filters');
+  String get showingOf => translate('showing_of');
+  String get ofText => translate('of_text');
+  String get noGroupsFound => translate('no_groups_found');
+  String get noMatchingSearch => translate('no_matching_search');
+  String get noGroupsCreated => translate('no_groups_created');
+  String get generateTrip => translate('generate_trip');
+  String get manageSchedules => translate('manage_schedules');
+  String get viewPassengers => translate('view_passengers');
+  String get deleteGroup => translate('delete_group');
+  String get deleteGroupTitle => translate('delete_group_title');
+  String get deleteGroupConfirm => translate('delete_group_confirm');
+  String get groupDeleted => translate('group_deleted');
+  String get failedToDeleteGroup => translate('failed_to_delete_group');
+  String get passengerSingular => translate('passenger_singular');
+  String get bothPickupDropoff => translate('both_pickup_dropoff');
+
+  // Weekdays
+  String get monday => translate('monday');
+  String get tuesday => translate('tuesday');
+  String get wednesday => translate('wednesday');
+  String get thursday => translate('thursday');
+  String get friday => translate('friday');
+  String get saturday => translate('saturday');
+  String get sunday => translate('sunday');
+
+  // Billing
+  String get perTrip => translate('per_trip');
+  String get monthly => translate('monthly');
+  String get perTerm => translate('per_term');
+  String get billingCycle => translate('billing_cycle');
 }
 
 /// Localization delegate

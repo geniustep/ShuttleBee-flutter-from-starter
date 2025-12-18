@@ -8,6 +8,8 @@ import '../core/storage/hive_service.dart';
 import '../core/storage/prefs_service.dart';
 import '../core/storage/secure_storage_service.dart';
 import '../core/services/vehicle_heartbeat_background_service.dart';
+import '../core/utils/formatters.dart';
+import '../core/constants/storage_keys.dart';
 
 /// Handles all app initialization tasks
 class AppInitializer {
@@ -23,6 +25,9 @@ class AppInitializer {
 
       // Register Hive adapters
       await _registerHiveAdapters();
+
+      // Initialize format preferences
+      await _initializeFormatPreferences();
 
       // Initialize BridgeCore client
       await _initializeBridgeCoreClient();
@@ -62,6 +67,55 @@ class AppInitializer {
     // Example: Hive.registerAdapter(UserAdapter());
 
     _logger.d('Hive adapters registered');
+  }
+
+  /// Initialize format preferences for numbers and dates
+  static Future<void> _initializeFormatPreferences() async {
+    _logger.d('Initializing format preferences...');
+
+    final prefs = PrefsService();
+
+    // Load locale preference
+    final locale = prefs.getString(StorageKeys.languageCode) ?? 'en';
+    Formatters.setLocale(locale);
+
+    // Load Arabic numerals preference (only valid for Arabic locale)
+    var useArabicNumerals =
+        prefs.getBool(StorageKeys.useArabicNumerals) ?? false;
+
+    // Force disable Arabic numerals if not using Arabic language
+    if (locale != 'ar' && useArabicNumerals) {
+      useArabicNumerals = false;
+      await prefs.setBool(StorageKeys.useArabicNumerals, false);
+      _logger.d('Arabic numerals disabled (non-Arabic locale)');
+    }
+
+    Formatters.setNumeralPreference(useArabicNumerals);
+
+    // Load date format preference
+    final dateFormatStr = prefs.getString(StorageKeys.dateFormat);
+    final dateFormat = _stringToDateFormat(dateFormatStr);
+    Formatters.setDateFormatPreference(dateFormat);
+
+    _logger.d(
+      'Format preferences initialized (Locale: $locale, Arabic numerals: $useArabicNumerals, Date format: $dateFormatStr)',
+    );
+  }
+
+  /// Convert string to DateFormatType
+  static DateFormatType _stringToDateFormat(String? value) {
+    switch (value) {
+      case 'short':
+        return DateFormatType.short;
+      case 'medium':
+        return DateFormatType.medium;
+      case 'long':
+        return DateFormatType.long;
+      case 'full':
+        return DateFormatType.full;
+      default:
+        return DateFormatType.medium;
+    }
   }
 
   /// Initialize BridgeCore client

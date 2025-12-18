@@ -41,13 +41,17 @@ class App extends ConsumerWidget {
           GlobalCupertinoLocalizations.delegate,
         ],
 
-        // Builder for global overlays
+        // Builder for global overlays and RTL support
         builder: (context, child) {
+          final isRtl = locale.languageCode == 'ar';
           return MediaQuery(
             data: MediaQuery.of(context).copyWith(
               textScaler: TextScaler.noScaling,
             ),
-            child: child ?? const SizedBox.shrink(),
+            child: Directionality(
+              textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+              child: child ?? const SizedBox.shrink(),
+            ),
           );
         },
       ),

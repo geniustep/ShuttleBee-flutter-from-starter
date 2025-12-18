@@ -357,6 +357,9 @@ class GroupRemoteDataSource {
     'name',
     'code',
     'driver_id',
+    'companion_id', // NEW: المرافق
+    'dispatcher_id', // NEW: منشئ المجموعة
+    'dispatcher_group_ids', // NEW: قائمة Dispatchers المصرح لهم
     'vehicle_id',
     'total_seats',
     'trip_type',

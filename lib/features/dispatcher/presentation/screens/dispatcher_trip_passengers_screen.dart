@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/enums/enums.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/loading/shimmer_loading.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../trips/domain/entities/trip.dart';
@@ -253,23 +254,33 @@ class _DispatcherTripPassengersScreenState
       onRefresh: () async {
         ref.invalidate(tripDetailProvider(widget.tripId));
       },
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        itemCount: filtered.length + 1,
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return _buildSummaryCard(
-              trip: trip,
-              filteredCount: filtered.length,
-              occupiedSeats: occupiedSeats,
-            );
-          }
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 600;
+          return ListView.builder(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              12,
+              16,
+              isMobile ? 96 : 16, // مساحة إضافية للـ FAB على الهاتف
+            ),
+            itemCount: filtered.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return _buildSummaryCard(
+                  trip: trip,
+                  filteredCount: filtered.length,
+                  occupiedSeats: occupiedSeats,
+                );
+              }
 
-          final line = filtered[index - 1];
-          return _buildPassengerCard(
-            context,
-            trip: trip,
-            line: line,
+              final line = filtered[index - 1];
+              return _buildPassengerCard(
+                context,
+                trip: trip,
+                line: line,
+              );
+            },
           );
         },
       ),
@@ -339,7 +350,7 @@ class _DispatcherTripPassengersScreenState
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      trip.tripType.arabicLabel,
+                      trip.tripType.getLocalizedLabel(context),
                       style: TextStyle(
                         fontSize: 12,
                         fontFamily: 'Cairo',
@@ -357,7 +368,8 @@ class _DispatcherTripPassengersScreenState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _stat(Icons.people_rounded, 'الركّاب', '${trip.totalPassengers}'),
+              _stat(Icons.people_rounded, 'الركّاب',
+                  Formatters.formatSimple(trip.totalPassengers)),
               Container(
                 width: 1,
                 height: 40,
@@ -366,7 +378,7 @@ class _DispatcherTripPassengersScreenState
               _stat(
                 Icons.event_seat_rounded,
                 'مقاعد المركبة',
-                vehicleSeats > 0 ? '$vehicleSeats' : '-',
+                vehicleSeats > 0 ? Formatters.formatSimple(vehicleSeats) : '-',
               ),
               Container(
                 width: 1,
@@ -378,7 +390,9 @@ class _DispatcherTripPassengersScreenState
                     ? Icons.warning_rounded
                     : Icons.chair_alt_rounded,
                 'المتاح',
-                vehicleSeats > 0 ? '$availableSeats' : '-',
+                vehicleSeats > 0
+                    ? Formatters.formatSimple(availableSeats)
+                    : '-',
                 valueColor: isOverCapacity
                     ? const Color(0xFFFFCDD2)
                     : const Color(0xFFC8E6C9),
@@ -604,7 +618,7 @@ class _DispatcherTripPassengersScreenState
                           children: [
                             _chip(
                               icon: _getStatusIcon(line.status),
-                              label: line.status.arabicLabel,
+                              label: line.status.getLocalizedLabel(context),
                               color: line.status.color,
                             ),
                             _chip(
@@ -753,9 +767,10 @@ class _DispatcherTripPassengersScreenState
               children: [
                 Icon(Icons.person_remove_alt_1_rounded, color: AppColors.error),
                 SizedBox(width: 10),
-                Text('إزالة من الرحلة',
-                    style:
-                        TextStyle(fontFamily: 'Cairo', color: AppColors.error)),
+                Text(
+                  'إزالة من الرحلة',
+                  style: TextStyle(fontFamily: 'Cairo', color: AppColors.error),
+                ),
               ],
             ),
           ),
@@ -1055,10 +1070,20 @@ class _DispatcherTripPassengersScreenState
   }
 
   Widget _buildLoadingState() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 6,
-      itemBuilder: (_, __) => const ShimmerCard(height: 120),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+        return ListView.builder(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            isMobile ? 96 : 16, // مساحة إضافية للـ FAB على الهاتف
+          ),
+          itemCount: 6,
+          itemBuilder: (_, __) => const ShimmerCard(height: 120),
+        );
+      },
     );
   }
 
@@ -1069,8 +1094,11 @@ class _DispatcherTripPassengersScreenState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                size: 64, color: AppColors.error),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 64,
+              color: AppColors.error,
+            ),
             const SizedBox(height: 12),
             Text(
               error,
@@ -1083,8 +1111,10 @@ class _DispatcherTripPassengersScreenState
                 ref.invalidate(tripDetailProvider(widget.tripId));
               },
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('إعادة المحاولة',
-                  style: TextStyle(fontFamily: 'Cairo')),
+              label: const Text(
+                'إعادة المحاولة',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
             ),
           ],
         ),
@@ -1116,8 +1146,10 @@ class _DispatcherTripPassengersScreenState
             onPressed: () {
               context.go('${RoutePaths.dispatcherHome}/trips');
             },
-            child: const Text('العودة للرحلات',
-                style: TextStyle(fontFamily: 'Cairo')),
+            child: const Text(
+              'العودة للرحلات',
+              style: TextStyle(fontFamily: 'Cairo'),
+            ),
           ),
         ],
       ),

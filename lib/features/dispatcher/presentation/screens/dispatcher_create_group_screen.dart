@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/common/desktop_sidebar_wrapper.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../groups/domain/entities/passenger_group.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
@@ -42,6 +44,9 @@ class _DispatcherCreateGroupScreenState
   int? _selectedVehicleId;
   int? _selectedDriverId;
   String? _selectedDriverName;
+  int? _selectedCompanionId; // NEW: المرافق
+  String? _selectedCompanionName; // NEW: اسم المرافق
+  List<int> _selectedDispatcherIds = []; // NEW: قائمة Dispatchers المصرح لهم
 
   bool _useCompanyDestination = true;
   int? _selectedDestinationStopId;
@@ -65,6 +70,10 @@ class _DispatcherCreateGroupScreenState
     _selectedVehicleId = group.vehicleId;
     _selectedDriverId = group.driverId;
     _selectedDriverName = group.driverName;
+    _selectedCompanionId = group.companionId; // NEW: المرافق
+    _selectedCompanionName = group.companionName; // NEW: اسم المرافق
+    _selectedDispatcherIds =
+        List.from(group.dispatcherGroupIds); // NEW: قائمة Dispatchers
 
     _useCompanyDestination = group.useCompanyDestination;
     _selectedDestinationStopId =
@@ -85,14 +94,15 @@ class _DispatcherCreateGroupScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final vehiclesAsync = ref.watch(allVehiclesProvider);
     final dropoffStopsAsync = ref.watch(dropoffStopsProvider);
     final isEditMode = widget.initialGroup != null;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+    return DesktopScaffoldWithSidebar(
+      backgroundColor: AppColors.dispatcherBackground,
       appBar: DispatcherAppBar(
-        title: isEditMode ? 'تعديل المجموعة' : 'إنشاء مجموعة جديدة',
+        title: isEditMode ? l10n.editGroup : l10n.createGroup,
       ),
       body: Form(
         key: _formKey,
@@ -101,46 +111,84 @@ class _DispatcherCreateGroupScreenState
           children: [
             // Basic Info Section
             _buildSectionHeader(
-              'المعلومات الأساسية',
+              l10n.locale.languageCode == 'ar'
+                  ? 'المعلومات الأساسية'
+                  : l10n.details,
               Icons.info_outline_rounded,
             ),
             const SizedBox(height: 12),
-            _buildBasicInfoCard(),
+            _buildBasicInfoCard(l10n),
 
             const SizedBox(height: 24),
 
             // Trip Type Section
-            _buildSectionHeader('نوع الرحلة', Icons.route_rounded),
+            _buildSectionHeader(
+              l10n.locale.languageCode == 'ar' ? 'نوع الرحلة' : l10n.route,
+              Icons.route_rounded,
+            ),
             const SizedBox(height: 12),
-            _buildTripTypeCard(),
+            _buildTripTypeCard(l10n),
 
             const SizedBox(height: 24),
 
             // Destination Section
-            _buildSectionHeader('الوجهة', Icons.flag_rounded),
+            _buildSectionHeader(
+              l10n.locale.languageCode == 'ar' ? 'الوجهة' : l10n.arrival,
+              Icons.flag_rounded,
+            ),
             const SizedBox(height: 12),
-            _buildDestinationCard(dropoffStopsAsync),
+            _buildDestinationCard(dropoffStopsAsync, l10n),
 
             const SizedBox(height: 24),
 
             // Vehicle Section
-            _buildSectionHeader('المركبة', Icons.directions_bus_rounded),
+            _buildSectionHeader(
+              l10n.locale.languageCode == 'ar' ? 'المركبة' : l10n.vehicle,
+              Icons.directions_bus_rounded,
+            ),
             const SizedBox(height: 12),
-            _buildVehicleCard(vehiclesAsync),
+            _buildVehicleCard(vehiclesAsync, l10n),
 
             const SizedBox(height: 24),
 
-            // Schedule Section
-            _buildSectionHeader('الجدولة التلقائية', Icons.schedule_rounded),
+            // NEW: Companion Section
+            _buildSectionHeader(
+              'المرافق / Companion',
+              Icons.person_add_alt_rounded,
+            ),
             const SizedBox(height: 12),
-            _buildScheduleCard(),
+            _buildCompanionCard(l10n),
+
+            const SizedBox(height: 24),
+
+            // NEW: Dispatcher Access Section (Managers only)
+            if (ref.watch(authStateProvider).asData?.value.user?.isAdmin ??
+                false) ...[
+              _buildSectionHeader(
+                'صلاحيات Dispatcher',
+                Icons.admin_panel_settings_rounded,
+              ),
+              const SizedBox(height: 12),
+              _buildDispatcherAccessCard(l10n),
+              const SizedBox(height: 24),
+            ],
+
+            // Schedule Section
+            _buildSectionHeader(
+              l10n.locale.languageCode == 'ar'
+                  ? 'الجدولة التلقائية'
+                  : l10n.schedule,
+              Icons.schedule_rounded,
+            ),
+            const SizedBox(height: 12),
+            _buildScheduleCard(l10n),
 
             const SizedBox(height: 24),
 
             // Notes Section
-            _buildSectionHeader('ملاحظات', Icons.notes_rounded),
+            _buildSectionHeader(l10n.notes, Icons.notes_rounded),
             const SizedBox(height: 12),
-            _buildNotesCard(),
+            _buildNotesCard(l10n),
 
             const SizedBox(height: 32),
 
@@ -172,7 +220,7 @@ class _DispatcherCreateGroupScreenState
     ).animate().fadeIn(duration: 300.ms);
   }
 
-  Widget _buildBasicInfoCard() {
+  Widget _buildBasicInfoCard(AppLocalizations l10n) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -184,13 +232,17 @@ class _DispatcherCreateGroupScreenState
             TextFormField(
               controller: _nameController,
               decoration: _buildInputDecoration(
-                label: 'اسم المجموعة',
-                hint: 'مثال: مجموعة الصباح - المنطقة الشمالية',
+                label: l10n.groupName,
+                hint: l10n.locale.languageCode == 'ar'
+                    ? 'مثال: مجموعة الصباح - المنطقة الشمالية'
+                    : 'Example: Morning Group - North Area',
                 icon: Icons.group_rounded,
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'يرجى إدخال اسم المجموعة';
+                  return l10n.locale.languageCode == 'ar'
+                      ? 'يرجى إدخال اسم المجموعة'
+                      : 'Please enter group name';
                 }
                 return null;
               },
@@ -235,7 +287,7 @@ class _DispatcherCreateGroupScreenState
     ).animate().fadeIn(duration: 300.ms, delay: 100.ms);
   }
 
-  Widget _buildTripTypeCard() {
+  Widget _buildTripTypeCard(AppLocalizations l10n) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -316,7 +368,8 @@ class _DispatcherCreateGroupScreenState
     ).animate().fadeIn(duration: 300.ms, delay: 200.ms);
   }
 
-  Widget _buildVehicleCard(AsyncValue<List<ShuttleVehicle>> vehiclesAsync) {
+  Widget _buildVehicleCard(
+      AsyncValue<List<ShuttleVehicle>> vehiclesAsync, AppLocalizations l10n) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -429,7 +482,7 @@ class _DispatcherCreateGroupScreenState
   }
 
   Widget _buildDestinationCard(
-      AsyncValue<List<ShuttleStop>> dropoffStopsAsync) {
+      AsyncValue<List<ShuttleStop>> dropoffStopsAsync, AppLocalizations l10n) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -526,7 +579,7 @@ class _DispatcherCreateGroupScreenState
     ).animate().fadeIn(duration: 300.ms, delay: 250.ms);
   }
 
-  Widget _buildScheduleCard() {
+  Widget _buildScheduleCard(AppLocalizations l10n) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -608,7 +661,7 @@ class _DispatcherCreateGroupScreenState
     ).animate().fadeIn(duration: 300.ms, delay: 500.ms);
   }
 
-  Widget _buildNotesCard() {
+  Widget _buildNotesCard(AppLocalizations l10n) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -762,6 +815,12 @@ class _DispatcherCreateGroupScreenState
               : null,
           driverId: _selectedDriverId,
           driverName: _selectedDriverName,
+          companionId: _selectedCompanionId, // NEW: المرافق
+          companionName: _selectedCompanionName, // NEW: اسم المرافق
+          dispatcherId: existing.dispatcherId, // readonly
+          dispatcherName: existing.dispatcherName, // readonly
+          dispatcherGroupIds:
+              _selectedDispatcherIds, // NEW: قائمة Dispatchers المصرح لهم
           vehicleId: _selectedVehicleId,
           vehicleName: existing.vehicleName,
           totalSeats: int.parse(_totalSeatsController.text),
@@ -832,6 +891,9 @@ class _DispatcherCreateGroupScreenState
             ? _codeController.text.trim()
             : null,
         driverId: _selectedDriverId,
+        companionId: _selectedCompanionId, // NEW: المرافق
+        dispatcherGroupIds:
+            _selectedDispatcherIds, // NEW: قائمة Dispatchers المصرح لهم
         vehicleId: _selectedVehicleId,
         totalSeats: int.parse(_totalSeatsController.text),
         tripType: _tripType,
@@ -966,6 +1028,213 @@ class _DispatcherCreateGroupScreenState
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  /// NEW: Build Companion Selector Card
+  Widget _buildCompanionCard(AppLocalizations l10n) {
+    final usersAsync = ref.watch(driversAndCompanionsProvider);
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: usersAsync.when(
+          data: (users) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'اختر المرافق (اختياري)',
+                  style: TextStyle(
+                    fontFamily: 'Cairo',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int>(
+                  value: _selectedCompanionId,
+                  decoration: _buildInputDecoration(
+                    label: 'المرافق',
+                    hint: 'اختر المرافق',
+                    icon: Icons.person_add_alt_rounded,
+                  ),
+                  items: [
+                    const DropdownMenuItem<int>(
+                      value: null,
+                      child: Text(
+                        'بدون مرافق',
+                        style:
+                            TextStyle(fontFamily: 'Cairo', color: Colors.grey),
+                      ),
+                    ),
+                    ...users.map((user) {
+                      return DropdownMenuItem<int>(
+                        value: user.id,
+                        child: Text(
+                          '${user.name}${user.email != null ? ' (${user.email})' : ''}',
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
+                      );
+                    }),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedCompanionId = value;
+                      if (value != null) {
+                        final selected = users.firstWhere((u) => u.id == value);
+                        _selectedCompanionName = selected.name;
+                      } else {
+                        _selectedCompanionName = null;
+                      }
+                    });
+                  },
+                ),
+                if (_selectedCompanionId != null) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: AppColors.info,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'المرافق لديه نفس صلاحيات السائق: يرى الرحلات ويحدث حالة الركاب',
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            );
+          },
+          loading: () => const Center(
+            child: CircularProgressIndicator(),
+          ),
+          error: (_, __) => const Text(
+            'فشل في تحميل المستخدمين',
+            style: TextStyle(fontFamily: 'Cairo', color: AppColors.error),
+          ),
+        ),
+      ),
+    ).animate().fadeIn(duration: 300.ms, delay: 350.ms);
+  }
+
+  /// NEW: Build Dispatcher Access Card (Managers only)
+  Widget _buildDispatcherAccessCard(AppLocalizations l10n) {
+    final dispatchersAsync = ref.watch(dispatchersProvider);
+    final currentGroup = widget.initialGroup;
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'صلاحيات Dispatcher',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'حدد المستخدمين (Dispatchers) الذين يمكنهم الوصول لهذه المجموعة',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            if (currentGroup?.dispatcherId != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.info.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.info.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.person_outline,
+                      size: 18,
+                      color: AppColors.info,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'منشئ المجموعة: ${currentGroup?.dispatcherName ?? 'ID: ${currentGroup?.dispatcherId}'}',
+                        style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 12,
+                          color: AppColors.info,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            dispatchersAsync.when(
+              data: (dispatchers) {
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: dispatchers.map((dispatcher) {
+                    final isSelected =
+                        _selectedDispatcherIds.contains(dispatcher.id);
+                    return FilterChip(
+                      label: Text(
+                        dispatcher.name,
+                        style: const TextStyle(fontFamily: 'Cairo'),
+                      ),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedDispatcherIds.add(dispatcher.id);
+                          } else {
+                            _selectedDispatcherIds.remove(dispatcher.id);
+                          }
+                        });
+                      },
+                      selectedColor:
+                          AppColors.dispatcherPrimary.withValues(alpha: 0.2),
+                      checkmarkColor: AppColors.dispatcherPrimary,
+                    );
+                  }).toList(),
+                );
+              },
+              loading: () => const Center(
+                child: CircularProgressIndicator(),
+              ),
+              error: (_, __) => const Text(
+                'فشل في تحميل قائمة Dispatchers',
+                style: TextStyle(fontFamily: 'Cairo', color: AppColors.error),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(duration: 300.ms, delay: 400.ms);
   }
 
   Future<void> _invalidateDispatcherGroupsCache() async {

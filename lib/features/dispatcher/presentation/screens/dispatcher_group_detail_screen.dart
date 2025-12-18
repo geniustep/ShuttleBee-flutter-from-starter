@@ -6,6 +6,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../core/enums/enums.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/common/desktop_sidebar_wrapper.dart';
 import '../../../../shared/widgets/loading/shimmer_loading.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../groups/domain/entities/passenger_group.dart';
@@ -33,8 +37,8 @@ class _DispatcherGroupDetailScreenState
   Widget build(BuildContext context) {
     final groupAsync = ref.watch(groupByIdProvider(widget.groupId));
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+    return DesktopScaffoldWithSidebar(
+      backgroundColor: AppColors.dispatcherBackground,
       appBar: DispatcherAppBar(
         title: 'تفاصيل المجموعة',
         actions: [
@@ -96,6 +100,13 @@ class _DispatcherGroupDetailScreenState
           // Driver & Vehicle Card
           _buildDriverVehicleCard(group),
           const SizedBox(height: 16),
+
+          // NEW: Dispatcher Access Card (if user is manager or has dispatcher info)
+          if (ref.watch(authStateProvider).asData?.value.user?.isAdmin ??
+              false) ...[
+            _buildDispatcherAccessCard(group),
+            const SizedBox(height: 16),
+          ],
 
           // Destination Card
           if (group.hasDestination) ...[
@@ -237,7 +248,7 @@ class _DispatcherGroupDetailScreenState
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  group.tripType.arabicLabel,
+                  group.tripType.getLocalizedLabel(context),
                   style: TextStyle(
                     fontSize: 14,
                     fontFamily: 'Cairo',
@@ -252,7 +263,7 @@ class _DispatcherGroupDetailScreenState
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '${group.memberCount} راكب',
+                  '${Formatters.formatSimple(group.memberCount)} ${AppLocalizations.of(context).passengerSingular}',
                   style: TextStyle(
                     fontSize: 14,
                     fontFamily: 'Cairo',
@@ -276,14 +287,14 @@ class _DispatcherGroupDetailScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.info_outline_rounded,
                   color: AppColors.dispatcherPrimary,
                 ),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'المعلومات الأساسية',
                   style: TextStyle(
                     fontSize: 16,
@@ -297,19 +308,19 @@ class _DispatcherGroupDetailScreenState
             _buildDetailRow(
               icon: Icons.people_rounded,
               label: 'عدد الركاب',
-              value: '${group.memberCount}',
+              value: Formatters.formatSimple(group.memberCount),
             ),
             const SizedBox(height: 12),
             _buildDetailRow(
               icon: Icons.event_seat_rounded,
               label: 'إجمالي المقاعد',
-              value: '${group.totalSeats}',
+              value: Formatters.formatSimple(group.totalSeats),
             ),
             const SizedBox(height: 12),
             _buildDetailRow(
               icon: Icons.swap_horiz_rounded,
-              label: 'نوع الرحلة',
-              value: group.tripType.arabicLabel,
+              label: AppLocalizations.of(context).tripType,
+              value: group.tripType.getLocalizedLabel(context),
             ),
             if (group.companyName != null) ...[
               const SizedBox(height: 12),
@@ -334,14 +345,14 @@ class _DispatcherGroupDetailScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.directions_bus_rounded,
                   color: AppColors.dispatcherPrimary,
                 ),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'السائق والمركبة',
                   style: TextStyle(
                     fontSize: 16,
@@ -358,6 +369,15 @@ class _DispatcherGroupDetailScreenState
               value: group.driverName ?? 'لم يتم التعيين',
               isWarning: !group.hasDriver,
             ),
+            // NEW: عرض المرافق إذا كان موجوداً
+            if (group.companionName != null) ...[
+              const SizedBox(height: 12),
+              _buildDetailRow(
+                icon: Icons.person_add_alt_rounded,
+                label: 'المرافق',
+                value: group.companionName!,
+              ),
+            ],
             const SizedBox(height: 12),
             _buildDetailRow(
               icon: Icons.directions_bus_rounded,
@@ -369,7 +389,7 @@ class _DispatcherGroupDetailScreenState
             _buildDetailRow(
               icon: Icons.event_seat_rounded,
               label: 'سعة المركبة',
-              value: '${group.totalSeats} مقعد',
+              value: '${Formatters.formatSimple(group.totalSeats)} مقعد',
             ),
           ],
         ),
@@ -386,14 +406,14 @@ class _DispatcherGroupDetailScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.location_on_rounded,
                   color: AppColors.dispatcherPrimary,
                 ),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'الوجهة',
                   style: TextStyle(
                     fontSize: 16,
@@ -421,15 +441,15 @@ class _DispatcherGroupDetailScreenState
                   color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
                     Icon(
                       Icons.info_outline_rounded,
                       size: 16,
                       color: AppColors.success,
                     ),
-                    const SizedBox(width: 8),
-                    const Expanded(
+                    SizedBox(width: 8),
+                    Expanded(
                       child: Text(
                         'استخدام وجهة الشركة الافتراضية',
                         style: TextStyle(
@@ -458,14 +478,14 @@ class _DispatcherGroupDetailScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.payment_rounded,
                   color: AppColors.dispatcherPrimary,
                 ),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'معلومات الاشتراك',
                   style: TextStyle(
                     fontSize: 16,
@@ -479,7 +499,7 @@ class _DispatcherGroupDetailScreenState
             _buildDetailRow(
               icon: Icons.attach_money_rounded,
               label: 'سعر الاشتراك',
-              value: '${group.subscriptionPrice} ر.س',
+              value: '${Formatters.formatSimple(group.subscriptionPrice)} ر.س',
             ),
             const SizedBox(height: 12),
             _buildDetailRow(
@@ -538,8 +558,8 @@ class _DispatcherGroupDetailScreenState
             ),
             const Divider(height: 24),
             if (schedules.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
                 child: Center(
                   child: Text(
                     'لا توجد جداول نشطة',
@@ -568,7 +588,7 @@ class _DispatcherGroupDetailScreenState
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          schedule.weekday.arabicLabel,
+                          schedule.weekday.getLocalizedLabel(context),
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -583,7 +603,7 @@ class _DispatcherGroupDetailScreenState
                           children: [
                             if (schedule.createPickup &&
                                 schedule.pickupTimeDisplay != null) ...[
-                              Icon(
+                              const Icon(
                                 Icons.arrow_upward_rounded,
                                 size: 16,
                                 color: AppColors.primary,
@@ -604,7 +624,7 @@ class _DispatcherGroupDetailScreenState
                               const Text(' • ', style: TextStyle(fontSize: 12)),
                             if (schedule.createDropoff &&
                                 schedule.dropoffTimeDisplay != null) ...[
-                              Icon(
+                              const Icon(
                                 Icons.arrow_downward_rounded,
                                 size: 16,
                                 color: AppColors.success,
@@ -630,8 +650,8 @@ class _DispatcherGroupDetailScreenState
                 padding: const EdgeInsets.only(top: 8),
                 child: Center(
                   child: Text(
-                    'و ${schedules.length - 5} جدول آخر',
-                    style: TextStyle(
+                    'و ${Formatters.formatSimple(schedules.length - 5)} جدول آخر',
+                    style: const TextStyle(
                       fontSize: 12,
                       fontFamily: 'Cairo',
                       color: AppColors.textSecondary,
@@ -654,14 +674,14 @@ class _DispatcherGroupDetailScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.event_busy_rounded,
                   color: AppColors.dispatcherPrimary,
                 ),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'العطلات',
                   style: TextStyle(
                     fontSize: 16,
@@ -677,7 +697,7 @@ class _DispatcherGroupDetailScreenState
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.calendar_today_rounded,
                       size: 16,
                       color: AppColors.warning,
@@ -698,7 +718,7 @@ class _DispatcherGroupDetailScreenState
                           const SizedBox(height: 2),
                           Text(
                             '${_formatDate(holiday.startDate)} - ${_formatDate(holiday.endDate)}',
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 12,
                               fontFamily: 'Cairo',
                               color: AppColors.textSecondary,
@@ -716,8 +736,8 @@ class _DispatcherGroupDetailScreenState
                 padding: const EdgeInsets.only(top: 8),
                 child: Center(
                   child: Text(
-                    'و ${group.holidays.length - 5} عطلة أخرى',
-                    style: TextStyle(
+                    'و ${Formatters.formatSimple(group.holidays.length - 5)} عطلة أخرى',
+                    style: const TextStyle(
                       fontSize: 12,
                       fontFamily: 'Cairo',
                       color: AppColors.textSecondary,
@@ -740,14 +760,14 @@ class _DispatcherGroupDetailScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.note_rounded,
                   color: AppColors.dispatcherPrimary,
                 ),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'ملاحظات',
                   style: TextStyle(
                     fontSize: 16,
@@ -770,6 +790,129 @@ class _DispatcherGroupDetailScreenState
         ),
       ),
     ).animate().fadeIn(duration: 300.ms, delay: 700.ms);
+  }
+
+  /// NEW: Build Dispatcher Access Card
+  Widget _buildDispatcherAccessCard(PassengerGroup group) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(
+                  Icons.admin_panel_settings_rounded,
+                  color: AppColors.dispatcherPrimary,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'صلاحيات Dispatcher',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Cairo',
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            if (group.dispatcherId != null) ...[
+              Row(
+                children: [
+                  const Icon(
+                    Icons.person_outline,
+                    size: 18,
+                    color: AppColors.info,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'منشئ المجموعة: ${group.dispatcherName ?? 'ID: ${group.dispatcherId}'}',
+                      style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+            if (group.dispatcherGroupIds.isNotEmpty) ...[
+              const Text(
+                'Dispatchers المصرح لهم:',
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ref.watch(dispatchersProvider).when(
+                    data: (allDispatchers) {
+                      final authorizedDispatchers = allDispatchers
+                          .where((d) => group.dispatcherGroupIds.contains(d.id))
+                          .toList();
+
+                      if (authorizedDispatchers.isEmpty) {
+                        return Text(
+                          'IDs: ${group.dispatcherGroupIds.join(', ')}',
+                          style: const TextStyle(
+                            fontFamily: 'Cairo',
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        );
+                      }
+
+                      return Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: authorizedDispatchers.map((dispatcher) {
+                          return Chip(
+                            avatar: const Icon(
+                              Icons.person,
+                              size: 16,
+                            ),
+                            label: Text(
+                              dispatcher.name,
+                              style: const TextStyle(fontFamily: 'Cairo'),
+                            ),
+                            backgroundColor: AppColors.dispatcherPrimary
+                                .withValues(alpha: 0.1),
+                          );
+                        }).toList(),
+                      );
+                    },
+                    loading: () => const CircularProgressIndicator(),
+                    error: (_, __) => Text(
+                      'IDs: ${group.dispatcherGroupIds.join(', ')}',
+                      style: const TextStyle(
+                        fontFamily: 'Cairo',
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+            ] else ...[
+              const Text(
+                'لا يوجد Dispatchers مصرح لهم (يمكن للمنشئ فقط الوصول)',
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ).animate().fadeIn(duration: 300.ms, delay: 250.ms);
   }
 
   Widget _buildActionsSection(PassengerGroup group) {
@@ -927,7 +1070,7 @@ class _DispatcherGroupDetailScreenState
             children: [
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
                   fontFamily: 'Cairo',
                   color: AppColors.textSecondary,
@@ -951,32 +1094,18 @@ class _DispatcherGroupDetailScreenState
   }
 
   String _formatDate(DateTime date) {
-    final months = [
-      'يناير',
-      'فبراير',
-      'مارس',
-      'أبريل',
-      'مايو',
-      'يونيو',
-      'يوليو',
-      'أغسطس',
-      'سبتمبر',
-      'أكتوبر',
-      'نوفمبر',
-      'ديسمبر',
-    ];
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
+    return Formatters.displayDate(date);
   }
 
   Widget _buildLoadingState() {
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: [
-        const ShimmerCard(height: 200),
-        const SizedBox(height: 16),
-        const ShimmerCard(height: 150),
-        const SizedBox(height: 16),
-        const ShimmerCard(height: 150),
+      children: const [
+        ShimmerCard(height: 200),
+        SizedBox(height: 16),
+        ShimmerCard(height: 150),
+        SizedBox(height: 16),
+        ShimmerCard(height: 150),
       ],
     );
   }
@@ -1143,8 +1272,8 @@ class _DispatcherGroupDetailScreenState
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          SnackBar(
-            content: const Text(
+          const SnackBar(
+            content: Text(
               'تعذر حذف المجموعة، حاول مرة أخرى',
               style: TextStyle(fontFamily: 'Cairo'),
             ),

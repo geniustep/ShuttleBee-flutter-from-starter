@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../domain/entities/dispatcher_holiday.dart';
 import '../providers/dispatcher_holiday_providers.dart';
 
@@ -54,9 +55,15 @@ class _DispatcherHolidayDetailScreenState
     _active = holiday.active;
 
     _startDate = DateTime(
-        holiday.startDate.year, holiday.startDate.month, holiday.startDate.day);
+      holiday.startDate.year,
+      holiday.startDate.month,
+      holiday.startDate.day,
+    );
     _endDate = DateTime(
-        holiday.endDate.year, holiday.endDate.month, holiday.endDate.day);
+      holiday.endDate.year,
+      holiday.endDate.month,
+      holiday.endDate.day,
+    );
   }
 
   Future<void> _pickStartDate() async {
@@ -144,7 +151,8 @@ class _DispatcherHolidayDetailScreenState
             onPressed: isBusy
                 ? null
                 : () => ref.invalidate(
-                    dispatcherHolidayByIdProvider(widget.holidayId)),
+                      dispatcherHolidayByIdProvider(widget.holidayId),
+                    ),
             icon: const Icon(Icons.refresh_rounded),
           ),
           IconButton(
@@ -250,7 +258,8 @@ class _DispatcherHolidayDetailScreenState
                                     width: 18,
                                     height: 18,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2),
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : const Icon(Icons.save_rounded),
                             label: const Text(
@@ -361,8 +370,11 @@ class _DispatcherHolidayDetailScreenState
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.search_off_rounded,
-              size: 64, color: AppColors.warning),
+          const Icon(
+            Icons.search_off_rounded,
+            size: 64,
+            color: AppColors.warning,
+          ),
           const SizedBox(height: 12),
           const Text(
             'العطلة غير موجودة',
@@ -405,6 +417,6 @@ class _DispatcherHolidayDetailScreenState
   }
 
   static String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+    return Formatters.displayDate(date);
   }
 }

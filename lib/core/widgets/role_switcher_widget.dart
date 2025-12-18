@@ -9,6 +9,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_dimensions.dart';
 import '../theme/app_typography.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Role Switcher Widget - عنصر التبديل بين الأدوار
 class RoleSwitcherWidget extends ConsumerWidget {
@@ -23,6 +24,7 @@ class RoleSwitcherWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final authState = ref.watch(authStateProvider);
     final user = authState.asData?.value.user;
 
@@ -71,7 +73,7 @@ class RoleSwitcherWidget extends ConsumerWidget {
               ),
               const SizedBox(width: AppDimensions.xs),
               Text(
-                'عرض كـ:',
+                '${l10n.viewAs}:',
                 style: AppTypography.bodySmall.copyWith(
                   color: AppColors.primary,
                   fontWeight: FontWeight.w600,
@@ -82,7 +84,7 @@ class RoleSwitcherWidget extends ConsumerWidget {
                 TextButton.icon(
                   onPressed: () => _resetRole(context, ref),
                   icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('العودة'),
+                  label: Text(l10n.returnText),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -110,8 +112,9 @@ class RoleSwitcherWidget extends ConsumerWidget {
                       color: isActive ? Colors.white : AppColors.primary,
                     ),
                     const SizedBox(width: 4),
-                    Text(role.arabicLabel),
-                    if (isOriginalRole)
+                    Text(role.getLabel(l10n.locale.languageCode)),
+                    if (isOriginalRole) ...[
+                      const SizedBox(width: 6),
                       Container(
                         margin: const EdgeInsets.only(right: 4),
                         padding: const EdgeInsets.symmetric(
@@ -125,13 +128,14 @@ class RoleSwitcherWidget extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          'الأصلي',
+                          l10n.original,
                           style: TextStyle(
                             fontSize: 10,
                             color: isActive ? Colors.white : AppColors.success,
                           ),
                         ),
                       ),
+                    ],
                   ],
                 ),
                 selected: isActive,
@@ -173,7 +177,7 @@ class RoleSwitcherWidget extends ConsumerWidget {
                   const SizedBox(width: AppDimensions.xs),
                   Expanded(
                     child: Text(
-                      'أنت تعرض التطبيق كـ ${activeRole.arabicLabel}',
+                      '${l10n.youAreViewingAs} ${activeRole.getLabel(l10n.locale.languageCode)}',
                       style: AppTypography.caption.copyWith(
                         color: AppColors.warning,
                       ),
@@ -206,6 +210,7 @@ class RoleSwitcherWidget extends ConsumerWidget {
     WidgetRef ref,
     UserRole role,
   ) async {
+    final l10n = AppLocalizations.of(context);
     // تحديث الدور النشط + حفظه (داخل الـ notifier)
     ref.read(activeRoleProvider.notifier).setRole(role);
 
@@ -217,7 +222,8 @@ class RoleSwitcherWidget extends ConsumerWidget {
       // إظهار رسالة
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تم التبديل إلى عرض ${role.arabicLabel}'),
+          content: Text(
+              '${l10n.switchedToView} ${role.getLabel(l10n.locale.languageCode)}'),
           backgroundColor: AppColors.success,
           duration: const Duration(seconds: 2),
         ),
@@ -226,6 +232,7 @@ class RoleSwitcherWidget extends ConsumerWidget {
   }
 
   Future<void> _resetRole(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
     final authState = ref.read(authStateProvider);
     final user = authState.asData?.value.user;
     if (user == null) return;
@@ -239,7 +246,8 @@ class RoleSwitcherWidget extends ConsumerWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تم العودة إلى عرض ${user.role!.arabicLabel}'),
+          content: Text(
+              '${l10n.returnedToView} ${user.role!.getLabel(l10n.locale.languageCode)}'),
           backgroundColor: AppColors.primary,
           duration: const Duration(seconds: 2),
         ),
@@ -260,6 +268,7 @@ class RoleSwitcherButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final authState = ref.watch(authStateProvider);
     final user = authState.asData?.value.user;
 
@@ -304,7 +313,8 @@ class RoleSwitcherButton extends ConsumerWidget {
             ),
         ],
       ),
-      tooltip: 'تبديل الدور (${currentRole!.arabicLabel})',
+      tooltip:
+          '${l10n.switchRole} (${currentRole!.getLabel(l10n.locale.languageCode)})',
       onPressed: () {
         showModalBottomSheet(
           context: context,
@@ -327,6 +337,7 @@ class RoleSwitcherBottomSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final authState = ref.watch(authStateProvider);
     final user = authState.asData?.value.user;
 
@@ -348,11 +359,11 @@ class RoleSwitcherBottomSheet extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.swap_horiz, color: AppColors.primary),
-              SizedBox(width: AppDimensions.sm),
-              Text('تبديل العرض', style: AppTypography.h5),
+              const Icon(Icons.swap_horiz, color: AppColors.primary),
+              const SizedBox(width: AppDimensions.sm),
+              Text(l10n.switchRole, style: AppTypography.h5),
             ],
           ),
           const SizedBox(height: AppDimensions.md),
@@ -367,9 +378,9 @@ class RoleSwitcherBottomSheet extends ConsumerWidget {
               ),
               title: Row(
                 children: [
-                  Text(role.arabicLabel),
+                  Text(role.getLabel(l10n.locale.languageCode)),
                   if (isOriginal) ...[
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
@@ -380,7 +391,7 @@ class RoleSwitcherBottomSheet extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        'الدور الأصلي',
+                        l10n.originalRole,
                         style: AppTypography.caption.copyWith(
                           color: AppColors.success,
                         ),
@@ -430,9 +441,11 @@ class RoleSwitcherBottomSheet extends ConsumerWidget {
       final homeRoute = getHomeRouteForRole(role);
       context.go(homeRoute);
 
+      final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تم التبديل إلى عرض ${role.arabicLabel}'),
+          content: Text(
+              '${l10n.switchedToView} ${role.getLabel(l10n.locale.languageCode)}'),
           backgroundColor: AppColors.success,
         ),
       );

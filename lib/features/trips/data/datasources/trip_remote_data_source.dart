@@ -1062,6 +1062,8 @@ class TripRemoteDataSource {
       if (trip.plannedArrivalTime != null)
         'planned_arrival_time': _formatOdooDateTime(trip.plannedArrivalTime!),
       if (trip.driverId != null) 'driver_id': trip.driverId,
+      if (trip.companionId != null)
+        'companion_id': trip.companionId, // NEW: المرافق
       if (trip.vehicleId != null) 'vehicle_id': trip.vehicleId,
       if (trip.groupId != null) 'group_id': trip.groupId,
       if (trip.notes != null) 'notes': trip.notes,
@@ -1084,6 +1086,7 @@ class TripRemoteDataSource {
     'actual_start_time',
     'actual_arrival_time',
     'driver_id',
+    'companion_id', // NEW: المرافق
     'vehicle_id',
     'group_id',
     'total_passengers',

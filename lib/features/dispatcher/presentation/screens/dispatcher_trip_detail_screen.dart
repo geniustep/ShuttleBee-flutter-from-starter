@@ -3,11 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/enums/enums.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/common/desktop_sidebar_wrapper.dart';
 import '../../../../shared/widgets/loading/shimmer_loading.dart';
 import '../../../trips/domain/entities/trip.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
@@ -31,21 +33,23 @@ class _DispatcherTripDetailScreenState
     extends ConsumerState<DispatcherTripDetailScreen> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final tripAsync = ref.watch(tripDetailProvider(widget.tripId));
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+    return DesktopScaffoldWithSidebar(
+      backgroundColor: AppColors.dispatcherBackground,
       appBar: DispatcherAppBar(
-        title: 'تفاصيل الرحلة',
+        title: l10n.tripDetails,
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_rounded),
             onPressed: () {
               HapticFeedback.lightImpact();
               context.go(
-                  '${RoutePaths.dispatcherHome}/trips/${widget.tripId}/edit');
+                '${RoutePaths.dispatcherHome}/trips/${widget.tripId}/edit',
+              );
             },
-            tooltip: 'تعديل الرحلة',
+            tooltip: l10n.editTrip,
           ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -53,7 +57,7 @@ class _DispatcherTripDetailScreenState
               HapticFeedback.lightImpact();
               ref.invalidate(tripDetailProvider(widget.tripId));
             },
-            tooltip: 'تحديث',
+            tooltip: l10n.refresh,
           ),
         ],
       ),
@@ -71,6 +75,7 @@ class _DispatcherTripDetailScreenState
   }
 
   Widget _buildTripDetails(Trip trip) {
+    final l10n = AppLocalizations.of(context);
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(tripDetailProvider(widget.tripId));
@@ -79,36 +84,36 @@ class _DispatcherTripDetailScreenState
         padding: const EdgeInsets.all(16),
         children: [
           // Trip Header Card
-          _buildHeaderCard(trip),
+          _buildHeaderCard(trip, l10n),
           const SizedBox(height: 16),
 
           // Status & Time Card
-          _buildStatusTimeCard(trip),
+          _buildStatusTimeCard(trip, l10n),
           const SizedBox(height: 16),
 
           // Driver & Vehicle Card
-          _buildDriverVehicleCard(trip),
+          _buildDriverVehicleCard(trip, l10n),
           const SizedBox(height: 16),
 
           // Passengers Section
-          _buildPassengersSection(trip),
+          _buildPassengersSection(trip, l10n),
           const SizedBox(height: 16),
 
           // Notes Section
           if (trip.notes != null && trip.notes!.isNotEmpty) ...[
-            _buildNotesCard(trip),
+            _buildNotesCard(trip, l10n),
             const SizedBox(height: 16),
           ],
 
           // Actions Section
-          _buildActionsSection(trip),
+          _buildActionsSection(trip, l10n),
           const SizedBox(height: 32),
         ],
       ),
     );
   }
 
-  Widget _buildHeaderCard(Trip trip) {
+  Widget _buildHeaderCard(Trip trip, AppLocalizations l10n) {
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -164,7 +169,7 @@ class _DispatcherTripDetailScreenState
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        trip.tripType.arabicLabel,
+                        trip.tripType.getLabel(l10n.locale.languageCode),
                         style: TextStyle(
                           fontSize: 14,
                           fontFamily: 'Cairo',
@@ -187,7 +192,7 @@ class _DispatcherTripDetailScreenState
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
-                    DateFormat('EEEE، d MMMM yyyy', 'ar').format(trip.date),
+                    _formatDate(context, trip.date),
                     style: TextStyle(
                       fontSize: 14,
                       fontFamily: 'Cairo',
@@ -230,7 +235,11 @@ class _DispatcherTripDetailScreenState
     ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.1, end: 0);
   }
 
-  Widget _buildStatusTimeCard(Trip trip) {
+  String _formatDate(BuildContext context, DateTime date) {
+    return Formatters.displayDate(date);
+  }
+
+  Widget _buildStatusTimeCard(Trip trip, AppLocalizations l10n) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -241,12 +250,14 @@ class _DispatcherTripDetailScreenState
           children: [
             Row(
               children: [
-                const Icon(Icons.info_outline_rounded,
-                    color: AppColors.dispatcherPrimary),
+                const Icon(
+                  Icons.info_outline_rounded,
+                  color: AppColors.dispatcherPrimary,
+                ),
                 const SizedBox(width: 8),
-                const Text(
-                  'الحالة والوقت',
-                  style: TextStyle(
+                Text(
+                  l10n.statusAndTime,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Cairo',
@@ -260,26 +271,32 @@ class _DispatcherTripDetailScreenState
                 Expanded(
                   child: _buildInfoTile(
                     icon: Icons.flag_rounded,
-                    label: 'الحالة',
-                    value: trip.state.arabicLabel,
+                    label: l10n.status,
+                    value: trip.state.getLocalizedLabel(context),
                     valueColor: trip.state.color,
                   ),
                 ),
                 Expanded(
                   child: _buildInfoTile(
                     icon: Icons.access_time_rounded,
-                    label: 'وقت البداية',
+                    label: l10n.start,
                     value: trip.plannedStartTime != null
-                        ? DateFormat('HH:mm').format(trip.plannedStartTime!)
+                        ? Formatters.time(
+                            trip.plannedStartTime,
+                            use24Hour: true,
+                          )
                         : '--:--',
                   ),
                 ),
                 Expanded(
                   child: _buildInfoTile(
                     icon: Icons.access_time_filled_rounded,
-                    label: 'وقت الوصول',
+                    label: l10n.arrival,
                     value: trip.plannedArrivalTime != null
-                        ? DateFormat('HH:mm').format(trip.plannedArrivalTime!)
+                        ? Formatters.time(
+                            trip.plannedArrivalTime,
+                            use24Hour: true,
+                          )
                         : '--:--',
                   ),
                 ),
@@ -294,9 +311,11 @@ class _DispatcherTripDetailScreenState
                     Expanded(
                       child: _buildInfoTile(
                         icon: Icons.play_circle_outline_rounded,
-                        label: 'بدأت فعلياً',
-                        value:
-                            DateFormat('HH:mm').format(trip.actualStartTime!),
+                        label: l10n.startedActually,
+                        value: Formatters.time(
+                          trip.actualStartTime,
+                          use24Hour: true,
+                        ),
                         valueColor: AppColors.success,
                       ),
                     ),
@@ -304,9 +323,11 @@ class _DispatcherTripDetailScreenState
                     Expanded(
                       child: _buildInfoTile(
                         icon: Icons.check_circle_outline_rounded,
-                        label: 'انتهت فعلياً',
-                        value:
-                            DateFormat('HH:mm').format(trip.actualArrivalTime!),
+                        label: l10n.endedActually,
+                        value: Formatters.time(
+                          trip.actualArrivalTime,
+                          use24Hour: true,
+                        ),
                         valueColor: AppColors.success,
                       ),
                     ),
@@ -319,7 +340,7 @@ class _DispatcherTripDetailScreenState
     ).animate().fadeIn(duration: 300.ms, delay: 100.ms);
   }
 
-  Widget _buildDriverVehicleCard(Trip trip) {
+  Widget _buildDriverVehicleCard(Trip trip, AppLocalizations l10n) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -330,12 +351,14 @@ class _DispatcherTripDetailScreenState
           children: [
             Row(
               children: [
-                const Icon(Icons.directions_bus_rounded,
-                    color: AppColors.dispatcherPrimary),
+                const Icon(
+                  Icons.directions_bus_rounded,
+                  color: AppColors.dispatcherPrimary,
+                ),
                 const SizedBox(width: 8),
-                const Text(
-                  'السائق والمركبة',
-                  style: TextStyle(
+                Text(
+                  l10n.driverAndVehicle,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Cairo',
@@ -349,11 +372,20 @@ class _DispatcherTripDetailScreenState
                 Expanded(
                   child: _buildDetailRow(
                     icon: Icons.person_rounded,
-                    label: 'السائق',
-                    value: trip.driverName ?? 'لم يتم التعيين',
+                    label: l10n.driver,
+                    value: trip.driverName ?? l10n.notAssigned,
                     isWarning: trip.driverName == null,
                   ),
                 ),
+                // NEW: عرض المرافق إذا كان موجوداً
+                if (trip.companionName != null)
+                  Expanded(
+                    child: _buildDetailRow(
+                      icon: Icons.person_add_alt_rounded,
+                      label: l10n.companion,
+                      value: trip.companionName!,
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -362,8 +394,8 @@ class _DispatcherTripDetailScreenState
                 Expanded(
                   child: _buildDetailRow(
                     icon: Icons.directions_bus_rounded,
-                    label: 'المركبة',
-                    value: trip.vehicleName ?? 'لم يتم التعيين',
+                    label: l10n.vehicle,
+                    value: trip.vehicleName ?? l10n.notAssigned,
                     isWarning: trip.vehicleName == null,
                   ),
                 ),
@@ -373,7 +405,7 @@ class _DispatcherTripDetailScreenState
               const SizedBox(height: 12),
               _buildDetailRow(
                 icon: Icons.confirmation_number_rounded,
-                label: 'رقم اللوحة',
+                label: l10n.plateNumber,
                 value: trip.vehiclePlateNumber!,
               ),
             ],
@@ -383,7 +415,7 @@ class _DispatcherTripDetailScreenState
     ).animate().fadeIn(duration: 300.ms, delay: 200.ms);
   }
 
-  Widget _buildPassengersSection(Trip trip) {
+  Widget _buildPassengersSection(Trip trip, AppLocalizations l10n) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -395,12 +427,14 @@ class _DispatcherTripDetailScreenState
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.people_rounded,
-                        color: AppColors.dispatcherPrimary),
+                    const Icon(
+                      Icons.people_rounded,
+                      color: AppColors.dispatcherPrimary,
+                    ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'الركاب',
-                      style: TextStyle(
+                    Text(
+                      l10n.passengers,
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'Cairo',
@@ -418,7 +452,7 @@ class _DispatcherTripDetailScreenState
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        '${trip.totalPassengers} راكب',
+                        '${Formatters.formatSimple(trip.totalPassengers)} ${l10n.passenger}',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -436,7 +470,7 @@ class _DispatcherTripDetailScreenState
                         );
                       },
                       icon: const Icon(Icons.open_in_new_rounded),
-                      tooltip: 'إدارة الركاب',
+                      tooltip: l10n.passengersManagement,
                       iconSize: 20,
                       color: AppColors.dispatcherPrimary,
                     ),
@@ -449,7 +483,7 @@ class _DispatcherTripDetailScreenState
                     Expanded(
                       child: _buildStatChip(
                         icon: Icons.check_circle_rounded,
-                        label: 'صعدوا',
+                        label: l10n.boarded,
                         count: trip.boardedCount,
                         color: AppColors.success,
                       ),
@@ -458,7 +492,7 @@ class _DispatcherTripDetailScreenState
                     Expanded(
                       child: _buildStatChip(
                         icon: Icons.cancel_rounded,
-                        label: 'غائبون',
+                        label: l10n.absent,
                         count: trip.absentCount,
                         color: AppColors.error,
                       ),
@@ -467,7 +501,7 @@ class _DispatcherTripDetailScreenState
                     Expanded(
                       child: _buildStatChip(
                         icon: Icons.place_rounded,
-                        label: 'نزلوا',
+                        label: l10n.dropped,
                         count: trip.droppedCount,
                         color: AppColors.primary,
                       ),
@@ -490,9 +524,9 @@ class _DispatcherTripDetailScreenState
                     color: Colors.grey.withValues(alpha: 0.5),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'لا يوجد ركاب في هذه الرحلة',
-                    style: TextStyle(
+                  Text(
+                    l10n.noPassengers,
+                    style: const TextStyle(
                       fontFamily: 'Cairo',
                       color: AppColors.textSecondary,
                     ),
@@ -546,7 +580,7 @@ class _DispatcherTripDetailScreenState
               ),
             ),
           Text(
-            line.status.arabicLabel,
+            line.status.getLocalizedLabel(context),
             style: TextStyle(
               fontFamily: 'Cairo',
               fontSize: 12,
@@ -600,7 +634,7 @@ class _DispatcherTripDetailScreenState
     }
   }
 
-  Widget _buildNotesCard(Trip trip) {
+  Widget _buildNotesCard(Trip trip, AppLocalizations l10n) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -611,12 +645,14 @@ class _DispatcherTripDetailScreenState
           children: [
             Row(
               children: [
-                const Icon(Icons.notes_rounded,
-                    color: AppColors.dispatcherPrimary),
+                const Icon(
+                  Icons.notes_rounded,
+                  color: AppColors.dispatcherPrimary,
+                ),
                 const SizedBox(width: 8),
-                const Text(
-                  'ملاحظات',
-                  style: TextStyle(
+                Text(
+                  l10n.notes,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Cairo',
@@ -638,7 +674,7 @@ class _DispatcherTripDetailScreenState
     ).animate().fadeIn(duration: 300.ms, delay: 400.ms);
   }
 
-  Widget _buildActionsSection(Trip trip) {
+  Widget _buildActionsSection(Trip trip, AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -658,9 +694,9 @@ class _DispatcherTripDetailScreenState
             ),
           ),
           icon: const Icon(Icons.edit_rounded),
-          label: const Text(
-            'تعديل الرحلة',
-            style: TextStyle(
+          label: Text(
+            l10n.editTrip,
+            style: const TextStyle(
               fontFamily: 'Cairo',
               fontWeight: FontWeight.bold,
               fontSize: 16,
@@ -682,9 +718,9 @@ class _DispatcherTripDetailScreenState
             ),
             icon:
                 const Icon(Icons.play_arrow_rounded, color: AppColors.success),
-            label: const Text(
-              'بدء الرحلة',
-              style: TextStyle(
+            label: Text(
+              l10n.startTrip,
+              style: const TextStyle(
                 fontFamily: 'Cairo',
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -703,11 +739,13 @@ class _DispatcherTripDetailScreenState
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            icon: const Icon(Icons.check_circle_rounded,
-                color: AppColors.primary),
-            label: const Text(
-              'إنهاء الرحلة',
-              style: TextStyle(
+            icon: const Icon(
+              Icons.check_circle_rounded,
+              color: AppColors.primary,
+            ),
+            label: Text(
+              l10n.endTrip,
+              style: const TextStyle(
                 fontFamily: 'Cairo',
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -729,9 +767,9 @@ class _DispatcherTripDetailScreenState
               ),
             ),
             icon: const Icon(Icons.cancel_rounded, color: AppColors.error),
-            label: const Text(
-              'إلغاء الرحلة',
-              style: TextStyle(
+            label: Text(
+              l10n.cancelTrip,
+              style: const TextStyle(
                 fontFamily: 'Cairo',
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -745,25 +783,29 @@ class _DispatcherTripDetailScreenState
   }
 
   Future<void> _handleStartTrip(Trip trip) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('بدء الرحلة', style: TextStyle(fontFamily: 'Cairo')),
-        content: const Text(
-          'هل تريد بدء هذه الرحلة الآن؟',
-          style: TextStyle(fontFamily: 'Cairo'),
+        title:
+            Text(l10n.startTrip, style: const TextStyle(fontFamily: 'Cairo')),
+        content: Text(
+          l10n.areYouSureStart,
+          style: const TextStyle(fontFamily: 'Cairo'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+            child:
+                Text(l10n.cancel, style: const TextStyle(fontFamily: 'Cairo')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.success,
             ),
-            child: const Text('بدء', style: TextStyle(fontFamily: 'Cairo')),
+            child:
+                Text(l10n.start, style: const TextStyle(fontFamily: 'Cairo')),
           ),
         ],
       ),
@@ -777,17 +819,21 @@ class _DispatcherTripDetailScreenState
         if (success) {
           ref.invalidate(tripDetailProvider(widget.tripId));
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content:
-                  Text('تم بدء الرحلة', style: TextStyle(fontFamily: 'Cairo')),
+            SnackBar(
+              content: Text(
+                l10n.tripStarted,
+                style: const TextStyle(fontFamily: 'Cairo'),
+              ),
               backgroundColor: AppColors.success,
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content:
-                  Text('فشل بدء الرحلة', style: TextStyle(fontFamily: 'Cairo')),
+            SnackBar(
+              content: Text(
+                l10n.failedToStart,
+                style: const TextStyle(fontFamily: 'Cairo'),
+              ),
               backgroundColor: AppColors.error,
             ),
           );
@@ -797,26 +843,27 @@ class _DispatcherTripDetailScreenState
   }
 
   Future<void> _handleCompleteTrip(Trip trip) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title:
-            const Text('إنهاء الرحلة', style: TextStyle(fontFamily: 'Cairo')),
-        content: const Text(
-          'هل تريد إنهاء هذه الرحلة؟',
-          style: TextStyle(fontFamily: 'Cairo'),
+        title: Text(l10n.endTrip, style: const TextStyle(fontFamily: 'Cairo')),
+        content: Text(
+          l10n.areYouSureEnd,
+          style: const TextStyle(fontFamily: 'Cairo'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+            child:
+                Text(l10n.cancel, style: const TextStyle(fontFamily: 'Cairo')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
             ),
-            child: const Text('إنهاء', style: TextStyle(fontFamily: 'Cairo')),
+            child: Text(l10n.end, style: const TextStyle(fontFamily: 'Cairo')),
           ),
         ],
       ),
@@ -830,17 +877,21 @@ class _DispatcherTripDetailScreenState
         if (success) {
           ref.invalidate(tripDetailProvider(widget.tripId));
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم إنهاء الرحلة',
-                  style: TextStyle(fontFamily: 'Cairo')),
+            SnackBar(
+              content: Text(
+                l10n.tripEnded,
+                style: const TextStyle(fontFamily: 'Cairo'),
+              ),
               backgroundColor: AppColors.success,
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('فشل إنهاء الرحلة',
-                  style: TextStyle(fontFamily: 'Cairo')),
+            SnackBar(
+              content: Text(
+                l10n.failedToEnd,
+                style: const TextStyle(fontFamily: 'Cairo'),
+              ),
               backgroundColor: AppColors.error,
             ),
           );
@@ -850,27 +901,30 @@ class _DispatcherTripDetailScreenState
   }
 
   Future<void> _handleCancelTrip(Trip trip) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title:
-            const Text('إلغاء الرحلة', style: TextStyle(fontFamily: 'Cairo')),
-        content: const Text(
-          'هل أنت متأكد من إلغاء هذه الرحلة؟ لا يمكن التراجع عن هذا الإجراء.',
-          style: TextStyle(fontFamily: 'Cairo'),
+            Text(l10n.cancelTrip, style: const TextStyle(fontFamily: 'Cairo')),
+        content: Text(
+          l10n.areYouSureCancel,
+          style: const TextStyle(fontFamily: 'Cairo'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('تراجع', style: TextStyle(fontFamily: 'Cairo')),
+            child: Text(l10n.back, style: const TextStyle(fontFamily: 'Cairo')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
             ),
-            child: const Text('إلغاء الرحلة',
-                style: TextStyle(fontFamily: 'Cairo')),
+            child: Text(
+              l10n.cancelTrip,
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
           ),
         ],
       ),
@@ -883,18 +937,22 @@ class _DispatcherTripDetailScreenState
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم إلغاء الرحلة',
-                  style: TextStyle(fontFamily: 'Cairo')),
+            SnackBar(
+              content: Text(
+                l10n.tripCancelled,
+                style: const TextStyle(fontFamily: 'Cairo'),
+              ),
               backgroundColor: AppColors.warning,
             ),
           );
           context.go('${RoutePaths.dispatcherHome}/trips');
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('فشل إلغاء الرحلة',
-                  style: TextStyle(fontFamily: 'Cairo')),
+            SnackBar(
+              content: Text(
+                l10n.failedToCancel,
+                style: const TextStyle(fontFamily: 'Cairo'),
+              ),
               backgroundColor: AppColors.error,
             ),
           );
@@ -987,7 +1045,7 @@ class _DispatcherTripDetailScreenState
           Icon(icon, color: color, size: 20),
           const SizedBox(height: 4),
           Text(
-            '$count',
+            Formatters.formatSimple(count),
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontFamily: 'Cairo',
@@ -1023,6 +1081,7 @@ class _DispatcherTripDetailScreenState
   }
 
   Widget _buildErrorState(String error) {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1044,8 +1103,10 @@ class _DispatcherTripDetailScreenState
               ref.invalidate(tripDetailProvider(widget.tripId));
             },
             icon: const Icon(Icons.refresh_rounded),
-            label: const Text('إعادة المحاولة',
-                style: TextStyle(fontFamily: 'Cairo')),
+            label: Text(
+              l10n.retry,
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
           ),
         ],
       ),
@@ -1053,6 +1114,7 @@ class _DispatcherTripDetailScreenState
   }
 
   Widget _buildNotFoundState() {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1063,9 +1125,9 @@ class _DispatcherTripDetailScreenState
             color: AppColors.textSecondary,
           ),
           const SizedBox(height: 16),
-          const Text(
-            'الرحلة غير موجودة',
-            style: TextStyle(
+          Text(
+            l10n.tripNotFound,
+            style: const TextStyle(
               fontFamily: 'Cairo',
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -1076,8 +1138,10 @@ class _DispatcherTripDetailScreenState
             onPressed: () {
               context.go('${RoutePaths.dispatcherHome}/trips');
             },
-            child: const Text('العودة للرحلات',
-                style: TextStyle(fontFamily: 'Cairo')),
+            child: Text(
+              l10n.backToTrips,
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
           ),
         ],
       ),

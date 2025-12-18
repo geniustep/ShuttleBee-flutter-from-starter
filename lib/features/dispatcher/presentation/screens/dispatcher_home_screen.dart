@@ -3,13 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_dimensions.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/utils/responsive_utils.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/role_switcher_widget.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/providers/global_providers.dart';
@@ -59,7 +58,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
     final statsAsync = ref.watch(dispatcherDashboardStatsProvider(today));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.dispatcherBackground,
       body: RefreshIndicator(
         onRefresh: () async {
           final cache = ref.read(dispatcherCacheDataSourceProvider);
@@ -83,15 +82,44 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
 
             // === Role Switcher ===
             SliverToBoxAdapter(
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: RoleSwitcherWidget(),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: context.responsive(
+                      mobile: double.infinity,
+                      tablet: 900,
+                      desktop: 1400,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.responsive(
+                        mobile: 16.0,
+                        tablet: 32.0,
+                        desktop: 48.0,
+                      ),
+                      vertical: 8,
+                    ),
+                    child: const RoleSwitcherWidget(),
+                  ),
+                ),
               ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
             ),
 
             // === Quick Actions ===
             SliverToBoxAdapter(
-              child: _buildQuickActions()
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: context.responsive(
+                      mobile: double.infinity,
+                      tablet: 900,
+                      desktop: 1400,
+                    ),
+                  ),
+                  child: _buildQuickActions(),
+                ),
+              )
                   .animate()
                   .fadeIn(duration: 400.ms, delay: 150.ms)
                   .slideY(begin: 0.1, end: 0),
@@ -99,7 +127,20 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
 
             // === Statistics ===
             statsAsync.when(
-              data: (stats) => _buildStatisticsContent(stats),
+              data: (stats) => SliverToBoxAdapter(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: context.responsive(
+                        mobile: double.infinity,
+                        tablet: 900,
+                        desktop: 1400,
+                      ),
+                    ),
+                    child: _buildStatisticsContent(stats),
+                  ),
+                ),
+              ),
               loading: () => const SliverFillRemaining(
                 child: Center(child: CircularProgressIndicator()),
               ),
@@ -120,10 +161,11 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
     final isRefreshing = statsAsync.isLoading;
     final isOnline = ref.watch(isOnlineStateProvider);
 
+    final l10n = AppLocalizations.of(context);
     return HeroHeader(
-      title: 'مرحباً',
-      userName: user?.name ?? 'المرسل',
-      subtitle: DateFormat('EEEE، d MMMM yyyy', 'ar').format(DateTime.now()),
+      title: l10n.welcome,
+      userName: user?.name ?? l10n.dispatcher,
+      subtitle: _formatDate(context, DateTime.now()),
       gradientColors: HeroGradients.dispatcher,
       showOnlineIndicator: isOnline,
       onlineIndicatorController: _pulseController,
@@ -144,18 +186,18 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
                     color: Colors.white.withValues(alpha: 0.25),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.cloud_off_rounded,
                       color: Colors.white,
                       size: 16,
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Text(
-                      'غير متصل • عرض حالة المزامنة',
-                      style: TextStyle(
+                      '${l10n.disconnected} • ${l10n.viewSyncStatus}',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -170,7 +212,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
       actions: [
         HeroHeaderAction(
           icon: Icons.refresh_rounded,
-          tooltip: 'تحديث',
+          tooltip: l10n.refresh,
           isLoading: isRefreshing,
           onPressed: () async {
             HapticFeedback.mediumImpact();
@@ -192,7 +234,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
         ),
         HeroHeaderAction(
           icon: Icons.settings_rounded,
-          tooltip: 'الإعدادات',
+          tooltip: l10n.settings,
           onPressed: () {
             HapticFeedback.lightImpact();
             context.push(RoutePaths.settings);
@@ -200,7 +242,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
         ),
         HeroHeaderAction(
           icon: Icons.notifications_rounded,
-          tooltip: 'الإشعارات',
+          tooltip: l10n.notifications,
           onPressed: () {
             HapticFeedback.lightImpact();
             context.go(RoutePaths.notifications);
@@ -208,7 +250,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
         ),
         HeroHeaderAction(
           icon: Icons.logout_rounded,
-          tooltip: 'تسجيل الخروج',
+          tooltip: l10n.logout,
           onPressed: () => _showLogoutDialog(),
         ),
       ],
@@ -222,21 +264,28 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
     final crossAxisCount = context.responsive(
       mobile: 2,
       tablet: 3,
-      desktop: 4,
+      desktop: 6, // عرض جميع البطاقات في صف واحد على الشاشات الكبيرة
     );
 
     // Responsive aspect ratio
     final aspectRatio = context.responsive(
       mobile: 1.5,
       tablet: 1.3,
-      desktop: 1.4,
+      desktop: 1.1, // نسبة أطول للشاشات الكبيرة
     );
 
     // Responsive padding
     final padding = context.responsive(
       mobile: 16.0,
-      tablet: 24.0,
-      desktop: 32.0,
+      tablet: 32.0,
+      desktop: 48.0,
+    );
+
+    // Responsive spacing
+    final spacing = context.responsive(
+      mobile: 12.0,
+      tablet: 16.0,
+      desktop: 20.0,
     );
 
     return Padding(
@@ -247,31 +296,78 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: context.responsive(
+                  mobile: const EdgeInsets.all(10),
+                  tablet: const EdgeInsets.all(12),
+                  desktop: const EdgeInsets.all(14),
+                ),
                 decoration: BoxDecoration(
                   gradient: AppColors.dispatcherGradient,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(
+                    context.responsive(
+                      mobile: 12.0,
+                      tablet: 14.0,
+                      desktop: 16.0,
+                    ),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color:
+                          AppColors.dispatcherPrimary.withValues(alpha: 0.25),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                      spreadRadius: 0,
+                    ),
+                    BoxShadow(
+                      color: AppColors.dispatcherPrimary.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.flash_on_rounded,
                   color: Colors.white,
-                  size: 22,
+                  size: context.responsive(
+                    mobile: 22.0,
+                    tablet: 24.0,
+                    desktop: 26.0,
+                  ),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(
+                width: context.responsive(
+                  mobile: 12.0,
+                  tablet: 16.0,
+                  desktop: 20.0,
+                ),
+              ),
               Text(
                 l10n.quickActions,
-                style: AppTypography.h5.copyWith(fontWeight: FontWeight.bold),
+                style: AppTypography.h5.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: context.responsive(
+                    mobile: 18.0,
+                    tablet: 20.0,
+                    desktop: 24.0,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(
+            height: context.responsive(
+              mobile: 16.0,
+              tablet: 20.0,
+              desktop: 24.0,
+            ),
+          ),
           GridView.count(
             crossAxisCount: crossAxisCount,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
+            mainAxisSpacing: spacing,
+            crossAxisSpacing: spacing,
             childAspectRatio: aspectRatio,
             children: [
               _buildActionCard(
@@ -291,7 +387,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
               _buildActionCard(
                 icon: Icons.event_busy_rounded,
                 label: l10n.holidays,
-                color: AppColors.warning,
+                color: const Color(0xFFF59E0B), // Amber - أكثر وضوحاً
                 delay: 165,
                 onTap: () => context.go(RoutePaths.dispatcherHolidays),
               ),
@@ -305,7 +401,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
               _buildActionCard(
                 icon: Icons.directions_bus_rounded,
                 label: l10n.vehicles,
-                color: AppColors.warning,
+                color: const Color(0xFF6366F1), // Indigo - لون مميز للمركبات
                 delay: 100,
                 onTap: () =>
                     context.go('${RoutePaths.dispatcherHome}/vehicles'),
@@ -313,7 +409,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
               _buildActionCard(
                 icon: Icons.map_rounded,
                 label: l10n.liveTracking,
-                color: AppColors.error,
+                color: const Color(0xFFEF4444), // Red 500 - أكثر حيوية
                 delay: 200,
                 onTap: () => context.go('${RoutePaths.dispatcherHome}/monitor'),
               ),
@@ -331,97 +427,232 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
     required int delay,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.15),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(
+              context.responsive(
+                mobile: 16.0,
+                tablet: 18.0,
+                desktop: 20.0,
               ),
-              child: Icon(icon, size: 28, color: color),
             ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Cairo',
+            border: Border.all(
+              color: color.withValues(alpha: 0.12),
+              width: context.responsive(
+                mobile: 1.0,
+                tablet: 1.5,
+                desktop: 2.0,
               ),
-              textAlign: TextAlign.center,
             ),
-          ],
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.12),
+                blurRadius: context.responsive(
+                  mobile: 16.0,
+                  tablet: 20.0,
+                  desktop: 24.0,
+                ),
+                offset: const Offset(0, 6),
+                spreadRadius: 0,
+              ),
+              BoxShadow(
+                color: AppColors.cardShadowLight,
+                blurRadius: context.responsive(
+                  mobile: 8.0,
+                  tablet: 10.0,
+                  desktop: 12.0,
+                ),
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: EdgeInsets.all(
+                  context.responsive(
+                    mobile: 12.0,
+                    tablet: 14.0,
+                    desktop: 16.0,
+                  ),
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      color.withValues(alpha: 0.18),
+                      color.withValues(alpha: 0.08),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.25),
+                    width: 2.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  icon,
+                  size: context.responsive(
+                    mobile: 28.0,
+                    tablet: 32.0,
+                    desktop: 36.0,
+                  ),
+                  color: color,
+                ),
+              ),
+              SizedBox(
+                height: context.responsive(
+                  mobile: 8.0,
+                  tablet: 10.0,
+                  desktop: 12.0,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: context.responsive(
+                      mobile: 13.0,
+                      tablet: 14.0,
+                      desktop: 15.0,
+                    ),
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Cairo',
+                    color: AppColors.textPrimary,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: (200 + delay).ms).scale(
+    )
+        .animate()
+        .fadeIn(
+          duration: 400.ms,
+          delay: (200 + delay).ms,
+          curve: Curves.easeOutCubic,
+        )
+        .scale(
           begin: const Offset(0.9, 0.9),
           end: const Offset(1, 1),
           duration: 400.ms,
           delay: (200 + delay).ms,
+          curve: Curves.easeOutCubic,
         );
   }
 
-  SliverList _buildStatisticsContent(TripDashboardStats stats) {
-    return SliverList(
-      delegate: SliverChildListDelegate([
+  Widget _buildStatisticsContent(TripDashboardStats stats) {
+    final l10n = AppLocalizations.of(context);
+    final padding = context.responsive(
+      mobile: 16.0,
+      tablet: 32.0,
+      desktop: 48.0,
+    );
+
+    final sectionSpacing = context.responsive(
+      mobile: 24.0,
+      tablet: 32.0,
+      desktop: 40.0,
+    );
+
+    return Column(
+      children: [
         // === Today's Statistics ===
-        _buildSectionHeader(
-          'إحصائيات اليوم',
-          DateFormat('EEEE، d MMMM', 'ar').format(DateTime.now()),
-          Icons.today_rounded,
-          AppColors.primary,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: padding),
+          child: _buildSectionHeader(
+            l10n.todayStatistics,
+            _formatDate(context, DateTime.now()),
+            Icons.today_rounded,
+            AppColors.primary,
+          ),
         ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
 
-        const SizedBox(height: 12),
+        SizedBox(
+          height: context.responsive(
+            mobile: 12.0,
+            tablet: 16.0,
+            desktop: 20.0,
+          ),
+        ),
         _buildTodayStatistics(stats),
 
-        const SizedBox(height: 24),
+        SizedBox(height: sectionSpacing),
 
         // === Fleet Status ===
-        _buildSectionHeader(
-          'حالة الأسطول',
-          null,
-          Icons.local_shipping_rounded,
-          AppColors.success,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: padding),
+          child: _buildSectionHeader(
+            l10n.fleetStatus,
+            null,
+            Icons.local_shipping_rounded,
+            AppColors.success,
+          ),
         ).animate().fadeIn(duration: 400.ms, delay: 300.ms),
 
-        const SizedBox(height: 12),
+        SizedBox(
+          height: context.responsive(
+            mobile: 12.0,
+            tablet: 16.0,
+            desktop: 20.0,
+          ),
+        ),
         _buildFleetStatus(stats),
 
-        const SizedBox(height: 24),
+        SizedBox(height: sectionSpacing),
 
         // === Active Trips ===
-        _buildSectionHeader(
-          'الرحلات النشطة',
-          null,
-          Icons.play_circle_rounded,
-          AppColors.warning,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: padding),
+          child: _buildSectionHeader(
+            l10n.activeTrips,
+            null,
+            Icons.play_circle_rounded,
+            AppColors.warning,
+          ),
         ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
 
-        const SizedBox(height: 12),
+        SizedBox(
+          height: context.responsive(
+            mobile: 12.0,
+            tablet: 16.0,
+            desktop: 20.0,
+          ),
+        ),
         _buildActiveTripsCard(stats),
 
-        const SizedBox(height: 32),
-      ]),
+        SizedBox(
+          height: context.responsive(
+            mobile: 32.0,
+            tablet: 48.0,
+            desktop: 64.0,
+          ),
+        ),
+      ],
     );
   }
 
@@ -431,72 +662,136 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
     IconData icon,
     Color color,
   ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [color, color.withValues(alpha: 0.8)],
-              ),
-              borderRadius: BorderRadius.circular(12),
+    return Row(
+      children: [
+        Container(
+          padding: EdgeInsets.all(
+            context.responsive(
+              mobile: 10.0,
+              tablet: 12.0,
+              desktop: 14.0,
             ),
-            child: Icon(icon, color: Colors.white, size: 22),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTypography.h5.copyWith(fontWeight: FontWeight.bold),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [color, color.withValues(alpha: 0.85)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(
+              context.responsive(
+                mobile: 12.0,
+                tablet: 14.0,
+                desktop: 16.0,
+              ),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.3),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+                spreadRadius: 0,
+              ),
+              BoxShadow(
+                color: color.withValues(alpha: 0.15),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(
+            icon,
+            color: Colors.white,
+            size: context.responsive(
+              mobile: 22.0,
+              tablet: 24.0,
+              desktop: 26.0,
+            ),
+          ),
+        ),
+        SizedBox(
+          width: context.responsive(
+            mobile: 12.0,
+            tablet: 16.0,
+            desktop: 20.0,
+          ),
+        ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTypography.h5.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: context.responsive(
+                    mobile: 18.0,
+                    tablet: 20.0,
+                    desktop: 22.0,
+                  ),
                 ),
-                if (subtitle != null)
-                  Text(
-                    subtitle,
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.textSecondary,
+              ),
+              if (subtitle != null)
+                Text(
+                  subtitle,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: context.responsive(
+                      mobile: 12.0,
+                      tablet: 13.0,
+                      desktop: 14.0,
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildTodayStatistics(TripDashboardStats stats) {
+    final l10n = AppLocalizations.of(context);
+    final padding = context.responsive(
+      mobile: 16.0,
+      tablet: 32.0,
+      desktop: 48.0,
+    );
+
+    final spacing = context.responsive(
+      mobile: 12.0,
+      tablet: 16.0,
+      desktop: 20.0,
+    );
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: padding),
       child: Row(
         children: [
           Expanded(
             child: StatCard(
-              title: 'إجمالي الرحلات',
-              value: '${stats.totalTripsToday}',
+              title: l10n.totalTripsToday,
+              value: Formatters.formatSimple(stats.totalTripsToday),
               icon: Icons.route_rounded,
               color: AppColors.primary,
               animationDelay: 0,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: spacing),
           Expanded(
             child: StatCard(
-              title: 'رحلات جارية',
-              value: '${stats.ongoingTrips}',
+              title: l10n.ongoingTrips,
+              value: Formatters.formatSimple(stats.ongoingTrips),
               icon: Icons.play_circle_rounded,
               color: AppColors.warning,
               animationDelay: 50,
             ),
           ),
+          SizedBox(width: spacing),
           Expanded(
             child: StatCard(
-              title: 'منتهية',
-              value: '${stats.completedTrips}',
+              title: l10n.completed,
+              value: Formatters.formatSimple(stats.completedTrips),
               icon: Icons.check_circle_rounded,
               color: AppColors.success,
               animationDelay: 100,
@@ -508,26 +803,39 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
   }
 
   Widget _buildFleetStatus(TripDashboardStats stats) {
+    final l10n = AppLocalizations.of(context);
+    final padding = context.responsive(
+      mobile: 16.0,
+      tablet: 32.0,
+      desktop: 48.0,
+    );
+
+    final spacing = context.responsive(
+      mobile: 12.0,
+      tablet: 16.0,
+      desktop: 20.0,
+    );
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: padding),
       child: Column(
         children: [
           Row(
             children: [
               Expanded(
                 child: StatCard(
-                  title: 'المركبات النشطة',
-                  value: '${stats.activeVehicles}/${stats.totalVehicles}',
+                  title: l10n.activeVehicles,
+                  value: '${Formatters.formatSimple(stats.activeVehicles)}/${Formatters.formatSimple(stats.totalVehicles)}',
                   icon: Icons.directions_bus_rounded,
                   color: AppColors.primary,
                   animationDelay: 200,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: spacing),
               Expanded(
                 child: StatCard(
-                  title: 'السائقين النشطين',
-                  value: '${stats.activeDrivers}/${stats.totalDrivers}',
+                  title: l10n.activeDrivers,
+                  value: '${Formatters.formatSimple(stats.activeDrivers)}/${Formatters.formatSimple(stats.totalDrivers)}',
                   icon: Icons.person_rounded,
                   color: AppColors.success,
                   animationDelay: 250,
@@ -535,23 +843,54 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing),
           // Fleet Utilization Card
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(
+              context.responsive(
+                mobile: 16.0,
+                tablet: 20.0,
+                desktop: 24.0,
+              ),
+            ),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  AppColors.primary.withValues(alpha: 0.1),
-                  AppColors.primary.withValues(alpha: 0.05),
+                  AppColors.primary.withValues(alpha: 0.12),
+                  AppColors.primary.withValues(alpha: 0.06),
+                  Colors.white,
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(
+                context.responsive(
+                  mobile: 16.0,
+                  tablet: 18.0,
+                  desktop: 20.0,
+                ),
               ),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.25),
+                width: context.responsive(
+                  mobile: 1.0,
+                  tablet: 1.5,
+                  desktop: 2.0,
+                ),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                  spreadRadius: 0,
+                ),
+                const BoxShadow(
+                  color: AppColors.cardShadowLight,
+                  blurRadius: 10,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -559,46 +898,118 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(10),
+                      padding: EdgeInsets.all(
+                        context.responsive(
+                          mobile: 10.0,
+                          tablet: 12.0,
+                          desktop: 14.0,
+                        ),
                       ),
-                      child: const Icon(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withValues(alpha: 0.85),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          context.responsive(
+                            mobile: 10.0,
+                            tablet: 12.0,
+                            desktop: 14.0,
+                          ),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                            spreadRadius: 0,
+                          ),
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
                         Icons.analytics_rounded,
                         color: Colors.white,
-                        size: 20,
+                        size: context.responsive(
+                          mobile: 20.0,
+                          tablet: 22.0,
+                          desktop: 24.0,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'معدل استخدام الأسطول',
+                    SizedBox(
+                      width: context.responsive(
+                        mobile: 12.0,
+                        tablet: 16.0,
+                        desktop: 20.0,
+                      ),
+                    ),
+                    Text(
+                      l10n.fleetUtilization,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: context.responsive(
+                          mobile: 14.0,
+                          tablet: 16.0,
+                          desktop: 18.0,
+                        ),
                         fontWeight: FontWeight.bold,
                         fontFamily: 'Cairo',
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                SizedBox(
+                  height: context.responsive(
+                    mobile: 16.0,
+                    tablet: 20.0,
+                    desktop: 24.0,
+                  ),
+                ),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(
+                    context.responsive(
+                      mobile: 10.0,
+                      tablet: 12.0,
+                      desktop: 14.0,
+                    ),
+                  ),
                   child: LinearProgressIndicator(
                     value: stats.totalVehicles > 0
                         ? stats.activeVehicles / stats.totalVehicles
                         : 0,
-                    minHeight: 12,
+                    minHeight: context.responsive(
+                      mobile: 12.0,
+                      tablet: 14.0,
+                      desktop: 16.0,
+                    ),
                     backgroundColor: AppColors.primary.withValues(alpha: 0.2),
                     valueColor:
                         const AlwaysStoppedAnimation<Color>(AppColors.primary),
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(
+                  height: context.responsive(
+                    mobile: 8.0,
+                    tablet: 10.0,
+                    desktop: 12.0,
+                  ),
+                ),
                 Text(
-                  '${stats.totalVehicles > 0 ? ((stats.activeVehicles / stats.totalVehicles) * 100).toStringAsFixed(0) : 0}% من الأسطول قيد الاستخدام',
-                  style: const TextStyle(
-                    fontSize: 12,
+                  '${Formatters.formatSimple(stats.totalVehicles > 0 ? ((stats.activeVehicles / stats.totalVehicles) * 100).toStringAsFixed(0) : 0)}% ${l10n.fleetInUse}',
+                  style: TextStyle(
+                    fontSize: context.responsive(
+                      mobile: 12.0,
+                      tablet: 13.0,
+                      desktop: 14.0,
+                    ),
                     color: AppColors.textSecondary,
                     fontFamily: 'Cairo',
                   ),
@@ -612,122 +1023,211 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
   }
 
   Widget _buildActiveTripsCard(TripDashboardStats stats) {
+    final l10n = AppLocalizations.of(context);
+    final padding = context.responsive(
+      mobile: 16.0,
+      tablet: 32.0,
+      desktop: 48.0,
+    );
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          context.go('${RoutePaths.dispatcherHome}/monitor');
-        },
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                AppColors.dispatcherPrimary,
-                AppColors.dispatcherPrimaryMid,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+      padding: EdgeInsets.symmetric(horizontal: padding),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            context.go('${RoutePaths.dispatcherHome}/monitor');
+          },
+          child: Container(
+            padding: EdgeInsets.all(
+              context.responsive(
+                mobile: 20.0,
+                tablet: 24.0,
+                desktop: 28.0,
+              ),
             ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.dispatcherPrimary.withValues(alpha: 0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 6),
+            decoration: BoxDecoration(
+              gradient: AppColors.dispatcherGradient,
+              borderRadius: BorderRadius.circular(
+                context.responsive(
+                  mobile: 20.0,
+                  tablet: 22.0,
+                  desktop: 24.0,
+                ),
               ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.gps_fixed_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.dispatcherPrimary.withValues(alpha: 0.35),
+                  blurRadius: context.responsive(
+                    mobile: 20.0,
+                    tablet: 24.0,
+                    desktop: 28.0,
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'المراقبة الحية',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            fontFamily: 'Cairo',
+                  offset: const Offset(0, 8),
+                  spreadRadius: 0,
+                ),
+                BoxShadow(
+                  color: AppColors.dispatcherPrimary.withValues(alpha: 0.2),
+                  blurRadius: context.responsive(
+                    mobile: 12.0,
+                    tablet: 14.0,
+                    desktop: 16.0,
+                  ),
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(
+                        context.responsive(
+                          mobile: 12.0,
+                          tablet: 14.0,
+                          desktop: 16.0,
+                        ),
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(
+                          context.responsive(
+                            mobile: 12.0,
+                            tablet: 14.0,
+                            desktop: 16.0,
                           ),
                         ),
-                        Text(
-                          '${stats.ongoingTrips} رحلة نشطة الآن',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.white.withValues(alpha: 0.8),
-                            fontFamily: 'Cairo',
+                      ),
+                      child: Icon(
+                        Icons.gps_fixed_rounded,
+                        color: Colors.white,
+                        size: context.responsive(
+                          mobile: 24.0,
+                          tablet: 26.0,
+                          desktop: 28.0,
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: context.responsive(
+                        mobile: 16.0,
+                        tablet: 20.0,
+                        desktop: 24.0,
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.liveMonitoring,
+                            style: TextStyle(
+                              fontSize: context.responsive(
+                                mobile: 18.0,
+                                tablet: 20.0,
+                                desktop: 22.0,
+                              ),
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontFamily: 'Cairo',
+                            ),
+                          ),
+                          Text(
+                            '${Formatters.formatSimple(stats.ongoingTrips)} ${l10n.activeTripsNow}',
+                            style: TextStyle(
+                              fontSize: context.responsive(
+                                mobile: 13.0,
+                                tablet: 14.0,
+                                desktop: 15.0,
+                              ),
+                              color: Colors.white.withValues(alpha: 0.8),
+                              fontFamily: 'Cairo',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: EdgeInsets.all(
+                        context.responsive(
+                          mobile: 10.0,
+                          tablet: 12.0,
+                          desktop: 14.0,
+                        ),
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(
+                          context.responsive(
+                            mobile: 10.0,
+                            tablet: 12.0,
+                            desktop: 14.0,
                           ),
                         ),
-                      ],
+                      ),
+                      child: Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: Colors.white,
+                        size: context.responsive(
+                          mobile: 18.0,
+                          tablet: 20.0,
+                          desktop: 22.0,
+                        ),
+                      ),
                     ),
+                  ],
+                ),
+                SizedBox(
+                  height: context.responsive(
+                    mobile: 20.0,
+                    tablet: 24.0,
+                    desktop: 28.0,
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
+                ),
+                // Live indicators
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildLiveIndicator(
+                      icon: Icons.directions_bus_rounded,
+                      label: l10n.vehicles,
+                      value: Formatters.formatSimple(stats.activeVehicles),
+                    ),
+                    Container(
+                      width: 1,
+                      height: context.responsive(
+                        mobile: 40.0,
+                        tablet: 45.0,
+                        desktop: 50.0,
+                      ),
                       color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      color: Colors.white,
-                      size: 18,
+                    _buildLiveIndicator(
+                      icon: Icons.person_rounded,
+                      label: l10n.drivers,
+                      value: Formatters.formatSimple(stats.activeDrivers),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              // Live indicators
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildLiveIndicator(
-                    icon: Icons.directions_bus_rounded,
-                    label: 'مركبات',
-                    value: '${stats.activeVehicles}',
-                  ),
-                  Container(
-                    width: 1,
-                    height: 40,
-                    color: Colors.white.withValues(alpha: 0.2),
-                  ),
-                  _buildLiveIndicator(
-                    icon: Icons.person_rounded,
-                    label: 'سائقين',
-                    value: '${stats.activeDrivers}',
-                  ),
-                  Container(
-                    width: 1,
-                    height: 40,
-                    color: Colors.white.withValues(alpha: 0.2),
-                  ),
-                  _buildLiveIndicator(
-                    icon: Icons.play_circle_rounded,
-                    label: 'رحلات',
-                    value: '${stats.ongoingTrips}',
-                  ),
-                ],
-              ),
-            ],
+                    Container(
+                      width: 1,
+                      height: context.responsive(
+                        mobile: 40.0,
+                        tablet: 45.0,
+                        desktop: 50.0,
+                      ),
+                      color: Colors.white.withValues(alpha: 0.2),
+                    ),
+                    _buildLiveIndicator(
+                      icon: Icons.play_circle_rounded,
+                      label: l10n.trips,
+                      value: Formatters.formatSimple(stats.ongoingTrips),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ).animate().fadeIn(duration: 400.ms, delay: 450.ms).scale(
@@ -746,12 +1246,30 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
   }) {
     return Column(
       children: [
-        Icon(icon, color: Colors.white, size: 24),
-        const SizedBox(height: 6),
+        Icon(
+          icon,
+          color: Colors.white,
+          size: context.responsive(
+            mobile: 24.0,
+            tablet: 26.0,
+            desktop: 28.0,
+          ),
+        ),
+        SizedBox(
+          height: context.responsive(
+            mobile: 6.0,
+            tablet: 8.0,
+            desktop: 10.0,
+          ),
+        ),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 18,
+          style: TextStyle(
+            fontSize: context.responsive(
+              mobile: 18.0,
+              tablet: 20.0,
+              desktop: 22.0,
+            ),
             fontWeight: FontWeight.bold,
             color: Colors.white,
             fontFamily: 'Cairo',
@@ -760,7 +1278,11 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
         Text(
           label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: context.responsive(
+              mobile: 11.0,
+              tablet: 12.0,
+              desktop: 13.0,
+            ),
             color: Colors.white.withValues(alpha: 0.7),
             fontFamily: 'Cairo',
           ),
@@ -770,6 +1292,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
   }
 
   Widget _buildErrorState(String error) {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -790,7 +1313,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
             ),
             const SizedBox(height: 24),
             Text(
-              'حدث خطأ',
+              l10n.error,
               style: AppTypography.h5.copyWith(
                 color: AppColors.error,
                 fontWeight: FontWeight.bold,
@@ -812,7 +1335,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
                 ref.invalidate(dispatcherDashboardStatsProvider(today));
               },
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('إعادة المحاولة'),
+              label: Text(l10n.tryAgain),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -831,7 +1354,12 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
     );
   }
 
+  String _formatDate(BuildContext context, DateTime date) {
+    return Formatters.displayDate(date);
+  }
+
   void _showLogoutDialog() {
+    final l10n = AppLocalizations.of(context);
     HapticFeedback.mediumImpact();
     showDialog(
       context: context,
@@ -854,25 +1382,25 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
               ),
             ),
             const SizedBox(width: 12),
-            const Text(
-              'تسجيل الخروج',
-              style: TextStyle(
+            Text(
+              l10n.logout,
+              style: const TextStyle(
                 fontFamily: 'Cairo',
                 fontWeight: FontWeight.bold,
               ),
             ),
           ],
         ),
-        content: const Text(
-          'هل أنت متأكد من تسجيل الخروج؟',
-          style: TextStyle(fontFamily: 'Cairo'),
+        content: Text(
+          l10n.logoutConfirm,
+          style: const TextStyle(fontFamily: 'Cairo'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'إلغاء',
-              style: TextStyle(fontFamily: 'Cairo'),
+            child: Text(
+              l10n.cancel,
+              style: const TextStyle(fontFamily: 'Cairo'),
             ),
           ),
           ElevatedButton(
@@ -890,9 +1418,9 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text(
-              'تسجيل الخروج',
-              style: TextStyle(fontFamily: 'Cairo'),
+            child: Text(
+              l10n.logout,
+              style: const TextStyle(fontFamily: 'Cairo'),
             ),
           ),
         ],

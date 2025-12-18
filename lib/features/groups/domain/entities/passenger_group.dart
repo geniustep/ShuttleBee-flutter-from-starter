@@ -6,6 +6,11 @@ class PassengerGroup {
   final String? code;
   final int? driverId;
   final String? driverName;
+  final int? companionId; // NEW: المرافق
+  final String? companionName; // NEW: اسم المرافق
+  final int? dispatcherId; // NEW: منشئ المجموعة (readonly)
+  final String? dispatcherName; // NEW: اسم منشئ المجموعة
+  final List<int> dispatcherGroupIds; // NEW: قائمة Dispatchers المصرح لهم
   final int? vehicleId;
   final String? vehicleName;
   final int totalSeats;
@@ -37,6 +42,11 @@ class PassengerGroup {
     this.code,
     this.driverId,
     this.driverName,
+    this.companionId, // NEW: المرافق
+    this.companionName, // NEW: اسم المرافق
+    this.dispatcherId, // NEW: منشئ المجموعة
+    this.dispatcherName, // NEW: اسم منشئ المجموعة
+    this.dispatcherGroupIds = const [], // NEW: قائمة Dispatchers المصرح لهم
     this.vehicleId,
     this.vehicleName,
     this.totalSeats = 15,
@@ -70,6 +80,13 @@ class PassengerGroup {
       code: _extractString(json['code']),
       driverId: _extractId(json['driver_id']),
       driverName: _extractName(json['driver_id']),
+      companionId: _extractId(json['companion_id']), // NEW: المرافق
+      companionName: _extractName(json['companion_id']), // NEW: اسم المرافق
+      dispatcherId: _extractId(json['dispatcher_id']), // NEW: منشئ المجموعة
+      dispatcherName:
+          _extractName(json['dispatcher_id']), // NEW: اسم منشئ المجموعة
+      dispatcherGroupIds: _extractIds(
+          json['dispatcher_group_ids']), // NEW: قائمة Dispatchers المصرح لهم
       vehicleId: _extractId(json['vehicle_id']),
       vehicleName: _extractName(json['vehicle_id']),
       totalSeats: json['total_seats'] as int? ?? 15,
@@ -109,6 +126,14 @@ class PassengerGroup {
       code: json['code'] as String?,
       driverId: json['driver_id'] as int?,
       driverName: json['driver_name'] as String?,
+      companionId: json['companion_id'] as int?, // NEW: المرافق
+      companionName: json['companion_name'] as String?, // NEW: اسم المرافق
+      dispatcherId: json['dispatcher_id'] as int?, // NEW: منشئ المجموعة
+      dispatcherName:
+          json['dispatcher_name'] as String?, // NEW: اسم منشئ المجموعة
+      dispatcherGroupIds:
+          (json['dispatcher_group_ids'] as List?)?.cast<int>() ??
+              const [], // NEW: قائمة Dispatchers
       vehicleId: json['vehicle_id'] as int?,
       vehicleName: json['vehicle_name'] as String?,
       totalSeats: json['total_seats'] as int? ?? 15,
@@ -155,6 +180,11 @@ class PassengerGroup {
         'code': code,
         'driver_id': driverId,
         'driver_name': driverName,
+        'companion_id': companionId, // NEW: المرافق
+        'companion_name': companionName, // NEW: اسم المرافق
+        'dispatcher_id': dispatcherId, // NEW: منشئ المجموعة
+        'dispatcher_name': dispatcherName, // NEW: اسم منشئ المجموعة
+        'dispatcher_group_ids': dispatcherGroupIds, // NEW: قائمة Dispatchers
         'vehicle_id': vehicleId,
         'vehicle_name': vehicleName,
         'total_seats': totalSeats,
@@ -186,6 +216,13 @@ class PassengerGroup {
       'name': name,
       'code': code ?? false,
       'driver_id': driverId ?? false,
+      'companion_id': companionId ?? false, // NEW: المرافق
+      // dispatcher_id is readonly - set by backend automatically
+      'dispatcher_group_ids': dispatcherGroupIds.isNotEmpty
+          ? [
+              [6, 0, dispatcherGroupIds]
+            ] // Many2many command: replace all
+          : false, // NEW: قائمة Dispatchers المصرح لهم
       'vehicle_id': vehicleId ?? false,
       'total_seats': totalSeats,
       'trip_type': tripType.value,
@@ -234,6 +271,12 @@ class PassengerGroup {
     return null;
   }
 
+  static List<int> _extractIds(dynamic value) {
+    if (value == null || value == false) return const [];
+    if (value is List) return value.cast<int>();
+    return const [];
+  }
+
   /// هل لديه سائق معين
   bool get hasDriver => driverId != null;
 
@@ -251,6 +294,11 @@ class PassengerGroup {
     String? code,
     int? driverId,
     String? driverName,
+    int? companionId, // NEW: المرافق
+    String? companionName, // NEW: اسم المرافق
+    int? dispatcherId, // NEW: منشئ المجموعة
+    String? dispatcherName, // NEW: اسم منشئ المجموعة
+    List<int>? dispatcherGroupIds, // NEW: قائمة Dispatchers المصرح لهم
     int? vehicleId,
     String? vehicleName,
     int? totalSeats,
@@ -282,6 +330,13 @@ class PassengerGroup {
       code: code ?? this.code,
       driverId: driverId ?? this.driverId,
       driverName: driverName ?? this.driverName,
+      companionId: companionId ?? this.companionId, // NEW: المرافق
+      companionName: companionName ?? this.companionName, // NEW: اسم المرافق
+      dispatcherId: dispatcherId ?? this.dispatcherId, // NEW: منشئ المجموعة
+      dispatcherName:
+          dispatcherName ?? this.dispatcherName, // NEW: اسم منشئ المجموعة
+      dispatcherGroupIds: dispatcherGroupIds ??
+          this.dispatcherGroupIds, // NEW: قائمة Dispatchers
       vehicleId: vehicleId ?? this.vehicleId,
       vehicleName: vehicleName ?? this.vehicleName,
       totalSeats: totalSeats ?? this.totalSeats,

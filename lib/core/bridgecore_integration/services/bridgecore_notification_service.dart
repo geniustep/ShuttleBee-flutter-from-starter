@@ -1,8 +1,13 @@
 import 'dart:async';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:bridgecore_flutter_starter/core/utils/logger.dart';
 import 'package:bridgecore_flutter_starter/core/services/event_bus_service.dart';
+
+// Conditional import: use firebase_messaging on mobile platforms, stub on others
+// On Windows and other unsupported platforms, use stub
+import 'firebase_messaging_stub.dart';
 
 /// Notification type
 enum NotificationTypeDef {
@@ -126,10 +131,20 @@ class BridgeCoreNotificationService {
   factory BridgeCoreNotificationService() => _instance;
   BridgeCoreNotificationService._internal();
 
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  FirebaseMessaging? _fcm;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   final EventBusService _eventBus = EventBusService();
+
+  /// Check if Firebase Messaging is supported on current platform
+  bool get _isFirebaseSupported {
+    if (kIsWeb) return false;
+    try {
+      return Platform.isAndroid || Platform.isIOS;
+    } catch (e) {
+      return false;
+    }
+  }
 
   bool _isInitialized = false;
   String? _fcmToken;
@@ -165,8 +180,17 @@ class BridgeCoreNotificationService {
     // Initialize local notifications
     await _initializeLocalNotifications();
 
-    // Initialize FCM
-    await _initializeFCM();
+    // Initialize FCM only on supported platforms
+    if (_isFirebaseSupported) {
+      try {
+        _fcm = FirebaseMessaging.instance;
+        await _initializeFCM();
+      } catch (e) {
+        AppLogger.warning('Firebase Messaging initialization failed: $e');
+      }
+    } else {
+      AppLogger.info('Firebase Messaging not supported on this platform');
+    }
 
     _isInitialized = true;
     AppLogger.info('BridgeCoreNotificationService initialized');
@@ -197,7 +221,9 @@ class BridgeCoreNotificationService {
 
   /// Initialize FCM
   Future<void> _initializeFCM() async {
-    final settings = await _fcm.requestPermission(
+    if (_fcm == null) return;
+
+    final settings = await _fcm!.requestPermission(
       alert: true,
       badge: true,
       sound: true,
@@ -211,10 +237,10 @@ class BridgeCoreNotificationService {
 
     AppLogger.info('User granted FCM permission');
 
-    _fcmToken = await _fcm.getToken();
+    _fcmToken = await _fcm!.getToken();
     AppLogger.info('FCM Token obtained');
 
-    _fcm.onTokenRefresh.listen((token) {
+    _fcm!.onTokenRefresh.listen((token) {
       _fcmToken = token;
       AppLogger.info('FCM Token refreshed');
     });
@@ -241,7 +267,7 @@ class BridgeCoreNotificationService {
       _messageController.add(message);
     });
 
-    final initialMessage = await _fcm.getInitialMessage();
+    final initialMessage = await _fcm!.getInitialMessage();
     if (initialMessage != null) {
       AppLogger.info('App opened from terminated state');
       _messageController.add(initialMessage);
@@ -449,13 +475,21 @@ class BridgeCoreNotificationService {
 
   /// Subscribe to FCM topic
   Future<void> subscribeToTopic(String topic) async {
-    await _fcm.subscribeToTopic(topic);
+    if (_fcm == null) {
+      AppLogger.warning('Firebase Messaging not available on this platform');
+      return;
+    }
+    await _fcm!.subscribeToTopic(topic);
     AppLogger.info('Subscribed to topic: $topic');
   }
 
   /// Unsubscribe from FCM topic
   Future<void> unsubscribeFromTopic(String topic) async {
-    await _fcm.unsubscribeFromTopic(topic);
+    if (_fcm == null) {
+      AppLogger.warning('Firebase Messaging not available on this platform');
+      return;
+    }
+    await _fcm!.unsubscribeFromTopic(topic);
     AppLogger.info('Unsubscribed from topic: $topic');
   }
 

@@ -6,14 +6,19 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../../../core/widgets/role_switcher_widget.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/loading/shimmer_loading.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../vehicles/domain/entities/shuttle_vehicle.dart';
 import '../providers/dispatcher_cached_providers.dart';
-import '../widgets/dispatcher_app_bar.dart';
-import '../widgets/dispatcher_search_field.dart';
+import '../widgets/dispatcher_unified_header.dart';
+import '../widgets/dispatcher_secondary_header.dart';
+import '../widgets/dispatcher_footer.dart';
+import '../widgets/dispatcher_action_fab.dart';
 
 /// Dispatcher Vehicles Screen - شاشة إدارة المركبات للمرسل - ShuttleBee
 class DispatcherVehiclesScreen extends ConsumerStatefulWidget {
@@ -33,61 +38,26 @@ class _DispatcherVehiclesScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final vehiclesAsync = ref.watch(dispatcherVehiclesProvider);
 
-    return WillPopScope(
-      onWillPop: () async {
-        if (Navigator.of(context).canPop()) return true;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
         context.go(RoutePaths.dispatcherHome);
-        return false;
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
-        appBar: DispatcherAppBar(
-          title: 'إدارة المركبات',
-          actions: [
-            const RoleSwitcherButton(),
-            _buildAdvancedFilterButton(),
-            IconButton(
-              icon: Icon(
-                _showActiveOnly
-                    ? Icons.filter_alt_rounded
-                    : Icons.filter_alt_off_rounded,
-              ),
-              onPressed: () {
-                setState(() {
-                  _showActiveOnly = !_showActiveOnly;
-                });
-              },
-              tooltip: _showActiveOnly ? 'إظهار الكل' : 'النشطة فقط',
-            ),
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              onPressed: () async {
-                final cache = ref.read(dispatcherCacheDataSourceProvider);
-                final userId =
-                    ref.read(authStateProvider).asData?.value.user?.id ?? 0;
-                if (userId != 0) {
-                  await cache
-                      .delete(DispatcherCacheKeys.vehicles(userId: userId));
-                }
-                ref.invalidate(dispatcherVehiclesProvider);
-              },
-              tooltip: 'تحديث',
-            ),
-          ],
-        ),
         body: Column(
           children: [
-            // Search Bar
-            _buildSearchBar(),
-            if (_hasActiveFilters)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                child: _buildActiveFiltersRow(),
-              ).animate().fadeIn(duration: 200.ms),
+            // === Unified Header ===
+            _buildHeader(context, l10n, vehiclesAsync),
 
-            // Vehicles List
+            // === شريط البحث والفلاتر (للموبايل فقط) ===
+            _buildMobileSearchSection(context),
+
+            // === Vehicles List ===
             Expanded(
               child: vehiclesAsync.when(
                 data: (vehicles) => _buildVehiclesList(vehicles),
@@ -97,36 +67,280 @@ class _DispatcherVehiclesScreenState
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          heroTag: 'dispatcher_vehicles_fab',
-          onPressed: () {
-            HapticFeedback.mediumImpact();
-            context.go('${RoutePaths.dispatcherHome}/vehicles/create');
+
+        // === Footer (Tablet/Desktop only) - شريط معلومات فقط ===
+        bottomNavigationBar: vehiclesAsync.maybeWhen(
+          data: (vehicles) {
+            final filteredCount = _getFilteredVehicles(vehicles).length;
+            final activeCount = vehicles.where((v) => v.active).length;
+            final withParking =
+                vehicles.where((v) => v.hasParkingLocation).length;
+
+            return DispatcherFooter(
+              hideOnMobile: true,
+              info: filteredCount != vehicles.length
+                  ? 'عرض ${Formatters.formatSimple(filteredCount)} من ${Formatters.formatSimple(vehicles.length)} مركبة'
+                  : '${l10n.total}: ${Formatters.formatSimple(vehicles.length)} ${l10n.vehicles}',
+              stats: [
+                DispatcherFooterStat(
+                  icon: Icons.check_circle_rounded,
+                  label: l10n.active,
+                  value: Formatters.formatSimple(activeCount),
+                  color: AppColors.success,
+                ),
+                DispatcherFooterStat(
+                  icon: Icons.local_parking_rounded,
+                  label: 'مع موقف',
+                  value: Formatters.formatSimple(withParking),
+                ),
+              ],
+              lastUpdated: DateTime.now(),
+              syncStatus: DispatcherSyncStatus.synced,
+            );
           },
-          icon: const Icon(Icons.add_rounded),
-          label:
-              const Text('إضافة مركبة', style: TextStyle(fontFamily: 'Cairo')),
-          backgroundColor: AppColors.dispatcherPrimary,
-          foregroundColor: Colors.white,
+          orElse: () => null,
+        ),
+
+        // === FAB (Mobile only) ===
+        floatingActionButton: DispatcherActionFAB(
+          actions: [
+            DispatcherFabAction(
+              icon: Icons.add_rounded,
+              label: 'إضافة مركبة',
+              isPrimary: true,
+              onPressed: () {
+                context.go('${RoutePaths.dispatcherHome}/vehicles/create');
+              },
+            ),
+            if (_hasActiveFilters)
+              DispatcherFabAction(
+                icon: Icons.clear_all_rounded,
+                label: 'مسح الفلاتر',
+                onPressed: () {
+                  setState(() {
+                    _showActiveOnly = false;
+                    _onlyWithDriver = false;
+                    _onlyWithParking = false;
+                  });
+                },
+              ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.white,
-      child: DispatcherSearchField(
-        hintText: 'ابحث عن مركبة...',
-        value: _searchQuery,
-        onChanged: (value) => setState(() => _searchQuery = value),
-        onClear: () => setState(() => _searchQuery = ''),
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🎯 HEADER BUILDER - يختلف حسب الجهاز
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildHeader(
+    BuildContext context,
+    AppLocalizations l10n,
+    AsyncValue<List<ShuttleVehicle>> vehiclesAsync,
+  ) {
+    return DispatcherUnifiedHeader(
+      title: l10n.vehiclesManagement,
+      subtitle: vehiclesAsync.maybeWhen(
+        data: (vehicles) {
+          final activeCount = vehicles.where((v) => v.active).length;
+          return '${l10n.total}: ${Formatters.formatSimple(vehicles.length)} • ${l10n.active}: ${Formatters.formatSimple(activeCount)}';
+        },
+        orElse: () => null,
       ),
-    ).animate().fadeIn(duration: 300.ms);
+      searchHint: 'ابحث عن مركبة...',
+      searchValue: _searchQuery,
+      onSearchChanged: (value) => setState(() => _searchQuery = value),
+      onSearchClear: () => setState(() => _searchQuery = ''),
+      showSearch: !context.isMobile,
+      onRefresh: () async {
+        final cache = ref.read(dispatcherCacheDataSourceProvider);
+        final userId = ref.read(authStateProvider).asData?.value.user?.id ?? 0;
+        if (userId != 0) {
+          await cache.delete(DispatcherCacheKeys.vehicles(userId: userId));
+        }
+        ref.invalidate(dispatcherVehiclesProvider);
+      },
+      isLoading: vehiclesAsync.isLoading,
+      actions: [
+        const RoleSwitcherButton(),
+        IconButton(
+          icon: Icon(
+            Icons.tune_rounded,
+            color: _hasActiveFilters ? AppColors.warning : Colors.white,
+          ),
+          onPressed: _openFiltersSheet,
+          tooltip: 'فلترة متقدمة',
+        ),
+      ],
+      primaryActions: [
+        DispatcherHeaderAction(
+          icon: Icons.add_rounded,
+          label: 'إضافة مركبة',
+          isPrimary: true,
+          onPressed: () {
+            HapticFeedback.mediumImpact();
+            context.go('${RoutePaths.dispatcherHome}/vehicles/create');
+          },
+        ),
+        if (_hasActiveFilters)
+          DispatcherHeaderAction(
+            icon: Icons.clear_all_rounded,
+            label: 'مسح الفلاتر',
+            onPressed: () {
+              setState(() {
+                _showActiveOnly = false;
+                _onlyWithDriver = false;
+                _onlyWithParking = false;
+              });
+            },
+          ),
+      ],
+      stats: vehiclesAsync.maybeWhen(
+        data: (vehicles) => [
+          DispatcherHeaderStat(
+            icon: Icons.directions_bus_rounded,
+            label: l10n.total,
+            value: Formatters.formatSimple(vehicles.length),
+          ),
+          DispatcherHeaderStat(
+            icon: Icons.check_circle_rounded,
+            label: l10n.active,
+            value:
+                Formatters.formatSimple(vehicles.where((v) => v.active).length),
+          ),
+          DispatcherHeaderStat(
+            icon: Icons.local_parking_rounded,
+            label: 'مع موقف',
+            value: Formatters.formatSimple(
+                vehicles.where((v) => v.hasParkingLocation).length),
+          ),
+        ],
+        orElse: () => [],
+      ),
+      filters: context.isMobile ? [] : _buildActiveFilterChips(),
+    );
   }
 
-  Widget _buildVehiclesList(List<ShuttleVehicle> vehicles) {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 📱 MOBILE SEARCH SECTION - شريط البحث والفلاتر للموبايل فقط
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildMobileSearchSection(BuildContext context) {
+    if (!context.isMobile) return const SizedBox.shrink();
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // حقل البحث
+          Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: TextField(
+              style: const TextStyle(fontSize: 14, fontFamily: 'Cairo'),
+              decoration: InputDecoration(
+                hintText: 'ابحث عن مركبة...',
+                hintStyle: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 14,
+                  fontFamily: 'Cairo',
+                ),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: Colors.grey.shade500,
+                  size: 20,
+                ),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(
+                          Icons.clear_rounded,
+                          color: Colors.grey.shade500,
+                          size: 18,
+                        ),
+                        onPressed: () => setState(() => _searchQuery = ''),
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+              ),
+              onChanged: (v) => setState(() => _searchQuery = v),
+              textInputAction: TextInputAction.search,
+            ),
+          ),
+
+          // الفلاتر النشطة
+          if (_buildActiveFilterChips().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _buildActiveFilterChips()
+                    .map(
+                      (f) => Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: f,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildActiveFilterChips() {
+    final chips = <Widget>[];
+
+    if (_showActiveOnly) {
+      chips.add(
+        DispatcherFilterChip(
+          label: 'نشطة فقط',
+          isSelected: true,
+          onTap: () => setState(() => _showActiveOnly = false),
+          icon: Icons.check_circle_rounded,
+          color: AppColors.success,
+        ),
+      );
+    }
+
+    if (_onlyWithDriver) {
+      chips.add(
+        DispatcherFilterChip(
+          label: 'بسائق',
+          isSelected: true,
+          onTap: () => setState(() => _onlyWithDriver = false),
+          icon: Icons.person_rounded,
+          color: AppColors.primary,
+        ),
+      );
+    }
+
+    if (_onlyWithParking) {
+      chips.add(
+        DispatcherFilterChip(
+          label: 'مع موقف',
+          isSelected: true,
+          onTap: () => setState(() => _onlyWithParking = false),
+          icon: Icons.local_parking_rounded,
+          color: AppColors.warning,
+        ),
+      );
+    }
+
+    return chips;
+  }
+
+  List<ShuttleVehicle> _getFilteredVehicles(List<ShuttleVehicle> vehicles) {
     var filteredVehicles = vehicles;
 
     // Apply search filter
@@ -156,11 +370,19 @@ class _DispatcherVehiclesScreenState
 
     if (_onlyWithParking) {
       filteredVehicles = filteredVehicles
-          .where((v) =>
-              v.hasParkingLocation ||
-              (v.homeAddress?.trim().isNotEmpty ?? false))
+          .where(
+            (v) =>
+                v.hasParkingLocation ||
+                (v.homeAddress?.trim().isNotEmpty ?? false),
+          )
           .toList();
     }
+
+    return filteredVehicles;
+  }
+
+  Widget _buildVehiclesList(List<ShuttleVehicle> vehicles) {
+    final filteredVehicles = _getFilteredVehicles(vehicles);
 
     if (filteredVehicles.isEmpty) {
       return EmptyState(
@@ -182,7 +404,12 @@ class _DispatcherVehiclesScreenState
         ref.invalidate(dispatcherVehiclesProvider);
       },
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          context.isMobile ? 96 : 16, // مساحة إضافية للـ FAB على الهاتف
+        ),
         itemCount: filteredVehicles.length,
         itemBuilder: (context, index) {
           final vehicle = filteredVehicles[index];
@@ -194,107 +421,6 @@ class _DispatcherVehiclesScreenState
 
   bool get _hasActiveFilters =>
       _showActiveOnly || _onlyWithDriver || _onlyWithParking;
-
-  int get _activeFiltersCount {
-    var c = 0;
-    if (_showActiveOnly) c++;
-    if (_onlyWithDriver) c++;
-    if (_onlyWithParking) c++;
-    return c;
-  }
-
-  Widget _buildAdvancedFilterButton() {
-    return IconButton(
-      tooltip: 'فلترة متقدمة',
-      onPressed: _openFiltersSheet,
-      icon: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Icon(Icons.tune_rounded),
-          if (_activeFiltersCount > 0)
-            Positioned(
-              right: -6,
-              top: -6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(999),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  '$_activeFiltersCount',
-                  style: const TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.dispatcherPrimary,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActiveFiltersRow() {
-    final chips = <Widget>[];
-
-    if (_showActiveOnly) {
-      chips.add(
-        InputChip(
-          label: const Text('نشطة فقط', style: TextStyle(fontFamily: 'Cairo')),
-          onDeleted: () => setState(() => _showActiveOnly = false),
-        ),
-      );
-    }
-    if (_onlyWithDriver) {
-      chips.add(
-        InputChip(
-          label: const Text('بسائق', style: TextStyle(fontFamily: 'Cairo')),
-          onDeleted: () => setState(() => _onlyWithDriver = false),
-        ),
-      );
-    }
-    if (_onlyWithParking) {
-      chips.add(
-        InputChip(
-          label: const Text('موقف محدد', style: TextStyle(fontFamily: 'Cairo')),
-          onDeleted: () => setState(() => _onlyWithParking = false),
-        ),
-      );
-    }
-
-    chips.add(
-      TextButton.icon(
-        onPressed: () {
-          setState(() {
-            _showActiveOnly = false;
-            _onlyWithDriver = false;
-            _onlyWithParking = false;
-          });
-        },
-        icon: const Icon(Icons.clear_all_rounded, size: 18),
-        label: const Text('مسح', style: TextStyle(fontFamily: 'Cairo')),
-      ),
-    );
-
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: chips,
-      ),
-    );
-  }
 
   Future<void> _openFiltersSheet() async {
     HapticFeedback.lightImpact();
@@ -344,8 +470,10 @@ class _DispatcherVehiclesScreenState
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          const Icon(Icons.tune_rounded,
-                              color: AppColors.dispatcherPrimary),
+                          const Icon(
+                            Icons.tune_rounded,
+                            color: AppColors.dispatcherPrimary,
+                          ),
                           const SizedBox(width: 10),
                           const Expanded(
                             child: Text(
@@ -377,25 +505,31 @@ class _DispatcherVehiclesScreenState
                         contentPadding: EdgeInsets.zero,
                         value: localActiveOnly,
                         onChanged: (v) => setLocal(() => localActiveOnly = v),
-                        activeColor: AppColors.dispatcherPrimary,
-                        title: const Text('نشطة فقط',
-                            style: TextStyle(fontFamily: 'Cairo')),
+                        activeThumbColor: AppColors.dispatcherPrimary,
+                        title: const Text(
+                          'نشطة فقط',
+                          style: TextStyle(fontFamily: 'Cairo'),
+                        ),
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         value: localWithDriver,
                         onChanged: (v) => setLocal(() => localWithDriver = v),
-                        activeColor: AppColors.dispatcherPrimary,
-                        title: const Text('مرتبطة بسائق',
-                            style: TextStyle(fontFamily: 'Cairo')),
+                        activeThumbColor: AppColors.dispatcherPrimary,
+                        title: const Text(
+                          'مرتبطة بسائق',
+                          style: TextStyle(fontFamily: 'Cairo'),
+                        ),
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         value: localWithParking,
                         onChanged: (v) => setLocal(() => localWithParking = v),
-                        activeColor: AppColors.dispatcherPrimary,
-                        title: const Text('لديها موقف محدد',
-                            style: TextStyle(fontFamily: 'Cairo')),
+                        activeThumbColor: AppColors.dispatcherPrimary,
+                        title: const Text(
+                          'لديها موقف محدد',
+                          style: TextStyle(fontFamily: 'Cairo'),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -403,8 +537,10 @@ class _DispatcherVehiclesScreenState
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () => Navigator.pop(ctx),
-                              child: const Text('إلغاء',
-                                  style: TextStyle(fontFamily: 'Cairo')),
+                              child: const Text(
+                                'إلغاء',
+                                style: TextStyle(fontFamily: 'Cairo'),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -422,8 +558,10 @@ class _DispatcherVehiclesScreenState
                                 });
                                 Navigator.pop(ctx);
                               },
-                              child: const Text('تطبيق',
-                                  style: TextStyle(fontFamily: 'Cairo')),
+                              child: const Text(
+                                'تطبيق',
+                                style: TextStyle(fontFamily: 'Cairo'),
+                              ),
                             ),
                           ),
                         ],
@@ -577,11 +715,21 @@ class _DispatcherVehiclesScreenState
   }
 
   Widget _buildLoadingState() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 5,
-      itemBuilder: (context, index) {
-        return const ShimmerCard(height: 110);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+        return ListView.builder(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            isMobile ? 96 : 16, // مساحة إضافية للـ FAB على الهاتف
+          ),
+          itemCount: 5,
+          itemBuilder: (context, index) {
+            return const ShimmerCard(height: 110);
+          },
+        );
       },
     );
   }
@@ -705,7 +853,9 @@ class _DispatcherVehiclesScreenState
                 ),
                 const SizedBox(height: 32),
                 _buildDetailRow(
-                    'رقم اللوحة', vehicle.licensePlate ?? 'غير محدد'),
+                  'رقم اللوحة',
+                  vehicle.licensePlate ?? 'غير محدد',
+                ),
                 _buildDetailRow('السعة', '${vehicle.seatCapacity} مقعد'),
                 _buildDetailRow('عدد الرحلات', '${vehicle.tripCount}'),
                 if (vehicle.homeAddress != null &&

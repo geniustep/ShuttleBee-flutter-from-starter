@@ -15,6 +15,8 @@ class Trip {
   final DateTime? actualArrivalTime;
   final int? driverId;
   final String? driverName;
+  final int? companionId; // NEW: المرافق
+  final String? companionName; // NEW: اسم المرافق
   final int? vehicleId;
   final String? vehicleName;
   final String? vehiclePlateNumber;
@@ -69,6 +71,8 @@ class Trip {
     this.actualArrivalTime,
     this.driverId,
     this.driverName,
+    this.companionId, // NEW: المرافق
+    this.companionName, // NEW: اسم المرافق
     this.vehicleId,
     this.vehicleName,
     this.vehiclePlateNumber,
@@ -122,6 +126,8 @@ class Trip {
       actualArrivalTime: parseDateTime(json['actual_arrival_time']),
       driverId: extractId(json['driver_id']),
       driverName: extractName(json['driver_id']),
+      companionId: extractId(json['companion_id']), // NEW: المرافق
+      companionName: extractName(json['companion_id']), // NEW: اسم المرافق
       vehicleId: extractId(json['vehicle_id']),
       vehicleName: extractName(json['vehicle_id']),
       vehiclePlateNumber: _extractString(json['vehicle_plate']),
@@ -205,6 +211,8 @@ class Trip {
           : null,
       driverId: json['driverId'] as int?,
       driverName: json['driverName'] as String?,
+      companionId: json['companionId'] as int?, // NEW: المرافق
+      companionName: json['companionName'] as String?, // NEW: اسم المرافق
       vehicleId: json['vehicleId'] as int?,
       vehicleName: json['vehicleName'] as String?,
       vehiclePlateNumber: json['vehiclePlateNumber'] as String?,
@@ -284,6 +292,10 @@ class Trip {
       date: parseDate(json['date']),
       driverId: asInt(json['driver_id'] ?? json['driverId']),
       driverName: asString(json['driver_name'] ?? json['driverName']),
+      companionId:
+          asInt(json['companion_id'] ?? json['companionId']), // NEW: المرافق
+      companionName: asString(
+          json['companion_name'] ?? json['companionName']), // NEW: اسم المرافق
       vehicleId: asInt(json['vehicle_id'] ?? json['vehicleId']),
       vehicleName: asString(json['vehicle_name'] ?? json['vehicleName']),
       vehiclePlateNumber:
@@ -313,6 +325,8 @@ class Trip {
       'actualArrivalTime': actualArrivalTime?.toIso8601String(),
       'driverId': driverId,
       'driverName': driverName,
+      'companionId': companionId, // NEW: المرافق
+      'companionName': companionName, // NEW: اسم المرافق
       'vehicleId': vehicleId,
       'vehicleName': vehicleName,
       'vehiclePlateNumber': vehiclePlateNumber,
@@ -423,6 +437,8 @@ class Trip {
     DateTime? actualArrivalTime,
     int? driverId,
     String? driverName,
+    int? companionId, // NEW: المرافق
+    String? companionName, // NEW: اسم المرافق
     int? vehicleId,
     String? vehicleName,
     String? vehiclePlateNumber,
@@ -472,6 +488,8 @@ class Trip {
       actualArrivalTime: actualArrivalTime ?? this.actualArrivalTime,
       driverId: driverId ?? this.driverId,
       driverName: driverName ?? this.driverName,
+      companionId: companionId ?? this.companionId, // NEW: المرافق
+      companionName: companionName ?? this.companionName, // NEW: اسم المرافق
       vehicleId: vehicleId ?? this.vehicleId,
       vehicleName: vehicleName ?? this.vehicleName,
       vehiclePlateNumber: vehiclePlateNumber ?? this.vehiclePlateNumber,

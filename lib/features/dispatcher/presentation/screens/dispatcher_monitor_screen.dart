@@ -10,6 +10,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../core/enums/enums.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/role_switcher_widget.dart';
 import '../../../../core/services/live_tracking_provider.dart';
 import '../../../trips/domain/entities/trip.dart';
@@ -364,7 +365,7 @@ class _DispatcherMonitorScreenState
                   ),
                   tripsAsync.when(
                     data: (trips) => Text(
-                      '${trips.length} رحلة نشطة${liveState.vehiclePositions.isNotEmpty ? ' • ${liveState.vehiclePositions.length} تتبع حي' : ''}',
+                      '${Formatters.formatSimple(trips.length)} رحلة نشطة${liveState.vehiclePositions.isNotEmpty ? ' • ${Formatters.formatSimple(liveState.vehiclePositions.length)} تتبع حي' : ''}',
                       style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.textSecondary,
@@ -757,7 +758,7 @@ class _DispatcherMonitorScreenState
                       ),
                     ),
                     Text(
-                      '${trip.totalPassengers > 0 ? ((trip.boardedCount / trip.totalPassengers) * 100).toStringAsFixed(0) : 0}%',
+                      '${Formatters.formatSimple(trip.totalPassengers > 0 ? ((trip.boardedCount / trip.totalPassengers) * 100).toStringAsFixed(0) : 0)}%',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,

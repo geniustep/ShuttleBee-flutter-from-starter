@@ -156,43 +156,190 @@ class ResponsiveScaffold extends StatelessWidget {
       floatingActionButtonLocation: floatingActionButtonLocation,
       body: Row(
         children: [
-          NavigationDrawer(
-            selectedIndex: currentIndex,
-            onDestinationSelected: onDestinationSelected,
-            backgroundColor: navigationBackgroundColor,
-            children: [
-              if (drawerHeader != null) ...[
-                drawerHeader!,
-                const Divider(),
-              ] else
-                const SizedBox(height: 16),
-              ...destinations.map(
-                (item) => NavigationDrawerDestination(
-                  icon: item.badge != null
-                      ? Badge(
-                          label: item.badge,
-                          child: Icon(item.icon),
-                        )
-                      : Icon(item.icon),
-                  selectedIcon: item.badge != null
-                      ? Badge(
-                          label: item.badge,
-                          child: Icon(item.selectedIcon ?? item.icon),
-                        )
-                      : Icon(item.selectedIcon ?? item.icon),
-                  label: Text(item.label),
+          Container(
+            width: 280,
+            decoration: BoxDecoration(
+              color: navigationBackgroundColor ?? theme.colorScheme.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(2, 0),
                 ),
-              ),
-              if (drawerFooterItems != null) ...[
-                const Spacer(),
-                const Divider(),
-                ...drawerFooterItems!,
               ],
-            ],
+            ),
+            child: NavigationDrawer(
+              selectedIndex: currentIndex,
+              onDestinationSelected: onDestinationSelected,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              children: [
+                if (drawerHeader != null) ...[
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: drawerHeader!,
+                  ),
+                  const Divider(height: 1),
+                ] else
+                  const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                ...destinations.asMap().entries.map(
+                  (entry) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
+                    child: _DesktopNavItem(
+                      item: entry.value,
+                      isSelected: entry.key == currentIndex,
+                      onTap: () => onDestinationSelected(entry.key),
+                    ),
+                  ),
+                ),
+                if (drawerFooterItems != null) ...[
+                  const Spacer(),
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
+                  ...drawerFooterItems!,
+                  const SizedBox(height: 8),
+                ],
+              ],
+            ),
           ),
-          const VerticalDivider(width: 1, thickness: 1),
+          Container(
+            width: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.grey.withValues(alpha: 0.1),
+                  Colors.grey.withValues(alpha: 0.2),
+                  Colors.grey.withValues(alpha: 0.1),
+                ],
+              ),
+            ),
+          ),
           Expanded(child: pages[currentIndex]),
         ],
+      ),
+    );
+  }
+}
+
+/// Custom Desktop Navigation Item with Hover Effects
+class _DesktopNavItem extends StatefulWidget {
+  final ResponsiveNavItem item;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _DesktopNavItem({
+    required this.item,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  State<_DesktopNavItem> createState() => _DesktopNavItemState();
+}
+
+class _DesktopNavItemState extends State<_DesktopNavItem> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? colorScheme.primaryContainer
+                : _isHovered
+                    ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+                    : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: widget.isSelected
+                ? Border.all(
+                    color: colorScheme.primary.withValues(alpha: 0.3),
+                    width: 1.5,
+                  )
+                : null,
+          ),
+          child: Row(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: widget.isSelected
+                      ? colorScheme.primary.withValues(alpha: 0.15)
+                      : _isHovered
+                          ? colorScheme.primary.withValues(alpha: 0.1)
+                          : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: widget.item.badge != null
+                    ? Badge(
+                        label: widget.item.badge,
+                        child: Icon(
+                          widget.isSelected
+                              ? (widget.item.selectedIcon ?? widget.item.icon)
+                              : widget.item.icon,
+                          color: widget.isSelected
+                              ? colorScheme.primary
+                              : _isHovered
+                                  ? colorScheme.onSurface
+                                  : colorScheme.onSurfaceVariant,
+                          size: 24,
+                        ),
+                      )
+                    : Icon(
+                        widget.isSelected
+                            ? (widget.item.selectedIcon ?? widget.item.icon)
+                            : widget.item.icon,
+                        color: widget.isSelected
+                            ? colorScheme.primary
+                            : _isHovered
+                                ? colorScheme.onSurface
+                                : colorScheme.onSurfaceVariant,
+                        size: 24,
+                      ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  widget.item.label,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: widget.isSelected
+                        ? colorScheme.onPrimaryContainer
+                        : _isHovered
+                            ? colorScheme.onSurface
+                            : colorScheme.onSurfaceVariant,
+                    fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
+                    fontFamily: 'Cairo',
+                  ),
+                ),
+              ),
+              if (widget.isSelected)
+                Container(
+                  width: 3,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -277,10 +424,10 @@ class ResponsiveSliverAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final responsiveExpandedHeight = context.responsive(
-      mobile: expandedHeight ?? 200,
-      tablet: expandedHeight != null ? expandedHeight! * 1.2 : 240,
-      desktop: expandedHeight != null ? expandedHeight! * 1.3 : 280,
+    final responsiveExpandedHeight = context.responsive<double>(
+      mobile: expandedHeight ?? 200.0,
+      tablet: expandedHeight != null ? (expandedHeight! * 1.2) : 240.0,
+      desktop: expandedHeight != null ? (expandedHeight! * 1.3) : 280.0,
     );
 
     return SliverAppBar(
@@ -336,8 +483,8 @@ class ResponsiveDialog extends StatelessWidget {
           children: [
             if (title != null)
               Padding(
-                padding: titlePadding ??
-                    const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                padding:
+                    titlePadding ?? const EdgeInsets.fromLTRB(24, 24, 24, 0),
                 child: Text(
                   title!,
                   style: Theme.of(context).textTheme.headlineSmall,
@@ -351,8 +498,8 @@ class ResponsiveDialog extends StatelessWidget {
             ),
             if (actions != null)
               Padding(
-                padding: actionsPadding ??
-                    const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                padding:
+                    actionsPadding ?? const EdgeInsets.fromLTRB(24, 0, 24, 24),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: actions!,

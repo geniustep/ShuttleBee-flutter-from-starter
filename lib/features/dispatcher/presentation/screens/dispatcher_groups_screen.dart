@@ -6,15 +6,21 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../../../core/widgets/role_switcher_widget.dart';
+import '../../../../core/enums/enums.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/loading/shimmer_loading.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../groups/domain/entities/passenger_group.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/dispatcher_cached_providers.dart';
-import '../widgets/dispatcher_app_bar.dart';
-import '../widgets/dispatcher_search_field.dart';
+import '../widgets/dispatcher_unified_header.dart';
+import '../widgets/dispatcher_secondary_header.dart';
+import '../widgets/dispatcher_footer.dart';
+import '../widgets/dispatcher_action_fab.dart';
 
 /// Dispatcher Groups Screen - شاشة إدارة المجموعات للمرسل - ShuttleBee
 class DispatcherGroupsScreen extends ConsumerStatefulWidget {
@@ -36,68 +42,26 @@ class _DispatcherGroupsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final groupsAsync = ref.watch(dispatcherGroupsProvider);
 
-    return WillPopScope(
-      onWillPop: () async {
-        if (Navigator.of(context).canPop()) return true;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
         context.go(RoutePaths.dispatcherHome);
-        return false;
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
-        appBar: DispatcherAppBar(
-          title: 'إدارة المجموعات',
-          actions: [
-            const RoleSwitcherButton(),
-            _buildAdvancedFilterButton(),
-            IconButton(
-              icon: Icon(
-                _showActiveOnly
-                    ? Icons.filter_alt_rounded
-                    : Icons.filter_alt_off_rounded,
-              ),
-              onPressed: () {
-                setState(() {
-                  _showActiveOnly = !_showActiveOnly;
-                });
-              },
-              tooltip: _showActiveOnly ? 'إظهار الكل' : 'النشطة فقط',
-            ),
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              onPressed: () async {
-                final cache = ref.read(dispatcherCacheDataSourceProvider);
-                final userId =
-                    ref.read(authStateProvider).asData?.value.user?.id ?? 0;
-                if (userId != 0) {
-                  await cache
-                      .delete(DispatcherCacheKeys.groups(userId: userId));
-                }
-                ref.invalidate(dispatcherGroupsProvider);
-              },
-              tooltip: 'تحديث',
-            ),
-          ],
-        ),
         body: Column(
           children: [
-            // Search Bar
-            _buildSearchBar(),
-            if (_hasActiveFilters)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                child: _buildActiveFiltersRow(),
-              ).animate().fadeIn(duration: 200.ms),
+            // === Unified Header ===
+            _buildHeader(context, l10n, groupsAsync),
 
-            // Stats Summary
-            groupsAsync.when(
-              data: (groups) => _buildStatsSummary(groups),
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
+            // === شريط البحث والفلاتر (للموبايل فقط) ===
+            _buildMobileSearchSection(context),
 
-            // Groups List
+            // === Groups List ===
             Expanded(
               child: groupsAsync.when(
                 data: (groups) => _buildGroupsList(groups),
@@ -107,110 +71,316 @@ class _DispatcherGroupsScreenState
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          heroTag: 'dispatcher_groups_fab',
+
+        // === Footer (Tablet/Desktop only) ===
+        bottomNavigationBar: _buildFooter(groupsAsync),
+
+        // === FAB (Mobile only) ===
+        floatingActionButton: DispatcherActionFAB(
+          actions: [
+            DispatcherFabAction(
+              icon: Icons.add_rounded,
+              label: l10n.newGroup,
+              isPrimary: true,
+              onPressed: () {
+                context.go('${RoutePaths.dispatcherHome}/groups/create');
+              },
+            ),
+            if (_hasActiveFilters)
+              DispatcherFabAction(
+                icon: Icons.clear_all_rounded,
+                label: l10n.clearFilters,
+                onPressed: () {
+                  setState(() {
+                    _showActiveOnly = false;
+                    _tripTypeFilter = null;
+                    _onlyWithDriver = false;
+                    _onlyWithVehicle = false;
+                    _onlyWithDestination = false;
+                  });
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🎯 HEADER BUILDER - يختلف حسب الجهاز
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildHeader(
+    BuildContext context,
+    AppLocalizations l10n,
+    AsyncValue<List<PassengerGroup>> groupsAsync,
+  ) {
+    return DispatcherUnifiedHeader(
+      title: l10n.groupsManagement,
+      subtitle: groupsAsync.maybeWhen(
+        data: (groups) {
+          final activeCount = groups.where((g) => g.active).length;
+          return '${l10n.total}: ${Formatters.formatSimple(groups.length)} • ${l10n.active}: ${Formatters.formatSimple(activeCount)}';
+        },
+        orElse: () => null,
+      ),
+      searchHint: l10n.searchGroupHint,
+      searchValue: _searchQuery,
+      onSearchChanged: (value) => setState(() => _searchQuery = value),
+      onSearchClear: () => setState(() => _searchQuery = ''),
+      showSearch: !context.isMobile,
+      onRefresh: () async {
+        final cache = ref.read(dispatcherCacheDataSourceProvider);
+        final userId = ref.read(authStateProvider).asData?.value.user?.id ?? 0;
+        if (userId != 0) {
+          await cache.delete(DispatcherCacheKeys.groups(userId: userId));
+        }
+        ref.invalidate(dispatcherGroupsProvider);
+      },
+      isLoading: groupsAsync.isLoading,
+      actions: [
+        const RoleSwitcherButton(),
+        IconButton(
+          icon: Icon(
+            Icons.tune_rounded,
+            color: _hasActiveFilters ? AppColors.warning : Colors.white,
+          ),
+          onPressed: _openFiltersSheet,
+          tooltip: l10n.filter,
+        ),
+      ],
+      primaryActions: [
+        DispatcherHeaderAction(
+          icon: Icons.add_rounded,
+          label: l10n.newGroup,
+          isPrimary: true,
           onPressed: () {
             HapticFeedback.mediumImpact();
             context.go('${RoutePaths.dispatcherHome}/groups/create');
           },
-          icon: const Icon(Icons.add_rounded),
-          label:
-              const Text('مجموعة جديدة', style: TextStyle(fontFamily: 'Cairo')),
-          backgroundColor: AppColors.dispatcherPrimary,
-          foregroundColor: Colors.white,
         ),
+        if (_hasActiveFilters)
+          DispatcherHeaderAction(
+            icon: Icons.clear_all_rounded,
+            label: l10n.clearFilters,
+            onPressed: () {
+              setState(() {
+                _showActiveOnly = false;
+                _tripTypeFilter = null;
+                _onlyWithDriver = false;
+                _onlyWithVehicle = false;
+                _onlyWithDestination = false;
+              });
+            },
+          ),
+      ],
+      stats: groupsAsync.maybeWhen(
+        data: (groups) {
+          final activeGroups = groups.where((g) => g.active).length;
+          final totalMembers = groups.fold(0, (sum, g) => sum + g.memberCount);
+          return [
+            DispatcherHeaderStat(
+              icon: Icons.groups_rounded,
+              label: l10n.groups,
+              value: Formatters.formatSimple(activeGroups),
+            ),
+            DispatcherHeaderStat(
+              icon: Icons.people_rounded,
+              label: l10n.passengers,
+              value: Formatters.formatSimple(totalMembers),
+            ),
+            DispatcherHeaderStat(
+              icon: Icons.event_repeat_rounded,
+              label: '${l10n.trips}/${l10n.week}',
+              value: Formatters.formatSimple(activeGroups * 10),
+            ),
+          ];
+        },
+        orElse: () => [],
       ),
+      filters: context.isMobile ? [] : _buildActiveFilterChips(),
     );
   }
 
-  Widget _buildSearchBar() {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 📱 MOBILE SEARCH SECTION - شريط البحث والفلاتر للموبايل فقط
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildMobileSearchSection(BuildContext context) {
+    if (!context.isMobile) return const SizedBox.shrink();
+
     return Container(
-      padding: const EdgeInsets.all(16),
       color: Colors.white,
-      child: DispatcherSearchField(
-        hintText: 'ابحث عن مجموعة...',
-        value: _searchQuery,
-        onChanged: (value) => setState(() => _searchQuery = value),
-        onClear: () => setState(() => _searchQuery = ''),
-      ),
-    ).animate().fadeIn(duration: 300.ms);
-  }
-
-  Widget _buildStatsSummary(List<PassengerGroup> groups) {
-    final activeGroups = groups.where((g) => g.active).length;
-    final totalMembers = groups.fold(0, (sum, g) => sum + g.memberCount);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: AppColors.dispatcherGradient,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _buildStatItem(
-            icon: Icons.groups_rounded,
-            label: 'المجموعات',
-            value: '$activeGroups',
-          ),
+          // حقل البحث
           Container(
-            width: 1,
-            height: 40,
-            color: Colors.white.withValues(alpha: 0.3),
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: TextField(
+              style: const TextStyle(fontSize: 14, fontFamily: 'Cairo'),
+              decoration: InputDecoration(
+                hintText: AppLocalizations.of(context).searchGroupHint,
+                hintStyle: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 14,
+                  fontFamily: 'Cairo',
+                ),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: Colors.grey.shade500,
+                  size: 20,
+                ),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(
+                          Icons.clear_rounded,
+                          color: Colors.grey.shade500,
+                          size: 18,
+                        ),
+                        onPressed: () => setState(() => _searchQuery = ''),
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+              ),
+              onChanged: (v) => setState(() => _searchQuery = v),
+              textInputAction: TextInputAction.search,
+            ),
           ),
-          _buildStatItem(
-            icon: Icons.people_rounded,
-            label: 'إجمالي الركاب',
-            value: '$totalMembers',
-          ),
-          Container(
-            width: 1,
-            height: 40,
-            color: Colors.white.withValues(alpha: 0.3),
-          ),
-          _buildStatItem(
-            icon: Icons.event_repeat_rounded,
-            label: 'رحلات/أسبوع',
-            value: '${activeGroups * 10}',
-          ),
+
+          // الفلاتر النشطة
+          if (_buildActiveFilterChips().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _buildActiveFilterChips()
+                    .map(
+                      (f) => Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: f,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ],
         ],
       ),
-    ).animate().fadeIn(duration: 300.ms, delay: 100.ms);
-  }
-
-  Widget _buildStatItem({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.white, size: 24),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontFamily: 'Cairo',
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.white.withValues(alpha: 0.8),
-            fontFamily: 'Cairo',
-          ),
-        ),
-      ],
     );
   }
 
-  Widget _buildGroupsList(List<PassengerGroup> groups) {
+  List<Widget> _buildActiveFilterChips() {
+    final l10n = AppLocalizations.of(context);
+    final chips = <Widget>[];
+
+    if (_showActiveOnly) {
+      chips.add(
+        DispatcherFilterChip(
+          label: l10n.activeOnly,
+          isSelected: true,
+          onTap: () => setState(() => _showActiveOnly = false),
+          icon: Icons.check_circle_rounded,
+          color: AppColors.success,
+        ),
+      );
+    }
+
+    if (_tripTypeFilter != null) {
+      chips.add(
+        DispatcherFilterChip(
+          label: _tripTypeFilter!.getLocalizedLabel(context),
+          isSelected: true,
+          onTap: () => setState(() => _tripTypeFilter = null),
+          icon: Icons.directions_bus_rounded,
+          color: AppColors.dispatcherPrimary,
+        ),
+      );
+    }
+
+    if (_onlyWithDriver) {
+      chips.add(
+        DispatcherFilterChip(
+          label: l10n.withDriver,
+          isSelected: true,
+          onTap: () => setState(() => _onlyWithDriver = false),
+          icon: Icons.person_rounded,
+          color: AppColors.primary,
+        ),
+      );
+    }
+
+    if (_onlyWithVehicle) {
+      chips.add(
+        DispatcherFilterChip(
+          label: l10n.withVehicle,
+          isSelected: true,
+          onTap: () => setState(() => _onlyWithVehicle = false),
+          icon: Icons.directions_bus_rounded,
+          color: AppColors.warning,
+        ),
+      );
+    }
+
+    if (_onlyWithDestination) {
+      chips.add(
+        DispatcherFilterChip(
+          label: l10n.hasDestination,
+          isSelected: true,
+          onTap: () => setState(() => _onlyWithDestination = false),
+          icon: Icons.place_rounded,
+          color: AppColors.info,
+        ),
+      );
+    }
+
+    return chips;
+  }
+
+  Widget _buildFooter(AsyncValue<List<PassengerGroup>> groupsAsync) {
+    final l10n = AppLocalizations.of(context);
+    return groupsAsync.maybeWhen(
+      data: (groups) {
+        final filteredCount = _getFilteredGroups(groups).length;
+        final totalCount = groups.length;
+        final activeCount = groups.where((g) => g.active).length;
+        final totalMembers = groups.fold(0, (sum, g) => sum + g.memberCount);
+
+        return DispatcherFooter(
+          hideOnMobile: true,
+          info: filteredCount != totalCount
+              ? '${l10n.showingOf} ${Formatters.formatSimple(filteredCount)} ${l10n.ofText} ${Formatters.formatSimple(totalCount)} ${l10n.group}'
+              : '${l10n.total}: ${Formatters.formatSimple(totalCount)} ${l10n.group}',
+          stats: [
+            DispatcherFooterStat(
+              icon: Icons.check_circle_rounded,
+              label: l10n.active,
+              value: Formatters.formatSimple(activeCount),
+              color: AppColors.success,
+            ),
+            DispatcherFooterStat(
+              icon: Icons.people_rounded,
+              label: l10n.passengerSingular,
+              value: Formatters.formatSimple(totalMembers),
+            ),
+          ],
+          lastUpdated: DateTime.now(),
+          syncStatus: DispatcherSyncStatus.synced,
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
+  }
+
+  List<PassengerGroup> _getFilteredGroups(List<PassengerGroup> groups) {
     var filteredGroups = groups;
 
     // Apply search filter
@@ -245,14 +415,21 @@ class _DispatcherGroupsScreenState
       filteredGroups = filteredGroups.where((g) => g.hasDestination).toList();
     }
 
+    return filteredGroups;
+  }
+
+  Widget _buildGroupsList(List<PassengerGroup> groups) {
+    final l10n = AppLocalizations.of(context);
+    final filteredGroups = _getFilteredGroups(groups);
+
     if (filteredGroups.isEmpty) {
       return EmptyState(
         icon: Icons.groups_rounded,
-        title: 'لا توجد مجموعات',
+        title: l10n.noGroupsFound,
         message: _searchQuery.isNotEmpty
-            ? 'لم يتم العثور على نتائج للبحث'
-            : 'لم يتم إنشاء أي مجموعة بعد',
-        buttonText: 'إنشاء مجموعة',
+            ? l10n.noMatchingSearch
+            : l10n.noGroupsCreated,
+        buttonText: l10n.createGroup,
         onButtonPressed: () {
           context.go('${RoutePaths.dispatcherHome}/groups/create');
         },
@@ -269,7 +446,12 @@ class _DispatcherGroupsScreenState
         ref.invalidate(dispatcherGroupsProvider);
       },
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          context.isMobile ? 96 : 16, // مساحة إضافية للـ FAB على الهاتف
+        ),
         itemCount: filteredGroups.length,
         itemBuilder: (context, index) {
           final group = filteredGroups[index];
@@ -285,130 +467,6 @@ class _DispatcherGroupsScreenState
       _onlyWithDriver ||
       _onlyWithVehicle ||
       _onlyWithDestination;
-
-  int get _activeFiltersCount {
-    var c = 0;
-    if (_showActiveOnly) c++;
-    if (_tripTypeFilter != null) c++;
-    if (_onlyWithDriver) c++;
-    if (_onlyWithVehicle) c++;
-    if (_onlyWithDestination) c++;
-    return c;
-  }
-
-  Widget _buildAdvancedFilterButton() {
-    return IconButton(
-      tooltip: 'فلترة متقدمة',
-      onPressed: _openFiltersSheet,
-      icon: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Icon(Icons.tune_rounded),
-          if (_activeFiltersCount > 0)
-            Positioned(
-              right: -6,
-              top: -6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(999),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  '$_activeFiltersCount',
-                  style: const TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.dispatcherPrimary,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActiveFiltersRow() {
-    final chips = <Widget>[];
-
-    if (_showActiveOnly) {
-      chips.add(
-        InputChip(
-          label: const Text('نشطة فقط', style: TextStyle(fontFamily: 'Cairo')),
-          onDeleted: () => setState(() => _showActiveOnly = false),
-        ),
-      );
-    }
-    if (_tripTypeFilter != null) {
-      chips.add(
-        InputChip(
-          label: Text(
-            _tripTypeFilter!.arabicLabel,
-            style: const TextStyle(fontFamily: 'Cairo'),
-          ),
-          onDeleted: () => setState(() => _tripTypeFilter = null),
-        ),
-      );
-    }
-    if (_onlyWithDriver) {
-      chips.add(
-        InputChip(
-          label: const Text('بسائق', style: TextStyle(fontFamily: 'Cairo')),
-          onDeleted: () => setState(() => _onlyWithDriver = false),
-        ),
-      );
-    }
-    if (_onlyWithVehicle) {
-      chips.add(
-        InputChip(
-          label: const Text('بمركبة', style: TextStyle(fontFamily: 'Cairo')),
-          onDeleted: () => setState(() => _onlyWithVehicle = false),
-        ),
-      );
-    }
-    if (_onlyWithDestination) {
-      chips.add(
-        InputChip(
-          label: const Text('لها وجهة', style: TextStyle(fontFamily: 'Cairo')),
-          onDeleted: () => setState(() => _onlyWithDestination = false),
-        ),
-      );
-    }
-
-    chips.add(
-      TextButton.icon(
-        onPressed: () {
-          setState(() {
-            _showActiveOnly = false;
-            _tripTypeFilter = null;
-            _onlyWithDriver = false;
-            _onlyWithVehicle = false;
-            _onlyWithDestination = false;
-          });
-        },
-        icon: const Icon(Icons.clear_all_rounded, size: 18),
-        label: const Text('مسح', style: TextStyle(fontFamily: 'Cairo')),
-      ),
-    );
-
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: chips,
-      ),
-    );
-  }
 
   Future<void> _openFiltersSheet() async {
     HapticFeedback.lightImpact();
@@ -460,13 +518,15 @@ class _DispatcherGroupsScreenState
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          const Icon(Icons.tune_rounded,
-                              color: AppColors.dispatcherPrimary),
+                          const Icon(
+                            Icons.tune_rounded,
+                            color: AppColors.dispatcherPrimary,
+                          ),
                           const SizedBox(width: 10),
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'فلترة المجموعات',
-                              style: TextStyle(
+                              AppLocalizations.of(ctx).groupFilters,
+                              style: const TextStyle(
                                 fontFamily: 'Cairo',
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -483,9 +543,9 @@ class _DispatcherGroupsScreenState
                                 localWithDestination = false;
                               });
                             },
-                            child: const Text(
-                              'إعادة ضبط',
-                              style: TextStyle(fontFamily: 'Cairo'),
+                            child: Text(
+                              AppLocalizations.of(ctx).reset,
+                              style: const TextStyle(fontFamily: 'Cairo'),
                             ),
                           ),
                         ],
@@ -495,14 +555,16 @@ class _DispatcherGroupsScreenState
                         contentPadding: EdgeInsets.zero,
                         value: localActiveOnly,
                         onChanged: (v) => setLocal(() => localActiveOnly = v),
-                        activeColor: AppColors.dispatcherPrimary,
-                        title: const Text('نشطة فقط',
-                            style: TextStyle(fontFamily: 'Cairo')),
+                        activeThumbColor: AppColors.dispatcherPrimary,
+                        title: Text(
+                          AppLocalizations.of(ctx).activeOnly,
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'نوع الرحلة',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(ctx).tripType,
+                        style: const TextStyle(
                           fontFamily: 'Cairo',
                           fontWeight: FontWeight.w700,
                         ),
@@ -512,39 +574,50 @@ class _DispatcherGroupsScreenState
                         spacing: 10,
                         children: [
                           ChoiceChip(
-                            label: const Text('الكل',
-                                style: TextStyle(fontFamily: 'Cairo')),
+                            label: Text(
+                              AppLocalizations.of(ctx).all,
+                              style: const TextStyle(fontFamily: 'Cairo'),
+                            ),
                             selected: localTripType == null,
                             onSelected: (_) =>
                                 setLocal(() => localTripType = null),
                           ),
                           ChoiceChip(
-                            label: const Text('صعود فقط',
-                                style: TextStyle(fontFamily: 'Cairo')),
+                            label: Text(
+                              AppLocalizations.of(ctx).pickup,
+                              style: const TextStyle(fontFamily: 'Cairo'),
+                            ),
                             selected: localTripType == GroupTripType.pickup,
                             onSelected: (_) => setLocal(
-                                () => localTripType = GroupTripType.pickup),
+                              () => localTripType = GroupTripType.pickup,
+                            ),
                           ),
                           ChoiceChip(
-                            label: const Text('نزول فقط',
-                                style: TextStyle(fontFamily: 'Cairo')),
+                            label: Text(
+                              AppLocalizations.of(ctx).dropoff,
+                              style: const TextStyle(fontFamily: 'Cairo'),
+                            ),
                             selected: localTripType == GroupTripType.dropoff,
                             onSelected: (_) => setLocal(
-                                () => localTripType = GroupTripType.dropoff),
+                              () => localTripType = GroupTripType.dropoff,
+                            ),
                           ),
                           ChoiceChip(
-                            label: const Text('صعود ونزول',
-                                style: TextStyle(fontFamily: 'Cairo')),
+                            label: Text(
+                              AppLocalizations.of(ctx).bothPickupDropoff,
+                              style: const TextStyle(fontFamily: 'Cairo'),
+                            ),
                             selected: localTripType == GroupTripType.both,
                             onSelected: (_) => setLocal(
-                                () => localTripType = GroupTripType.both),
+                              () => localTripType = GroupTripType.both,
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'خيارات',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(ctx).options,
+                        style: const TextStyle(
                           fontFamily: 'Cairo',
                           fontWeight: FontWeight.w700,
                         ),
@@ -554,26 +627,32 @@ class _DispatcherGroupsScreenState
                         contentPadding: EdgeInsets.zero,
                         value: localWithDriver,
                         onChanged: (v) => setLocal(() => localWithDriver = v),
-                        activeColor: AppColors.dispatcherPrimary,
-                        title: const Text('مرتبطة بسائق',
-                            style: TextStyle(fontFamily: 'Cairo')),
+                        activeThumbColor: AppColors.dispatcherPrimary,
+                        title: Text(
+                          AppLocalizations.of(ctx).linkedToDriver,
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         value: localWithVehicle,
                         onChanged: (v) => setLocal(() => localWithVehicle = v),
-                        activeColor: AppColors.dispatcherPrimary,
-                        title: const Text('مرتبطة بمركبة',
-                            style: TextStyle(fontFamily: 'Cairo')),
+                        activeThumbColor: AppColors.dispatcherPrimary,
+                        title: Text(
+                          AppLocalizations.of(ctx).linkedToVehicle,
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         value: localWithDestination,
                         onChanged: (v) =>
                             setLocal(() => localWithDestination = v),
-                        activeColor: AppColors.dispatcherPrimary,
-                        title: const Text('لها وجهة',
-                            style: TextStyle(fontFamily: 'Cairo')),
+                        activeThumbColor: AppColors.dispatcherPrimary,
+                        title: Text(
+                          AppLocalizations.of(ctx).hasDestination,
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -581,8 +660,10 @@ class _DispatcherGroupsScreenState
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () => Navigator.pop(ctx),
-                              child: const Text('إلغاء',
-                                  style: TextStyle(fontFamily: 'Cairo')),
+                              child: Text(
+                                AppLocalizations.of(ctx).cancel,
+                                style: const TextStyle(fontFamily: 'Cairo'),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -602,8 +683,10 @@ class _DispatcherGroupsScreenState
                                 });
                                 Navigator.pop(ctx);
                               },
-                              child: const Text('تطبيق',
-                                  style: TextStyle(fontFamily: 'Cairo')),
+                              child: Text(
+                                AppLocalizations.of(ctx).apply,
+                                style: const TextStyle(fontFamily: 'Cairo'),
+                              ),
                             ),
                           ),
                         ],
@@ -715,7 +798,7 @@ class _DispatcherGroupsScreenState
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
-                                group.tripType.arabicLabel,
+                                group.tripType.getLocalizedLabel(context),
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -732,7 +815,7 @@ class _DispatcherGroupsScreenState
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '${group.memberCount} راكب',
+                              '${Formatters.formatSimple(group.memberCount)} ${AppLocalizations.of(context).passengerSingular}',
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: AppColors.textSecondary,
@@ -758,14 +841,16 @@ class _DispatcherGroupsScreenState
                       children: [
                         _buildInfoChip(
                           Icons.person_rounded,
-                          group.driverName ?? 'بدون سائق',
+                          group.driverName ??
+                              AppLocalizations.of(context).notAssigned,
                           group.hasDriver
                               ? AppColors.success
                               : AppColors.textSecondary,
                         ),
                         _buildInfoChip(
                           Icons.directions_bus_rounded,
-                          group.vehicleName ?? 'بدون مركبة',
+                          group.vehicleName ??
+                              AppLocalizations.of(context).notAssigned,
                           group.hasVehicle
                               ? AppColors.primary
                               : AppColors.textSecondary,
@@ -782,7 +867,7 @@ class _DispatcherGroupsScreenState
                         '${RoutePaths.dispatcherHome}/trips/create?groupId=${group.id}',
                       );
                     },
-                    tooltip: 'توليد رحلة',
+                    tooltip: AppLocalizations.of(context).generateTrip,
                   ),
                 ],
               ),
@@ -829,16 +914,27 @@ class _DispatcherGroupsScreenState
   }
 
   Widget _buildLoadingState() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 5,
-      itemBuilder: (context, index) {
-        return const ShimmerCard(height: 140);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+        return ListView.builder(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            isMobile ? 96 : 16, // مساحة إضافية للـ FAB على الهاتف
+          ),
+          itemCount: 5,
+          itemBuilder: (context, index) {
+            return const ShimmerCard(height: 140);
+          },
+        );
       },
     );
   }
 
   Widget _buildErrorState(String error) {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -866,7 +962,7 @@ class _DispatcherGroupsScreenState
               ref.invalidate(dispatcherGroupsProvider);
             },
             icon: const Icon(Icons.refresh_rounded),
-            label: const Text('إعادة المحاولة'),
+            label: Text(l10n.retry),
           ),
         ],
       ),
@@ -903,7 +999,7 @@ class _DispatcherGroupsScreenState
             ),
             const SizedBox(height: 8),
             Text(
-              '${group.memberCount} راكب • ${group.tripType.arabicLabel}',
+              '${Formatters.formatSimple(group.memberCount)} ${AppLocalizations.of(context).passengerSingular} • ${group.tripType.getLocalizedLabel(context)}',
               style: const TextStyle(
                 color: AppColors.textSecondary,
                 fontFamily: 'Cairo',
@@ -912,7 +1008,7 @@ class _DispatcherGroupsScreenState
             const SizedBox(height: 24),
             _buildActionButton(
               icon: Icons.play_circle_rounded,
-              label: 'توليد رحلة جديدة',
+              label: AppLocalizations.of(context).generateTrip,
               color: AppColors.success,
               onTap: () {
                 Navigator.pop(context);
@@ -924,7 +1020,7 @@ class _DispatcherGroupsScreenState
             const SizedBox(height: 12),
             _buildActionButton(
               icon: Icons.schedule_rounded,
-              label: 'إدارة الجداول',
+              label: AppLocalizations.of(context).manageSchedules,
               color: AppColors.primary,
               onTap: () {
                 Navigator.pop(context);
@@ -936,7 +1032,7 @@ class _DispatcherGroupsScreenState
             const SizedBox(height: 12),
             _buildActionButton(
               icon: Icons.edit_rounded,
-              label: 'تعديل المجموعة',
+              label: AppLocalizations.of(context).editGroup,
               color: AppColors.warning,
               onTap: () {
                 Navigator.pop(context);
@@ -947,7 +1043,7 @@ class _DispatcherGroupsScreenState
             const SizedBox(height: 12),
             _buildActionButton(
               icon: Icons.people_alt_rounded,
-              label: 'عرض الركاب',
+              label: AppLocalizations.of(context).viewPassengers,
               color: AppColors.dispatcherPrimary,
               onTap: () {
                 Navigator.pop(context);
@@ -959,7 +1055,7 @@ class _DispatcherGroupsScreenState
             const SizedBox(height: 12),
             _buildActionButton(
               icon: Icons.delete_rounded,
-              label: 'حذف المجموعة',
+              label: AppLocalizations.of(context).deleteGroup,
               color: AppColors.error,
               onTap: () {
                 Navigator.pop(context);
@@ -1017,29 +1113,30 @@ class _DispatcherGroupsScreenState
   }
 
   Future<void> _confirmDeleteGroup(PassengerGroup group) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        title: const Text(
-          'حذف المجموعة',
-          style: TextStyle(
+        title: Text(
+          l10n.deleteGroupTitle,
+          style: const TextStyle(
             fontFamily: 'Cairo',
             fontWeight: FontWeight.bold,
           ),
         ),
         content: Text(
-          'هل أنت متأكد من حذف مجموعة "${group.name}"؟\n\nهذه العملية لا يمكن التراجع عنها.',
+          l10n.deleteGroupConfirm.replaceAll('{name}', group.name),
           style: const TextStyle(fontFamily: 'Cairo'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text(
-              'إلغاء',
-              style: TextStyle(fontFamily: 'Cairo'),
+            child: Text(
+              l10n.cancel,
+              style: const TextStyle(fontFamily: 'Cairo'),
             ),
           ),
           ElevatedButton(
@@ -1048,9 +1145,9 @@ class _DispatcherGroupsScreenState
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'حذف',
-              style: TextStyle(fontFamily: 'Cairo'),
+            child: Text(
+              l10n.delete,
+              style: const TextStyle(fontFamily: 'Cairo'),
             ),
           ),
         ],
@@ -1080,7 +1177,7 @@ class _DispatcherGroupsScreenState
         ..showSnackBar(
           SnackBar(
             content: Text(
-              'تم حذف المجموعة "${group.name}" بنجاح',
+              l10n.groupDeleted.replaceAll('{name}', group.name),
               style: const TextStyle(fontFamily: 'Cairo'),
             ),
             backgroundColor: AppColors.success,
@@ -1091,9 +1188,9 @@ class _DispatcherGroupsScreenState
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
-            content: const Text(
-              'تعذر حذف المجموعة، حاول مرة أخرى',
-              style: TextStyle(fontFamily: 'Cairo'),
+            content: Text(
+              l10n.failedToDeleteGroup,
+              style: const TextStyle(fontFamily: 'Cairo'),
             ),
             backgroundColor: AppColors.error,
           ),

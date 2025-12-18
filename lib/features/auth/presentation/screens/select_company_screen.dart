@@ -84,17 +84,22 @@ class SelectCompanyScreen extends ConsumerWidget {
                   Text(
                     l10n.selectCompany,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
                         ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppDimensions.md),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppDimensions.xxl),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppDimensions.xxl),
                     child: Text(
                       l10n.multiCompany,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.8),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onPrimaryContainer
+                                .withValues(alpha: 0.8),
                           ),
                       textAlign: TextAlign.center,
                     ),

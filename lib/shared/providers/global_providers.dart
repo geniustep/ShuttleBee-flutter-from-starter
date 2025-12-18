@@ -6,6 +6,7 @@ import '../../core/constants/storage_keys.dart';
 import '../../core/network/network_info.dart';
 import '../../core/storage/prefs_service.dart';
 import '../../core/bridgecore_integration/services/services.dart';
+import '../../core/utils/formatters.dart';
 
 /// Theme mode provider
 final themeModeProvider =
@@ -83,12 +84,37 @@ class LocaleNotifier extends StateNotifier<Locale> {
     final savedLocale = _prefs.getString(StorageKeys.languageCode);
     if (savedLocale != null) {
       state = Locale(savedLocale);
+      // Update Formatters with the locale
+      Formatters.setLocale(savedLocale);
+
+      // Force disable Arabic numerals if not Arabic
+      if (savedLocale != 'ar') {
+        final currentArabicNumerals =
+            _prefs.getBool(StorageKeys.useArabicNumerals) ?? false;
+        if (currentArabicNumerals) {
+          _prefs.setBool(StorageKeys.useArabicNumerals, false);
+        }
+        // Always force disable for non-Arabic languages
+        Formatters.setNumeralPreference(false);
+      }
     }
   }
 
   Future<void> setLocale(Locale locale) async {
     state = locale;
     await _prefs.setString(StorageKeys.languageCode, locale.languageCode);
+    // Update Formatters with the new locale
+    Formatters.setLocale(locale.languageCode);
+
+    // Force disable Arabic numerals if switching away from Arabic
+    if (locale.languageCode != 'ar') {
+      final currentArabicNumerals =
+          _prefs.getBool(StorageKeys.useArabicNumerals) ?? false;
+      if (currentArabicNumerals) {
+        await _prefs.setBool(StorageKeys.useArabicNumerals, false);
+        Formatters.setNumeralPreference(false);
+      }
+    }
   }
 
   /// Toggle between supported locales (en -> ar -> fr -> en)
@@ -114,6 +140,128 @@ class LocaleNotifier extends StateNotifier<Locale> {
 
   /// Check if current locale is RTL
   bool get isRtl => state.languageCode == 'ar';
+}
+
+/// Arabic numerals preference provider
+final arabicNumeralsProvider =
+    StateNotifierProvider<ArabicNumeralsNotifier, bool>((ref) {
+  return ArabicNumeralsNotifier();
+});
+
+/// Arabic numerals notifier
+class ArabicNumeralsNotifier extends StateNotifier<bool> {
+  final PrefsService _prefs = PrefsService();
+
+  ArabicNumeralsNotifier() : super(false) {
+    _loadPreference();
+  }
+
+  void _loadPreference() {
+    var saved = _prefs.getBool(StorageKeys.useArabicNumerals) ?? false;
+
+    // Get current locale
+    final currentLocale = _prefs.getString(StorageKeys.languageCode) ?? 'en';
+
+    // Force disable if not Arabic
+    if (currentLocale != 'ar' && saved) {
+      saved = false;
+      _prefs.setBool(StorageKeys.useArabicNumerals, false);
+    }
+
+    state = saved;
+    // Update Formatters with the preference
+    Formatters.setNumeralPreference(state);
+  }
+
+  Future<void> setUseArabicNumerals(bool value) async {
+    // Get current locale
+    final currentLocale = _prefs.getString(StorageKeys.languageCode) ?? 'en';
+
+    // Only allow Arabic numerals if locale is Arabic
+    if (value && currentLocale != 'ar') {
+      value = false;
+    }
+
+    state = value;
+    await _prefs.setBool(StorageKeys.useArabicNumerals, value);
+    // Update Formatters with the new preference
+    Formatters.setNumeralPreference(value);
+  }
+
+  Future<void> toggle() async {
+    await setUseArabicNumerals(!state);
+  }
+}
+
+/// Date format preference provider
+final dateFormatProvider =
+    StateNotifierProvider<DateFormatNotifier, DateFormatType>((ref) {
+  return DateFormatNotifier();
+});
+
+/// Date format notifier
+class DateFormatNotifier extends StateNotifier<DateFormatType> {
+  final PrefsService _prefs = PrefsService();
+
+  DateFormatNotifier() : super(DateFormatType.medium) {
+    _loadPreference();
+  }
+
+  void _loadPreference() {
+    final saved = _prefs.getString(StorageKeys.dateFormat);
+    state = _stringToDateFormat(saved);
+    // Update Formatters with the preference
+    Formatters.setDateFormatPreference(state);
+  }
+
+  Future<void> setDateFormat(DateFormatType format) async {
+    state = format;
+    await _prefs.setString(StorageKeys.dateFormat, _dateFormatToString(format));
+    // Update Formatters with the new preference
+    Formatters.setDateFormatPreference(format);
+  }
+
+  DateFormatType _stringToDateFormat(String? value) {
+    switch (value) {
+      case 'short':
+        return DateFormatType.short;
+      case 'medium':
+        return DateFormatType.medium;
+      case 'long':
+        return DateFormatType.long;
+      case 'full':
+        return DateFormatType.full;
+      default:
+        return DateFormatType.medium;
+    }
+  }
+
+  String _dateFormatToString(DateFormatType format) {
+    switch (format) {
+      case DateFormatType.short:
+        return 'short';
+      case DateFormatType.medium:
+        return 'medium';
+      case DateFormatType.long:
+        return 'long';
+      case DateFormatType.full:
+        return 'full';
+    }
+  }
+
+  /// Get display name for date format
+  String getDisplayName(DateFormatType format) {
+    switch (format) {
+      case DateFormatType.short:
+        return 'Short (01/12/2024)';
+      case DateFormatType.medium:
+        return 'Medium (01 Dec 2024)';
+      case DateFormatType.long:
+        return 'Long (01 December 2024)';
+      case DateFormatType.full:
+        return 'Full (Sunday, 01 December 2024)';
+    }
+  }
 }
 
 /// Network connectivity provider

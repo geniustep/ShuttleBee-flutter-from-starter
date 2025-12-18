@@ -98,7 +98,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: context.isDesktop
             ? _buildDesktopLayout(context, l10n, isLoading, formMaxWidth)
-            : _buildMobileLayout(context, l10n, isLoading, formMaxWidth, horizontalPadding),
+            : _buildMobileLayout(
+                context, l10n, isLoading, formMaxWidth, horizontalPadding),
       ),
     );
   }
@@ -158,17 +159,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Text(
                     l10n.welcomeToApp,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
                         ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppDimensions.md),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppDimensions.xxl),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppDimensions.xxl),
                     child: Text(
                       l10n.onboardingDesc1,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.8),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onPrimaryContainer
+                                .withValues(alpha: 0.8),
                           ),
                       textAlign: TextAlign.center,
                     ),
@@ -205,7 +211,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildLoginForm(BuildContext context, AppLocalizations l10n, bool isLoading) {
+  Widget _buildLoginForm(
+      BuildContext context, AppLocalizations l10n, bool isLoading) {
     return Card(
       elevation: context.isMobile ? 1 : 4,
       child: Padding(
@@ -232,7 +239,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   prefixIcon: const Icon(Icons.person_outline),
                 ),
                 textInputAction: TextInputAction.next,
-                validator: (v) => Validators.required(v, fieldName: l10n.username),
+                validator: (v) =>
+                    Validators.required(v, fieldName: l10n.username),
               ),
               const SizedBox(height: AppDimensions.md),
               TextFormField(
@@ -256,7 +264,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 obscureText: _obscurePassword,
                 textInputAction: TextInputAction.done,
                 onFieldSubmitted: (_) => _handleLogin(),
-                validator: (v) => Validators.required(v, fieldName: l10n.password),
+                validator: (v) =>
+                    Validators.required(v, fieldName: l10n.password),
               ),
               const SizedBox(height: AppDimensions.sm),
               Row(

@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart' as intl;
 
 import '../../../../core/enums/enums.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../trips/domain/entities/trip.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
 
@@ -272,8 +272,10 @@ class _SelectTripForAbsenceSheetState
             ElevatedButton.icon(
               onPressed: _loadPassengerTrips,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('إعادة المحاولة',
-                  style: TextStyle(fontFamily: 'Cairo')),
+              label: const Text(
+                'إعادة المحاولة',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
             ),
           ],
         ),
@@ -364,8 +366,6 @@ class _TripCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isAbsent = tripLine.status == TripLineStatus.absent;
-    final dateFormat = intl.DateFormat('EEEE، d MMM', 'ar');
-    final timeFormat = intl.DateFormat('HH:mm', 'ar');
 
     final tripDate = trip.plannedStartTime ?? trip.date;
     final tripTime = trip.plannedStartTime;
@@ -429,7 +429,9 @@ class _TripCard extends StatelessWidget {
                         if (isAbsent)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.warning,
                               borderRadius: BorderRadius.circular(12),
@@ -449,14 +451,14 @@ class _TripCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.calendar_today_rounded,
                           size: 14,
                           color: AppColors.textSecondary,
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          dateFormat.format(tripDate),
+                          Formatters.date(tripDate, pattern: 'EEEE، d MMM'),
                           style: const TextStyle(
                             fontFamily: 'Cairo',
                             fontSize: 12,
@@ -464,14 +466,16 @@ class _TripCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Icon(
+                        const Icon(
                           Icons.access_time_rounded,
                           size: 14,
                           color: AppColors.textSecondary,
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          tripTime != null ? timeFormat.format(tripTime) : '-',
+                          tripTime != null
+                              ? Formatters.time(tripTime, use24Hour: true)
+                              : '-',
                           style: const TextStyle(
                             fontFamily: 'Cairo',
                             fontSize: 12,

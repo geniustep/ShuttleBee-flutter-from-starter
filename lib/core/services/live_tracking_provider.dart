@@ -107,7 +107,12 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
         isConnected: connected,
         isConnecting: false,
       );
-      AppLogger.info('📡 [LiveTracking] Connection status: $connected');
+      AppLogger.info(
+        'Connection status: $connected',
+        null,
+        null,
+        LogCategory.tracking,
+      );
     });
 
     // الاستماع لطلبات الموقع من الـ Dispatcher
@@ -125,12 +130,22 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
   Future<void> connect() async {
     final userId = ref.read(authStateProvider).asData?.value.user?.id;
     if (userId == null) {
-      AppLogger.warning('📡 [LiveTracking] Cannot connect: No user ID');
+      AppLogger.warning(
+        'Cannot connect: No user ID',
+        null,
+        null,
+        LogCategory.tracking,
+      );
       return;
     }
 
     if (state.isConnected || state.isConnecting) {
-      AppLogger.debug('📡 [LiveTracking] Already connected or connecting');
+      AppLogger.debug(
+        'Already connected or connecting',
+        null,
+        null,
+        LogCategory.tracking,
+      );
       return;
     }
 
@@ -145,7 +160,12 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
         isConnecting: false,
       );
 
-      AppLogger.info('✅ [LiveTracking] Connected as driver $userId');
+      AppLogger.info(
+        '✅ Connected as driver $userId',
+        null,
+        null,
+        LogCategory.tracking,
+      );
     } catch (e) {
       // تخزين الخطأ في الـ state بدون إعادة throw
       // الـ service سيحاول إعادة الاتصال تلقائياً
@@ -155,7 +175,10 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
         error: e.toString(),
       );
       AppLogger.warning(
-        '⚠️ [LiveTracking] Connection failed (will retry automatically): $e',
+        'Connection failed (will retry automatically): $e',
+        null,
+        null,
+        LogCategory.tracking,
       );
     }
   }
@@ -167,19 +190,27 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
     _tracking.disconnect();
 
     state = const LiveTrackingState();
-    AppLogger.info('📡 [LiveTracking] Disconnected');
+    AppLogger.info('Disconnected', null, null, LogCategory.tracking);
   }
 
   /// معالجة طلب الموقع من الـ Dispatcher
   Future<void> _handleLocationRequest(LocationRequest request) async {
     AppLogger.info(
-      '📡 [LiveTracking] Received location request from ${request.requesterId}',
+      'Received location request from ${request.requesterId}',
+      null,
+      null,
+      LogCategory.tracking,
     );
 
     try {
       final position = await _getCurrentPosition();
       if (position == null) {
-        AppLogger.warning('📡 [LiveTracking] Cannot get GPS position');
+        AppLogger.warning(
+          'Cannot get GPS position',
+          null,
+          null,
+          LogCategory.tracking,
+        );
         return;
       }
 
@@ -193,10 +224,18 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
         accuracy: position.accuracy,
       );
 
-      AppLogger.info('📡 [LiveTracking] Sent location response');
+      AppLogger.info(
+        'Sent location response',
+        null,
+        null,
+        LogCategory.tracking,
+      );
     } catch (e) {
       AppLogger.error(
-        '📡 [LiveTracking] Failed to respond to location request: $e',
+        'Failed to respond to location request: $e',
+        null,
+        null,
+        LogCategory.tracking,
       );
     }
   }
@@ -204,7 +243,10 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
   /// معالجة تحديث حالة الرحلة
   void _handleTripUpdate(TripUpdate tripUpdate) {
     AppLogger.info(
-      '📡 [LiveTracking] Trip update: ${tripUpdate.tripId} - ${tripUpdate.state}',
+      'Trip update: ${tripUpdate.tripId} - ${tripUpdate.state}',
+      null,
+      null,
+      LogCategory.tracking,
     );
 
     if (tripUpdate.isOngoing && !state.isAutoTracking) {
@@ -227,7 +269,12 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
     int? vehicleId,
   }) {
     if (state.isAutoTracking) {
-      AppLogger.warning('📡 [LiveTracking] Already auto-tracking');
+      AppLogger.warning(
+        'Already auto-tracking',
+        null,
+        null,
+        LogCategory.tracking,
+      );
       return;
     }
 
@@ -237,7 +284,12 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
       activeVehicleId: vehicleId,
     );
 
-    AppLogger.info('🟢 [LiveTracking] Started auto-tracking for trip $tripId');
+    AppLogger.info(
+      '🟢 Started auto-tracking for trip $tripId',
+      null,
+      null,
+      LogCategory.tracking,
+    );
 
     // إرسال الموقع فوراً
     _sendGpsToServer();
@@ -261,7 +313,12 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
       clearActiveVehicleId: true,
     );
 
-    AppLogger.info('🔴 [LiveTracking] Stopped auto-tracking for trip $tripId');
+    AppLogger.info(
+      '🔴 Stopped auto-tracking for trip $tripId',
+      null,
+      null,
+      LogCategory.tracking,
+    );
   }
 
   /// بدء التتبع التلقائي يدوياً (للاستخدام من الشاشات)
@@ -281,21 +338,36 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
   Future<void> _sendGpsToServer() async {
     final vehicleId = state.activeVehicleId;
     if (vehicleId == null) {
-      AppLogger.warning('📡 [LiveTracking] No active vehicle ID');
+      AppLogger.warning(
+        'No active vehicle ID',
+        null,
+        null,
+        LogCategory.tracking,
+      );
       return;
     }
 
     // الحصول على معرف السائق من حالة المصادقة
     final driverId = ref.read(authStateProvider).asData?.value.user?.id;
     if (driverId == null) {
-      AppLogger.warning('📡 [LiveTracking] No driver ID available');
+      AppLogger.warning(
+        'No driver ID available',
+        null,
+        null,
+        LogCategory.tracking,
+      );
       return;
     }
 
     try {
       final position = await _getCurrentPosition();
       if (position == null) {
-        AppLogger.warning('📡 [LiveTracking] Cannot get GPS position');
+        AppLogger.warning(
+          'Cannot get GPS position',
+          null,
+          null,
+          LogCategory.tracking,
+        );
         return;
       }
 
@@ -316,11 +388,19 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
       state = state.copyWith(lastPositionSent: DateTime.now());
 
       AppLogger.debug(
-        '📍 [LiveTracking] GPS sent: ${position.latitude.toStringAsFixed(6)}, '
+        '📍 GPS sent: ${position.latitude.toStringAsFixed(6)}, '
         '${position.longitude.toStringAsFixed(6)}',
+        null,
+        null,
+        LogCategory.tracking,
       );
     } catch (e) {
-      AppLogger.error('📡 [LiveTracking] Failed to send GPS: $e');
+      AppLogger.error(
+        'Failed to send GPS: $e',
+        null,
+        null,
+        LogCategory.tracking,
+      );
     }
   }
 
@@ -336,7 +416,12 @@ class LiveTrackingNotifier extends Notifier<LiveTrackingState> {
         ),
       );
     } catch (e) {
-      AppLogger.error('📡 [LiveTracking] Error getting position: $e');
+      AppLogger.error(
+        'Error getting position: $e',
+        null,
+        null,
+        LogCategory.tracking,
+      );
       return null;
     }
   }
@@ -458,9 +543,12 @@ class DispatcherLiveTrackingNotifier
       state = state.copyWith(vehiclePositions: positions);
 
       AppLogger.debug(
-        '📍 [Dispatcher] Vehicle ${position.vehicleId} position update: '
+        '📍 Vehicle ${position.vehicleId} position update: '
         '${position.latitude.toStringAsFixed(6)}, '
         '${position.longitude.toStringAsFixed(6)}',
+        null,
+        null,
+        LogCategory.tracking,
       );
     });
 
@@ -478,7 +566,10 @@ class DispatcherLiveTrackingNotifier
       state = state.copyWith(tripUpdates: trips);
 
       AppLogger.debug(
-        '🚌 [Dispatcher] Trip ${tripUpdate.tripId} update: ${tripUpdate.state}',
+        '🚌 Trip ${tripUpdate.tripId} update: ${tripUpdate.state}',
+        null,
+        null,
+        LogCategory.tracking,
       );
     });
 
@@ -489,9 +580,12 @@ class DispatcherLiveTrackingNotifier
       state = state.copyWith(driverLocations: updated);
 
       AppLogger.info(
-        '📍 [Dispatcher] Received location from driver ${location.driverId}: '
+        '📍 Received location from driver ${location.driverId}: '
         '${location.latitude.toStringAsFixed(6)}, '
         '${location.longitude.toStringAsFixed(6)}',
+        null,
+        null,
+        LogCategory.tracking,
       );
     });
   }
@@ -503,7 +597,12 @@ class DispatcherLiveTrackingNotifier
   Future<bool> connectAndSubscribe() async {
     final userId = ref.read(authStateProvider).asData?.value.user?.id;
     if (userId == null) {
-      AppLogger.warning('📡 [Dispatcher] Cannot connect: No user ID');
+      AppLogger.warning(
+        'Cannot connect: No user ID',
+        null,
+        null,
+        LogCategory.tracking,
+      );
       return false;
     }
 
@@ -513,7 +612,12 @@ class DispatcherLiveTrackingNotifier
           await _tracking.subscribeLiveTracking();
           state = state.copyWith(isSubscribed: true);
         } catch (e) {
-          AppLogger.warning('⚠️ [Dispatcher] Subscribe failed: $e');
+          AppLogger.warning(
+            'Subscribe failed: $e',
+            null,
+            null,
+            LogCategory.tracking,
+          );
           return false;
         }
       }
@@ -533,7 +637,10 @@ class DispatcherLiveTrackingNotifier
       );
 
       AppLogger.info(
-        '✅ [Dispatcher] Connected and subscribed to live tracking',
+        '✅ Connected and subscribed to live tracking',
+        null,
+        null,
+        LogCategory.tracking,
       );
       return true;
     } catch (e) {
@@ -544,7 +651,10 @@ class DispatcherLiveTrackingNotifier
         error: e.toString(),
       );
       AppLogger.warning(
-        '⚠️ [Dispatcher] Connection failed (will use polling fallback): $e',
+        'Connection failed (will use polling fallback): $e',
+        null,
+        null,
+        LogCategory.tracking,
       );
       return false;
     }
@@ -554,7 +664,10 @@ class DispatcherLiveTrackingNotifier
   Future<DriverLocation?> requestDriverLocation(int driverId) async {
     if (!state.isConnected) {
       AppLogger.warning(
-        '📡 [Dispatcher] Cannot request location: Not connected',
+        'Cannot request location: Not connected',
+        null,
+        null,
+        LogCategory.tracking,
       );
       return null;
     }
@@ -573,19 +686,30 @@ class DispatcherLiveTrackingNotifier
         state = state.copyWith(driverLocations: updated);
 
         AppLogger.info(
-          '📍 [Dispatcher] Got location for driver $driverId: '
+          '📍 Got location for driver $driverId: '
           '${location.latitude.toStringAsFixed(6)}, '
           '${location.longitude.toStringAsFixed(6)}',
+          null,
+          null,
+          LogCategory.tracking,
         );
       } else {
         AppLogger.warning(
-          '📡 [Dispatcher] Location request timed out for driver $driverId',
+          'Location request timed out for driver $driverId',
+          null,
+          null,
+          LogCategory.tracking,
         );
       }
 
       return location;
     } catch (e) {
-      AppLogger.error('📡 [Dispatcher] Failed to request driver location: $e');
+      AppLogger.error(
+        'Failed to request driver location: $e',
+        null,
+        null,
+        LogCategory.tracking,
+      );
       return null;
     }
   }
@@ -603,7 +727,7 @@ class DispatcherLiveTrackingNotifier
   void disconnect() {
     _tracking.disconnect();
     state = const DispatcherLiveTrackingState();
-    AppLogger.info('📡 [Dispatcher] Disconnected');
+    AppLogger.info('Disconnected', null, null, LogCategory.tracking);
   }
 }
 

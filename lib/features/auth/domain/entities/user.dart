@@ -21,6 +21,8 @@ class User {
   final List<String> groups;
   final int? currentCompanyId;
   final UserRole? role;
+  final List<int>
+      shuttleDispatcherGroupIds; // NEW: المجموعات المصرح للـ Dispatcher بها
 
   const User({
     required this.id,
@@ -41,6 +43,8 @@ class User {
     this.groups = const [],
     this.currentCompanyId,
     this.role,
+    this.shuttleDispatcherGroupIds =
+        const [], // NEW: المجموعات المصرح للـ Dispatcher بها
   });
 
   factory User.fromTenantMeResponse(TenantMeResponse me) {
@@ -56,6 +60,7 @@ class User {
       groups: me.groups,
       companyIds: me.companyIds,
       currentCompanyId: me.currentCompanyId,
+      shuttleDispatcherGroupIds: const [], // Will be loaded separately if needed
     );
   }
 
@@ -81,6 +86,9 @@ class User {
       role: json['role'] != null
           ? UserRole.tryFromString(json['role'] as String)
           : null,
+      shuttleDispatcherGroupIds:
+          (json['shuttleDispatcherGroupIds'] as List?)?.cast<int>() ??
+              const [], // NEW
     );
   }
 
@@ -104,6 +112,7 @@ class User {
       'groups': groups,
       'currentCompanyId': currentCompanyId,
       'role': role?.value,
+      'shuttleDispatcherGroupIds': shuttleDispatcherGroupIds, // NEW
     };
   }
 
@@ -129,6 +138,9 @@ class User {
       tz: json['tz'] as String?,
       companyIds: (json['company_ids'] as List?)?.cast<int>(),
       role: role,
+      shuttleDispatcherGroupIds:
+          (json['shuttle_dispatcher_group_ids'] as List?)?.cast<int>() ??
+              const [], // NEW
     );
   }
 
@@ -152,6 +164,7 @@ class User {
     List<String>? groups,
     int? currentCompanyId,
     UserRole? role,
+    List<int>? shuttleDispatcherGroupIds, // NEW
   }) {
     return User(
       id: id ?? this.id,
@@ -172,6 +185,8 @@ class User {
       groups: groups ?? this.groups,
       currentCompanyId: currentCompanyId ?? this.currentCompanyId,
       role: role ?? this.role,
+      shuttleDispatcherGroupIds:
+          shuttleDispatcherGroupIds ?? this.shuttleDispatcherGroupIds, // NEW
     );
   }
 

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/responsive_utils.dart';
+import '../../../l10n/app_localizations.dart';
 
 /// Hero Header Widget - شريط علوي احترافي موحد - ShuttleBee
 /// يُستخدم في جميع الصفحات الرئيسية للأدوار المختلفة
@@ -47,7 +49,8 @@ class HeroHeader extends StatelessWidget {
       pinned: true,
       stretch: true,
       backgroundColor: colors.first,
-      actions: actions.map((action) => _buildHeaderButton(action)).toList(),
+      actions:
+          actions.map((action) => _buildHeaderButton(action, context)).toList(),
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           fit: StackFit.expand,
@@ -71,62 +74,163 @@ class HeroHeader extends StatelessWidget {
                 ),
               ),
 
-            // === Content ===
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    // === Online Badge ===
-                    if (showOnlineIndicator) _buildOnlineBadge(),
-                    if (showOnlineIndicator) const SizedBox(height: 12),
-
-                    // === Welcome Text ===
-                    Text(
-                      userName != null ? '$title، $userName 👋' : title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Cairo',
-                        shadows: [
-                          Shadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-
-                    // === Subtitle ===
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.calendar_today_rounded,
-                          color: Colors.white70,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          subtitle,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                            fontFamily: 'Cairo',
-                          ),
-                        ),
+            // === Decorative Blobs ===
+            if (context.isDesktop) ...[
+              Positioned(
+                top: -50,
+                right: -50,
+                child: Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: 0.1),
+                        Colors.white.withValues(alpha: 0.0),
                       ],
                     ),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: -30,
+                left: -30,
+                child: Container(
+                  width: 150,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: 0.08),
+                        Colors.white.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
 
-                    // === Bottom Widget ===
-                    if (bottomWidget != null) ...[
-                      const SizedBox(height: 12),
-                      bottomWidget!,
-                    ],
-                  ],
+            // === Content ===
+            SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: context.responsive(
+                      mobile: double.infinity,
+                      tablet: 900,
+                      desktop: 1400,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.responsive(
+                        mobile: 20.0,
+                        tablet: 32.0,
+                        desktop: 48.0,
+                      ),
+                      vertical: 20,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        // === Online Badge ===
+                        if (showOnlineIndicator) _buildOnlineBadge(context),
+                        if (showOnlineIndicator)
+                          SizedBox(
+                            height: context.responsive(
+                              mobile: 12.0,
+                              tablet: 14.0,
+                              desktop: 16.0,
+                            ),
+                          ),
+
+                        // === Welcome Text ===
+                        Text(
+                          userName != null ? '$title، $userName 👋' : title,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: context.responsive(
+                              mobile: 26.0,
+                              tablet: 30.0,
+                              desktop: 36.0,
+                            ),
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Cairo',
+                            height: 1.2,
+                            letterSpacing: -0.5,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: context.responsive(
+                                  mobile: 4.0,
+                                  tablet: 6.0,
+                                  desktop: 8.0,
+                                ),
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(
+                          height: context.responsive(
+                            mobile: 4.0,
+                            tablet: 6.0,
+                            desktop: 8.0,
+                          ),
+                        ),
+
+                        // === Subtitle ===
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today_rounded,
+                              color: Colors.white70,
+                              size: context.responsive(
+                                mobile: 14.0,
+                                tablet: 16.0,
+                                desktop: 18.0,
+                              ),
+                            ),
+                            SizedBox(
+                              width: context.responsive(
+                                mobile: 6.0,
+                                tablet: 8.0,
+                                desktop: 10.0,
+                              ),
+                            ),
+                            Text(
+                              subtitle,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontSize: context.responsive(
+                                  mobile: 14.0,
+                                  tablet: 15.0,
+                                  desktop: 16.0,
+                                ),
+                                fontFamily: 'Cairo',
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // === Bottom Widget ===
+                        if (bottomWidget != null) ...[
+                          SizedBox(
+                            height: context.responsive(
+                              mobile: 12.0,
+                              tablet: 14.0,
+                              desktop: 16.0,
+                            ),
+                          ),
+                          bottomWidget!,
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -136,12 +240,33 @@ class HeroHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildOnlineBadge() {
+  Widget _buildOnlineBadge(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: EdgeInsets.symmetric(
+        horizontal: context.responsive(
+          mobile: 12.0,
+          tablet: 14.0,
+          desktop: 16.0,
+        ),
+        vertical: context.responsive(
+          mobile: 6.0,
+          tablet: 7.0,
+          desktop: 8.0,
+        ),
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(
+          context.responsive(
+            mobile: 20.0,
+            tablet: 22.0,
+            desktop: 24.0,
+          ),
+        ),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.3),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -151,8 +276,16 @@ class HeroHeader extends StatelessWidget {
               animation: onlineIndicatorController!,
               builder: (context, child) {
                 return Container(
-                  width: 8,
-                  height: 8,
+                  width: context.responsive(
+                    mobile: 8.0,
+                    tablet: 9.0,
+                    desktop: 10.0,
+                  ),
+                  height: context.responsive(
+                    mobile: 8.0,
+                    tablet: 9.0,
+                    desktop: 10.0,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF4CAF50),
                     shape: BoxShape.circle,
@@ -170,19 +303,37 @@ class HeroHeader extends StatelessWidget {
             )
           else
             Container(
-              width: 8,
-              height: 8,
+              width: context.responsive(
+                mobile: 8.0,
+                tablet: 9.0,
+                desktop: 10.0,
+              ),
+              height: context.responsive(
+                mobile: 8.0,
+                tablet: 9.0,
+                desktop: 10.0,
+              ),
               decoration: const BoxDecoration(
                 color: Color(0xFF4CAF50),
                 shape: BoxShape.circle,
               ),
             ),
-          const SizedBox(width: 8),
-          const Text(
-            'متصل الآن',
+          SizedBox(
+            width: context.responsive(
+              mobile: 8.0,
+              tablet: 9.0,
+              desktop: 10.0,
+            ),
+          ),
+          Text(
+            AppLocalizations.of(context).onlineNow,
             style: TextStyle(
               color: Colors.white,
-              fontSize: 12,
+              fontSize: context.responsive(
+                mobile: 12.0,
+                tablet: 13.0,
+                desktop: 14.0,
+              ),
               fontWeight: FontWeight.w600,
               fontFamily: 'Cairo',
             ),
@@ -192,24 +343,55 @@ class HeroHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildHeaderButton(HeroHeaderAction action) {
+  Widget _buildHeaderButton(HeroHeaderAction action, BuildContext context) {
+    final buttonSize = context.responsive(
+      mobile: 40.0,
+      tablet: 44.0,
+      desktop: 48.0,
+    );
+
+    final iconSize = context.responsive(
+      mobile: 22.0,
+      tablet: 24.0,
+      desktop: 26.0,
+    );
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
+      margin: EdgeInsets.symmetric(
+        horizontal: context.responsive(
+          mobile: 4.0,
+          tablet: 5.0,
+          desktop: 6.0,
+        ),
+      ),
+      width: buttonSize,
+      height: buttonSize,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.15),
         shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: IconButton(
         icon: action.isLoading
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
+            ? SizedBox(
+                width: iconSize * 0.8,
+                height: iconSize * 0.8,
+                child: const CircularProgressIndicator(
                   strokeWidth: 2,
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : Icon(action.icon, color: Colors.white, size: 22),
+            : Icon(action.icon, color: Colors.white, size: iconSize),
         onPressed: action.isLoading
             ? null
             : () {
@@ -217,6 +399,7 @@ class HeroHeader extends StatelessWidget {
                 action.onPressed?.call();
               },
         tooltip: action.tooltip,
+        splashRadius: buttonSize / 2,
       ),
     );
   }
@@ -294,9 +477,9 @@ class HeroGradients {
   ];
 
   static const List<Color> dispatcher = [
-    Color(0xFF7B1FA2),
-    Color(0xFF6A1B9A),
-    Color(0xFF4A148C),
+    Color(0xFF8B5CF6), // Purple 500 - محدّث
+    Color(0xFF7C3AED), // Purple 600
+    Color(0xFF6D28D9), // Purple 700
   ];
 
   static const List<Color> passenger = [

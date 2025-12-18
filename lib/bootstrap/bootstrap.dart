@@ -6,12 +6,31 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:logger/logger.dart';
 
 import '../app.dart';
+import '../core/utils/logger_config.dart';
 import 'app_initializer.dart';
 
 /// Bootstrap the application
 Future<void> bootstrap() async {
   // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ====================================
+  // 🎯 Logger Configuration
+  // ====================================
+  // Uncomment one of these lines to filter logs:
+
+  // LoggerConfig.development();     // Show all logs (default)
+  // LoggerConfig.minimal();         // Show only important logs
+  // LoggerConfig.networkOnly();     // Show only network logs
+  // LoggerConfig.authOnly();        // Show only auth logs
+  // LoggerConfig.trackingOnly();    // Show only tracking logs
+  // LoggerConfig.syncOnly();        // Show only sync logs
+  // LoggerConfig.errorsOnly();      // Show only errors
+  // LoggerConfig.production();      // Production preset
+
+  // Print current logger configuration
+  // LoggerConfig.printConfig();
+  // ====================================
   // إخفاء الأزرار + الشاشة كاملة بوضع Immersive Sticky
   // SystemChrome.setEnabledSystemUIMode(
   //   SystemUiMode.immersiveSticky,

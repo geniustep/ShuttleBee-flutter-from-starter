@@ -1,33 +1,104 @@
 import 'package:intl/intl.dart';
+import 'number_converter.dart';
 
-/// Data formatters
+/// Date format types
+enum DateFormatType {
+  short, // dd/MM/yyyy
+  medium, // dd MMM yyyy
+  long, // dd MMMM yyyy
+  full, // EEEE, dd MMMM yyyy
+}
+
+/// Data formatters with Arabic numeral support
 class Formatters {
   Formatters._();
+
+  /// Should use Arabic numerals (set by app preference)
+  static bool _useArabicNumerals = false;
+
+  /// Current date format type
+  static DateFormatType _dateFormatType = DateFormatType.medium;
+
+  /// Current locale for date formatting (to keep month names in correct language)
+  static String _locale = 'en';
+
+  /// Set numeral preference
+  static void setNumeralPreference(bool useArabicNumerals) {
+    _useArabicNumerals = useArabicNumerals;
+  }
+
+  /// Set date format preference
+  static void setDateFormatPreference(DateFormatType format) {
+    _dateFormatType = format;
+  }
+
+  /// Set locale for date formatting
+  static void setLocale(String locale) {
+    _locale = locale;
+  }
+
+  /// Get current date format pattern based on preference
+  static String get _datePattern {
+    switch (_dateFormatType) {
+      case DateFormatType.short:
+        return 'dd/MM/yyyy';
+      case DateFormatType.medium:
+        return 'dd MMM yyyy';
+      case DateFormatType.long:
+        return 'dd MMMM yyyy';
+      case DateFormatType.full:
+        return 'EEEE, dd MMMM yyyy';
+    }
+  }
+
+  /// Convert formatted string to use appropriate numerals
+  /// Arabic numerals only apply when the locale is Arabic AND user prefers Arabic numerals
+  static String _applyNumeralFormat(String text) {
+    if (_locale == 'ar') {
+      // For Arabic locale, check user preference
+      if (_useArabicNumerals) {
+        // User wants Arabic numerals - convert any Western to Arabic
+        return NumberConverter.toArabicNumerals(text);
+      } else {
+        // User wants Western numerals - convert any Arabic to Western
+        // This is needed because DateFormat with 'ar' locale returns Arabic numerals by default
+        return NumberConverter.toWesternNumerals(text);
+      }
+    }
+    return text;
+  }
 
   // === Date Formatters ===
 
   /// Format date to string
-  static String date(DateTime? date, {String pattern = 'yyyy-MM-dd'}) {
+  static String date(DateTime? date, {String? pattern}) {
     if (date == null) return '';
-    return DateFormat(pattern).format(date);
+    final effectivePattern = pattern ?? _datePattern;
+    final formatted = DateFormat(effectivePattern, _locale).format(date);
+    return _applyNumeralFormat(formatted);
   }
 
-  /// Format date for display
+  /// Format date for display (uses user preference)
   static String displayDate(DateTime? date) {
     if (date == null) return '';
-    return DateFormat('dd MMM yyyy').format(date);
+    final formatted = DateFormat(_datePattern, _locale).format(date);
+    return _applyNumeralFormat(formatted);
   }
 
-  /// Format datetime for display
+  /// Format datetime for display (uses user preference for date)
   static String displayDateTime(DateTime? date) {
     if (date == null) return '';
-    return DateFormat('dd MMM yyyy, hh:mm a').format(date);
+    final datePattern = _datePattern;
+    final formatted = DateFormat('$datePattern, hh:mm a', _locale).format(date);
+    return _applyNumeralFormat(formatted);
   }
 
   /// Format time only
   static String time(DateTime? date, {bool use24Hour = false}) {
     if (date == null) return '';
-    return DateFormat(use24Hour ? 'HH:mm' : 'hh:mm a').format(date);
+    final formatted =
+        DateFormat(use24Hour ? 'HH:mm' : 'hh:mm a', _locale).format(date);
+    return _applyNumeralFormat(formatted);
   }
 
   /// Format relative time (e.g., "2 hours ago")
@@ -37,21 +108,24 @@ class Formatters {
     final now = DateTime.now();
     final diff = now.difference(date);
 
+    String result;
     if (diff.inDays > 365) {
       final years = (diff.inDays / 365).floor();
-      return '$years year${years > 1 ? 's' : ''} ago';
+      result = '$years year${years > 1 ? 's' : ''} ago';
     } else if (diff.inDays > 30) {
       final months = (diff.inDays / 30).floor();
-      return '$months month${months > 1 ? 's' : ''} ago';
+      result = '$months month${months > 1 ? 's' : ''} ago';
     } else if (diff.inDays > 0) {
-      return '${diff.inDays} day${diff.inDays > 1 ? 's' : ''} ago';
+      result = '${diff.inDays} day${diff.inDays > 1 ? 's' : ''} ago';
     } else if (diff.inHours > 0) {
-      return '${diff.inHours} hour${diff.inHours > 1 ? 's' : ''} ago';
+      result = '${diff.inHours} hour${diff.inHours > 1 ? 's' : ''} ago';
     } else if (diff.inMinutes > 0) {
-      return '${diff.inMinutes} minute${diff.inMinutes > 1 ? 's' : ''} ago';
+      result = '${diff.inMinutes} minute${diff.inMinutes > 1 ? 's' : ''} ago';
     } else {
-      return 'Just now';
+      result = 'Just now';
     }
+
+    return _applyNumeralFormat(result);
   }
 
   // === Number Formatters ===
@@ -59,32 +133,40 @@ class Formatters {
   /// Format number with thousand separator
   static String number(num? value, {int decimals = 0}) {
     if (value == null) return '';
-    return NumberFormat('#,##0${decimals > 0 ? '.${'0' * decimals}' : ''}')
-        .format(value);
+    final formatted =
+        NumberFormat('#,##0${decimals > 0 ? '.${'0' * decimals}' : ''}')
+            .format(value);
+    return _applyNumeralFormat(formatted);
   }
 
   /// Format as currency
   static String currency(num? value, {String symbol = r'$', int decimals = 2}) {
     if (value == null) return '';
-    return NumberFormat.currency(symbol: symbol, decimalDigits: decimals)
-        .format(value);
+    final formatted =
+        NumberFormat.currency(symbol: symbol, decimalDigits: decimals)
+            .format(value);
+    return _applyNumeralFormat(formatted);
   }
 
   /// Format as percentage
   static String percentage(num? value, {int decimals = 0}) {
     if (value == null) return '';
-    return '${value.toStringAsFixed(decimals)}%';
+    final formatted = '${value.toStringAsFixed(decimals)}%';
+    return _applyNumeralFormat(formatted);
   }
 
   /// Format as compact number (1K, 1M, etc.)
   static String compact(num? value) {
     if (value == null) return '';
-    return NumberFormat.compact().format(value);
+    final formatted = NumberFormat.compact().format(value);
+    return _applyNumeralFormat(formatted);
   }
 
   /// Format file size
   static String fileSize(int? bytes) {
-    if (bytes == null || bytes == 0) return '0 B';
+    if (bytes == null || bytes == 0) {
+      return _applyNumeralFormat('0 B');
+    }
 
     const suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
     var i = 0;
@@ -95,7 +177,9 @@ class Formatters {
       i++;
     }
 
-    return '${size.toStringAsFixed(size >= 100 ? 0 : 1)} ${suffixes[i]}';
+    final formatted =
+        '${size.toStringAsFixed(size >= 100 ? 0 : 1)} ${suffixes[i]}';
+    return _applyNumeralFormat(formatted);
   }
 
   // === Text Formatters ===
@@ -105,19 +189,25 @@ class Formatters {
     if (value == null || value.isEmpty) return '';
     // Remove all non-digit characters
     final digits = value.replaceAll(RegExp(r'\D'), '');
-    if (digits.length < 10) return value;
+    if (digits.length < 10) {
+      return _applyNumeralFormat(value);
+    }
 
+    String formatted;
     // Format as (XXX) XXX-XXXX
     if (digits.length == 10) {
-      return '(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}';
+      formatted =
+          '(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}';
     }
-
     // With country code
-    if (digits.length == 11) {
-      return '+${digits[0]} (${digits.substring(1, 4)}) ${digits.substring(4, 7)}-${digits.substring(7)}';
+    else if (digits.length == 11) {
+      formatted =
+          '+${digits[0]} (${digits.substring(1, 4)}) ${digits.substring(4, 7)}-${digits.substring(7)}';
+    } else {
+      formatted = value;
     }
 
-    return value;
+    return _applyNumeralFormat(formatted);
   }
 
   /// Mask email
@@ -140,9 +230,13 @@ class Formatters {
   static String maskPhone(String? phone) {
     if (phone == null || phone.isEmpty) return '';
     final digits = phone.replaceAll(RegExp(r'\D'), '');
-    if (digits.length < 4) return phone;
+    if (digits.length < 4) {
+      return _applyNumeralFormat(phone);
+    }
 
-    return '${'*' * (digits.length - 4)}${digits.substring(digits.length - 4)}';
+    final formatted =
+        '${'*' * (digits.length - 4)}${digits.substring(digits.length - 4)}';
+    return _applyNumeralFormat(formatted);
   }
 
   /// Truncate text with ellipsis
@@ -174,5 +268,14 @@ class Formatters {
         .map((p) => p[0].toUpperCase())
         .join();
     return initials;
+  }
+
+  /// Format a simple integer or string containing numbers
+  /// This applies Arabic/Western numeral preference based on settings
+  /// Use this for displaying counts, IDs, or any numeric values in the UI
+  static String formatSimple(dynamic value) {
+    if (value == null) return '';
+    final text = value.toString();
+    return _applyNumeralFormat(text);
   }
 }

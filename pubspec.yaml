@@ -97,6 +97,8 @@ dependencies:
   local_auth: ^2.3.0
 
   # Voice Search
+  # NOTE: speech_to_text Windows plugin is in beta and has build issues.
+  # Windows support is disabled via dependency_overrides below.
   speech_to_text: ^7.0.0
 
   # WebSocket & Real-time
@@ -157,6 +159,11 @@ dev_dependencies:
 dependency_overrides:
   intl: ^0.20.2
   analyzer_plugin: any
+  # Workaround for speech_to_text_windows build issues on Windows
+  # The original plugin has linker errors. This stub allows the app to build.
+  # Note: Speech-to-text will NOT work on Windows with this stub.
+  speech_to_text_windows:
+    path: packages/speech_to_text_windows_stub
 
 flutter:
   uses-material-design: true

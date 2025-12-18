@@ -3,11 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/enums/enums.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/loading/shimmer_loading.dart';
 import '../../../trips/domain/entities/trip.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
@@ -251,7 +251,7 @@ class _DispatcherEditTripScreenState
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '${trip.lines.length} راكب',
+              '${Formatters.formatSimple(trip.lines.length)} راكب',
               style: const TextStyle(
                 fontFamily: 'Cairo',
                 fontWeight: FontWeight.bold,
@@ -329,7 +329,7 @@ class _DispatcherEditTripScreenState
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    line.status.arabicLabel,
+                    line.status.getLocalizedLabel(context),
                     style: TextStyle(
                       fontFamily: 'Cairo',
                       fontSize: 10,
@@ -402,8 +402,11 @@ class _DispatcherEditTripScreenState
             value: 'mark_boarded',
             child: Row(
               children: [
-                Icon(Icons.check_circle_rounded,
-                    size: 20, color: AppColors.success),
+                Icon(
+                  Icons.check_circle_rounded,
+                  size: 20,
+                  color: AppColors.success,
+                ),
                 SizedBox(width: 8),
                 Text('تسجيل صعود', style: TextStyle(fontFamily: 'Cairo')),
               ],
@@ -449,9 +452,10 @@ class _DispatcherEditTripScreenState
             children: [
               Icon(Icons.delete_rounded, size: 20, color: AppColors.error),
               SizedBox(width: 8),
-              Text('إزالة من الرحلة',
-                  style:
-                      TextStyle(fontFamily: 'Cairo', color: AppColors.error)),
+              Text(
+                'إزالة من الرحلة',
+                style: TextStyle(fontFamily: 'Cairo', color: AppColors.error),
+              ),
             ],
           ),
         ),
@@ -475,7 +479,10 @@ class _DispatcherEditTripScreenState
   }
 
   Future<void> _handlePassengerAction(
-      String action, TripLine line, Trip trip) async {
+    String action,
+    TripLine line,
+    Trip trip,
+  ) async {
     HapticFeedback.lightImpact();
 
     switch (action) {
@@ -630,12 +637,14 @@ class _DispatcherEditTripScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.info_outline_rounded,
-                    color: AppColors.dispatcherPrimary),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(
+                  Icons.info_outline_rounded,
+                  color: AppColors.dispatcherPrimary,
+                ),
+                SizedBox(width: 8),
+                Text(
                   'المعلومات الأساسية',
                   style: TextStyle(
                     fontSize: 16,
@@ -675,12 +684,14 @@ class _DispatcherEditTripScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.swap_vert_rounded,
-                    color: AppColors.dispatcherPrimary),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(
+                  Icons.swap_vert_rounded,
+                  color: AppColors.dispatcherPrimary,
+                ),
+                SizedBox(width: 8),
+                Text(
                   'نوع الرحلة',
                   style: TextStyle(
                     fontSize: 16,
@@ -777,12 +788,14 @@ class _DispatcherEditTripScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.schedule_rounded,
-                    color: AppColors.dispatcherPrimary),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(
+                  Icons.schedule_rounded,
+                  color: AppColors.dispatcherPrimary,
+                ),
+                SizedBox(width: 8),
+                Text(
                   'التاريخ والوقت',
                   style: TextStyle(
                     fontSize: 16,
@@ -826,8 +839,7 @@ class _DispatcherEditTripScreenState
                             ),
                           ),
                           Text(
-                            DateFormat('EEEE، d MMMM yyyy', 'ar')
-                                .format(_selectedDate),
+                            Formatters.displayDate(_selectedDate),
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontFamily: 'Cairo',
@@ -946,12 +958,14 @@ class _DispatcherEditTripScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.directions_bus_rounded,
-                    color: AppColors.dispatcherPrimary),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(
+                  Icons.directions_bus_rounded,
+                  color: AppColors.dispatcherPrimary,
+                ),
+                SizedBox(width: 8),
+                Text(
                   'المجموعة والمركبة',
                   style: TextStyle(
                     fontSize: 16,
@@ -967,7 +981,7 @@ class _DispatcherEditTripScreenState
               data: (groups) {
                 final activeGroups = groups.where((g) => g.active).toList();
                 return DropdownButtonFormField<int>(
-                  value: _selectedGroupId,
+                  initialValue: _selectedGroupId,
                   isExpanded: true,
                   decoration: _buildInputDecoration(
                     label: 'المجموعة',
@@ -1009,7 +1023,7 @@ class _DispatcherEditTripScreenState
                 final activeVehicles =
                     vehicles.where((v) => v.active == true).toList();
                 return DropdownButtonFormField<int>(
-                  value: _selectedVehicleId,
+                  initialValue: _selectedVehicleId,
                   isExpanded: true,
                   decoration: _buildInputDecoration(
                     label: 'المركبة',
@@ -1059,12 +1073,14 @@ class _DispatcherEditTripScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.notes_rounded,
-                    color: AppColors.dispatcherPrimary),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(
+                  Icons.notes_rounded,
+                  color: AppColors.dispatcherPrimary,
+                ),
+                SizedBox(width: 8),
+                Text(
                   'ملاحظات',
                   style: TextStyle(
                     fontSize: 16,
@@ -1327,8 +1343,10 @@ class _DispatcherEditTripScreenState
               ref.invalidate(tripDetailProvider(widget.tripId));
             },
             icon: const Icon(Icons.refresh_rounded),
-            label: const Text('إعادة المحاولة',
-                style: TextStyle(fontFamily: 'Cairo')),
+            label: const Text(
+              'إعادة المحاولة',
+              style: TextStyle(fontFamily: 'Cairo'),
+            ),
           ),
         ],
       ),
@@ -1359,8 +1377,10 @@ class _DispatcherEditTripScreenState
             onPressed: () {
               context.go('${RoutePaths.dispatcherHome}/trips');
             },
-            child: const Text('العودة للرحلات',
-                style: TextStyle(fontFamily: 'Cairo')),
+            child: const Text(
+              'العودة للرحلات',
+              style: TextStyle(fontFamily: 'Cairo'),
+            ),
           ),
         ],
       ),
