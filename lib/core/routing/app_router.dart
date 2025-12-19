@@ -47,6 +47,8 @@ import '../../features/passenger/presentation/screens/passenger_home_screen.dart
 import '../../features/manager/presentation/screens/manager_home_screen.dart';
 import '../../features/manager/presentation/screens/manager_analytics_screen.dart';
 import '../../features/manager/presentation/screens/manager_reports_screen.dart';
+import '../../features/chat/presentation/screens/conversations_screen.dart';
+import '../../features/chat/presentation/screens/chat_screen.dart';
 
 import 'role_routing.dart';
 import 'route_paths.dart';
@@ -540,6 +542,21 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const PendingOperationsScreen(),
           ),
         ],
+      ),
+
+      // Chat
+      GoRoute(
+        path: '/conversations',
+        name: 'conversations',
+        builder: (context, state) => const ConversationsScreen(),
+      ),
+      GoRoute(
+        path: '/chat/:conversationId',
+        name: 'chat',
+        builder: (context, state) {
+          final conversationId = state.pathParameters['conversationId']!;
+          return ChatScreen(conversationId: conversationId);
+        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

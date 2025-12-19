@@ -18,6 +18,7 @@ import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../trips/domain/repositories/trip_repository.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
+import '../../../chat/presentation/providers/chat_providers.dart';
 import '../providers/dispatcher_cached_providers.dart';
 
 /// Dispatcher Home Screen - الصفحة الرئيسية للمرسل - ShuttleBee
@@ -246,6 +247,18 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
           onPressed: () {
             HapticFeedback.lightImpact();
             context.go(RoutePaths.notifications);
+          },
+        ),
+        HeroHeaderAction(
+          icon: Icons.chat_bubble_rounded,
+          tooltip: 'Messages',
+          badge: ref.watch(unreadMessagesCountProvider).maybeWhen(
+            data: (count) => count > 0 ? count : null,
+            orElse: () => null,
+          ),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            context.push('/conversations');
           },
         ),
         HeroHeaderAction(

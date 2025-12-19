@@ -105,6 +105,12 @@ dependencies:
   web_socket_channel: ^3.0.1
   socket_io_client: ^3.0.2
 
+  # Chat UI
+  flutter_chat_ui: ^1.6.15
+  flutter_chat_types: ^3.6.2
+  mime: ^2.0.0
+  open_filex: ^4.5.0
+
   # Onboarding
   introduction_screen: ^3.1.14
   tutorial_coach_mark: ^1.2.11
