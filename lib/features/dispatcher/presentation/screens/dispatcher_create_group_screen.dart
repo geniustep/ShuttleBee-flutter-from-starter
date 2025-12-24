@@ -16,7 +16,7 @@ import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../../../stops/domain/entities/shuttle_stop.dart';
 import '../../../stops/presentation/providers/stop_providers.dart';
 import '../providers/dispatcher_cached_providers.dart';
-import '../widgets/dispatcher_app_bar.dart';
+import '../widgets/common/dispatcher_app_bar.dart';
 
 /// Dispatcher Create Group Screen - شاشة إنشاء مجموعة جديدة - ShuttleBee
 class DispatcherCreateGroupScreen extends ConsumerStatefulWidget {

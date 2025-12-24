@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 
 import '../../../../core/enums/enums.dart';
 import '../../../../core/data/datasources/local_data_source.dart';
+import '../../../../core/error_handling/failures.dart';
 import '../../../../shared/providers/global_providers.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/domain/entities/user.dart';
@@ -34,18 +35,13 @@ class DispatcherCacheKeys {
 
   static String groups({required int userId}) => 'dispatcher:$userId:groups';
 
-  static String dashboardStats({
-    required int userId,
-    required DateTime date,
-  }) =>
+  static String dashboardStats({required int userId, required DateTime date}) =>
       'dispatcher:$userId:dashboard_stats:${_dateKey(date)}';
 
-  static String trips({
-    required int userId,
-    required TripFilters filters,
-  }) {
-    final from =
-        filters.fromDate == null ? 'null' : _dateKey(filters.fromDate!);
+  static String trips({required int userId, required TripFilters filters}) {
+    final from = filters.fromDate == null
+        ? 'null'
+        : _dateKey(filters.fromDate!);
     final to = filters.toDate == null ? 'null' : _dateKey(filters.toDate!);
     final state = filters.state?.value ?? 'null';
     final type = filters.tripType?.value ?? 'null';
@@ -68,14 +64,10 @@ class DispatcherCacheKeys {
   static String passengerProfile({
     required int userId,
     required int passengerId,
-  }) =>
-      'dispatcher:$userId:passenger:$passengerId';
+  }) => 'dispatcher:$userId:passenger:$passengerId';
 
   /// Passengers by group cache key
-  static String groupPassengers({
-    required int userId,
-    required int groupId,
-  }) =>
+  static String groupPassengers({required int userId, required int groupId}) =>
       'dispatcher:$userId:group_passengers:$groupId';
 
   /// Unassigned passengers cache key
@@ -83,10 +75,7 @@ class DispatcherCacheKeys {
       'dispatcher:$userId:unassigned_passengers';
 
   /// Users by role cache key
-  static String usersByRole({
-    required int userId,
-    required String role,
-  }) =>
+  static String usersByRole({required int userId, required String role}) =>
       'dispatcher:$userId:users:$role';
 }
 
@@ -123,124 +112,145 @@ List<User> _decodeUsers(dynamic cached) {
 /// Cache-first: groups list used in dispatcher.
 final dispatcherGroupsProvider =
     FutureProvider.autoDispose<List<PassengerGroup>>((ref) async {
-  final cache = ref.watch(dispatcherCacheDataSourceProvider);
-  final isOnline = ref.watch(isOnlineStateProvider);
-  final userId = _userId(ref);
-  if (userId == 0) return [];
+      final cache = ref.watch(dispatcherCacheDataSourceProvider);
+      final isOnline = ref.watch(isOnlineStateProvider);
+      final userId = _userId(ref);
+      if (userId == 0) return [];
 
-  final key = DispatcherCacheKeys.groups(userId: userId);
+      final key = DispatcherCacheKeys.groups(userId: userId);
 
-  // 1) Cache-first
-  final cached = await cache.get<List<dynamic>>(key);
-  if (cached != null) {
-    final groups = _decodeGroups(cached);
-    // If offline: fully rely on cache
-    if (!isOnline) return groups;
-    // Online: rely on TTL for freshness (CacheDataSource drops expired keys)
-    return groups;
-  }
+      // 1) Cache-first
+      final cached = await cache.get<List<dynamic>>(key);
+      if (cached != null) {
+        final groups = _decodeGroups(cached);
+        // If offline: fully rely on cache
+        if (!isOnline) return groups;
+        // Online: rely on TTL for freshness (CacheDataSource drops expired keys)
+        return groups;
+      }
 
-  // 2) No cache: fetch if possible
-  if (!isOnline) return [];
-  final dataSource = ref.watch(groupDataSourceProvider);
-  if (dataSource == null) return [];
+      // 2) No cache: fetch if possible
+      if (!isOnline) return [];
+      final dataSource = ref.watch(groupDataSourceProvider);
+      if (dataSource == null) return [];
 
-  final groups = await dataSource.getGroups();
-  await cache.save(
-    key: key,
-    data: groups.map((g) => g.toJson()).toList(),
-    ttl: const Duration(minutes: 10),
-  );
-  return groups;
-});
+      final groups = await dataSource.getGroups();
+      await cache.save(
+        key: key,
+        data: groups.map((g) => g.toJson()).toList(),
+        ttl: const Duration(minutes: 10),
+      );
+      return groups;
+    });
 
 /// Cache-first: trips list used in dispatcher (by date/filters).
 final dispatcherTripsProvider = FutureProvider.autoDispose
     .family<List<Trip>, TripFilters>((ref, filters) async {
-  final cache = ref.watch(dispatcherCacheDataSourceProvider);
-  final isOnline = ref.watch(isOnlineStateProvider);
-  final userId = _userId(ref);
-  if (userId == 0) return [];
+      final cache = ref.watch(dispatcherCacheDataSourceProvider);
+      final isOnline = ref.watch(isOnlineStateProvider);
+      final userId = _userId(ref);
+      if (userId == 0) return [];
 
-  final key = DispatcherCacheKeys.trips(userId: userId, filters: filters);
+      final key = DispatcherCacheKeys.trips(userId: userId, filters: filters);
 
-  // 1) Cache-first
-  final cached = await cache.get<List<dynamic>>(key);
-  if (cached != null) {
-    final trips = _decodeTrips(cached);
-    if (!isOnline) return trips;
-    return trips;
-  }
+      // 1) Cache-first
+      final cached = await cache.get<List<dynamic>>(key);
+      if (cached != null) {
+        final trips = _decodeTrips(cached);
+        if (!isOnline) return trips;
+        return trips;
+      }
 
-  // 2) No cache: fetch if possible
-  if (!isOnline) return [];
-  final repository = ref.watch(tripRepositoryProvider);
-  if (repository == null) return [];
+      // 2) No cache: fetch if possible
+      if (!isOnline) return [];
+      final repository = ref.watch(tripRepositoryProvider);
+      if (repository == null) return [];
 
-  final result = await repository.getTrips(
-    state: filters.state,
-    tripType: filters.tripType,
-    fromDate: filters.fromDate,
-    toDate: filters.toDate,
-    driverId: filters.driverId,
-    vehicleId: filters.vehicleId,
-    limit: filters.limit,
-    offset: filters.offset,
-  );
-
-  return await result.fold(
-    (failure) async => throw Exception(failure.message),
-    (trips) async {
-      await cache.save(
-        key: key,
-        data: trips.map((t) => t.toJson()).toList(),
-        ttl: const Duration(minutes: 2),
+      final result = await repository.getTrips(
+        state: filters.state,
+        tripType: filters.tripType,
+        fromDate: filters.fromDate,
+        toDate: filters.toDate,
+        driverId: filters.driverId,
+        vehicleId: filters.vehicleId,
+        limit: filters.limit,
+        offset: filters.offset,
       );
-      return trips;
-    },
-  );
-});
+
+      return await result.fold(
+        (failure) async => throw Exception(failure.message),
+        (trips) async {
+          await cache.save(
+            key: key,
+            data: trips.map((t) => t.toJson()).toList(),
+            ttl: const Duration(minutes: 2),
+          );
+          return trips;
+        },
+      );
+    });
 
 /// Cache-first: dashboard stats.
 final dispatcherDashboardStatsProvider = FutureProvider.autoDispose
     .family<TripDashboardStats, DateTime>((ref, date) async {
-  final cache = ref.watch(dispatcherCacheDataSourceProvider);
-  final isOnline = ref.watch(isOnlineStateProvider);
-  final userId = _userId(ref);
-  if (userId == 0) return const TripDashboardStats();
+      final cache = ref.watch(dispatcherCacheDataSourceProvider);
+      final isOnline = ref.watch(isOnlineStateProvider);
+      final userId = _userId(ref);
+      if (userId == 0) return const TripDashboardStats();
 
-  final key = DispatcherCacheKeys.dashboardStats(userId: userId, date: date);
-
-  final cached = await cache.get<Map<String, dynamic>>(key);
-  if (cached != null) {
-    final stats =
-        TripDashboardStats.fromJson(Map<String, dynamic>.from(cached));
-    if (!isOnline) return stats;
-    return stats;
-  }
-
-  if (!isOnline) return const TripDashboardStats();
-  final repository = ref.watch(tripRepositoryProvider);
-  if (repository == null) return const TripDashboardStats();
-
-  final result = await repository.getDashboardStats(date);
-  return await result.fold(
-    (failure) async => const TripDashboardStats(),
-    (stats) async {
-      await cache.save(
-        key: key,
-        data: stats.toJson(),
-        ttl: const Duration(minutes: 1),
+      final key = DispatcherCacheKeys.dashboardStats(
+        userId: userId,
+        date: date,
       );
-      return stats;
-    },
-  );
-});
+
+      final cached = await cache.get<Map<String, dynamic>>(key);
+      if (cached != null) {
+        final stats = TripDashboardStats.fromJson(
+          Map<String, dynamic>.from(cached),
+        );
+        if (!isOnline) return stats;
+        return stats;
+      }
+
+      if (!isOnline) return const TripDashboardStats();
+      final repository = ref.watch(tripRepositoryProvider);
+      if (repository == null) return const TripDashboardStats();
+
+      final result = await repository.getDashboardStats(date);
+      return await result.fold(
+        (failure) async {
+          // If it's an authentication error, throw it to trigger error handling in UI
+          final errorMsg = failure.message.toLowerCase();
+          if (failure is AuthFailure ||
+              errorMsg.contains('not authenticated') ||
+              errorMsg.contains('403') ||
+              errorMsg.contains('400') ||
+              errorMsg.contains('authentication required') ||
+              errorMsg.contains('access denied') ||
+              errorMsg.contains('forbidden') ||
+              errorMsg.contains('missing odoo credentials') ||
+              errorMsg.contains('no tokens found') ||
+              errorMsg.contains('انتهت صلاحية الجلسة')) {
+            throw Exception(failure.message);
+          }
+          return const TripDashboardStats();
+        },
+        (stats) async {
+          await cache.save(
+            key: key,
+            data: stats.toJson(),
+            ttl: const Duration(minutes: 1),
+          );
+          return stats;
+        },
+      );
+    });
 
 /// Live monitoring: always try server when online, but keep last cached value
 /// for offline/failure fallback.
-final dispatcherOngoingTripsProvider =
-    FutureProvider.autoDispose<List<Trip>>((ref) async {
+final dispatcherOngoingTripsProvider = FutureProvider.autoDispose<List<Trip>>((
+  ref,
+) async {
   final cache = ref.watch(dispatcherCacheDataSourceProvider);
   final isOnline = ref.watch(isOnlineStateProvider);
   final userId = _userId(ref);
@@ -336,34 +346,34 @@ final dispatcherOngoingTripsProvider =
 /// Cache-first: vehicles list used in dispatcher.
 final dispatcherVehiclesProvider =
     FutureProvider.autoDispose<List<ShuttleVehicle>>((ref) async {
-  final cache = ref.watch(dispatcherCacheDataSourceProvider);
-  final isOnline = ref.watch(isOnlineStateProvider);
-  final userId = _userId(ref);
-  if (userId == 0) return [];
+      final cache = ref.watch(dispatcherCacheDataSourceProvider);
+      final isOnline = ref.watch(isOnlineStateProvider);
+      final userId = _userId(ref);
+      if (userId == 0) return [];
 
-  final key = DispatcherCacheKeys.vehicles(userId: userId);
+      final key = DispatcherCacheKeys.vehicles(userId: userId);
 
-  // 1) Cache-first
-  final cached = await cache.get<List<dynamic>>(key);
-  if (cached != null) {
-    final vehicles = _decodeVehicles(cached);
-    if (!isOnline) return vehicles;
-    return vehicles;
-  }
+      // 1) Cache-first
+      final cached = await cache.get<List<dynamic>>(key);
+      if (cached != null) {
+        final vehicles = _decodeVehicles(cached);
+        if (!isOnline) return vehicles;
+        return vehicles;
+      }
 
-  // 2) No cache: fetch if possible
-  if (!isOnline) return [];
-  final dataSource = ref.watch(vehicleDataSourceProvider);
-  if (dataSource == null) return [];
+      // 2) No cache: fetch if possible
+      if (!isOnline) return [];
+      final dataSource = ref.watch(vehicleDataSourceProvider);
+      if (dataSource == null) return [];
 
-  final vehicles = await dataSource.getVehicles();
-  await cache.save(
-    key: key,
-    data: vehicles.map((v) => v.toJson()).toList(),
-    ttl: const Duration(minutes: 10),
-  );
-  return vehicles;
-});
+      final vehicles = await dataSource.getVehicles();
+      await cache.save(
+        key: key,
+        data: vehicles.map((v) => v.toJson()).toList(),
+        ttl: const Duration(minutes: 10),
+      );
+      return vehicles;
+    });
 
 /// Simple User model for user selection
 class SimpleUser {
@@ -389,67 +399,151 @@ class SimpleUser {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'email': email,
-        'role': role,
-      };
+    'id': id,
+    'name': name,
+    'email': email,
+    'role': role,
+  };
 }
 
 /// Cache-first: users by role (driver, companion, dispatcher)
 final usersByRoleProvider = FutureProvider.autoDispose
     .family<List<SimpleUser>, String>((ref, role) async {
+      final cache = ref.watch(dispatcherCacheDataSourceProvider);
+      final isOnline = ref.watch(isOnlineStateProvider);
+      final userId = _userId(ref);
+      if (userId == 0) return [];
+
+      final key = DispatcherCacheKeys.usersByRole(userId: userId, role: role);
+
+      // 1) Cache-first
+      final cached = await cache.get<List<dynamic>>(key);
+      if (cached != null) {
+        final users = (cached)
+            .map(
+              (e) => SimpleUser.fromOdoo(Map<String, dynamic>.from(e as Map)),
+            )
+            .toList();
+        if (!isOnline) return users;
+        return users;
+      }
+
+      // 2) No cache: fetch if possible using bridgecore
+      if (!isOnline) return [];
+
+      try {
+        final client = ref.watch(bridgecoreClientProvider);
+        if (client == null) return [];
+
+        // Build domain based on role
+        List<dynamic> domain = [];
+        if (role == 'driver' || role == 'companion') {
+          // Get users who are drivers or companions
+          domain = [
+            [
+              'shuttle_role',
+              'in',
+              ['driver', 'companion'],
+            ],
+          ];
+        } else if (role == 'dispatcher') {
+          // Get users who are dispatchers
+          domain = [
+            ['shuttle_role', '=', 'dispatcher'],
+          ];
+        }
+
+        final users = await client.searchRead(
+          model: 'res.users',
+          domain: domain,
+          fields: ['id', 'name', 'email', 'login', 'shuttle_role'],
+          limit: 200,
+        );
+
+        final simpleUsers = users.map((u) => SimpleUser.fromOdoo(u)).toList();
+
+        await cache.save(
+          key: key,
+          data: users,
+          ttl: const Duration(minutes: 30),
+        );
+
+        return simpleUsers;
+      } catch (e) {
+        // Fallback to empty list on error
+        return [];
+      }
+    });
+
+/// Provider for drivers and companions combined
+final driversAndCompanionsProvider =
+    FutureProvider.autoDispose<List<SimpleUser>>((ref) async {
+      final drivers = await ref.watch(usersByRoleProvider('driver').future);
+      final companions = await ref.watch(usersByRoleProvider('companion').future);
+      // دمج القائمتين وإزالة التكرارات
+      final allUsers = <int, SimpleUser>{};
+      for (final user in drivers) {
+        allUsers[user.id] = user;
+      }
+      for (final user in companions) {
+        allUsers[user.id] = user;
+      }
+      return allUsers.values.toList();
+    });
+
+/// Provider for companions only - يجلب المستخدمين الذين لديهم shuttle_role == 'companion'
+final companionsProvider = FutureProvider.autoDispose<List<SimpleUser>>((ref) async {
   final cache = ref.watch(dispatcherCacheDataSourceProvider);
   final isOnline = ref.watch(isOnlineStateProvider);
   final userId = _userId(ref);
   if (userId == 0) return [];
 
-  final key = DispatcherCacheKeys.usersByRole(userId: userId, role: role);
+  final key = DispatcherCacheKeys.usersByRole(userId: userId, role: 'companion_only');
 
   // 1) Cache-first
   final cached = await cache.get<List<dynamic>>(key);
   if (cached != null) {
-    final users = (cached as List<dynamic>)
-        .map((e) => SimpleUser.fromOdoo(Map<String, dynamic>.from(e as Map)))
+    final users = (cached)
+        .map(
+          (e) => SimpleUser.fromOdoo(Map<String, dynamic>.from(e as Map)),
+        )
         .toList();
-    if (!isOnline) return users;
-    return users;
+    // تصفية للحصول على المرافقين فقط
+    final companions = users.where((user) => user.role == 'companion').toList();
+    if (!isOnline) return companions;
+    // إذا كان متصل، نتحقق من البيانات الجديدة
   }
 
-  // 2) No cache: fetch if possible using bridgecore
+  // 2) No cache or online: fetch if possible using bridgecore
+  if (!isOnline && cached != null) {
+    // إذا كان غير متصل ولدينا cache، نعيد الـ cache
+    final users = (cached)
+        .map(
+          (e) => SimpleUser.fromOdoo(Map<String, dynamic>.from(e as Map)),
+        )
+        .toList();
+    return users.where((user) => user.role == 'companion').toList();
+  }
+
   if (!isOnline) return [];
 
   try {
     final client = ref.watch(bridgecoreClientProvider);
     if (client == null) return [];
 
-    // Build domain based on role
-    List<dynamic> domain = [];
-    if (role == 'driver' || role == 'companion') {
-      // Get users who are drivers or companions
-      domain = [
-        [
-          'shuttle_role',
-          'in',
-          ['driver', 'companion']
-        ]
-      ];
-    } else if (role == 'dispatcher') {
-      // Get users who are dispatchers
-      domain = [
-        ['shuttle_role', '=', 'dispatcher']
-      ];
-    }
-
+    // جلب المستخدمين الذين لديهم shuttle_role == 'companion' فقط
     final users = await client.searchRead(
       model: 'res.users',
-      domain: domain,
+      domain: [
+        ['shuttle_role', '=', 'companion'],
+      ],
       fields: ['id', 'name', 'email', 'login', 'shuttle_role'],
       limit: 200,
     );
 
     final simpleUsers = users.map((u) => SimpleUser.fromOdoo(u)).toList();
 
+    // حفظ في الـ cache
     await cache.save(
       key: key,
       data: users,
@@ -458,21 +552,24 @@ final usersByRoleProvider = FutureProvider.autoDispose
 
     return simpleUsers;
   } catch (e) {
+    // في حالة الخطأ، نعيد الـ cache إذا كان موجوداً
+    if (cached != null) {
+      final users = (cached)
+          .map(
+            (e) => SimpleUser.fromOdoo(Map<String, dynamic>.from(e as Map)),
+          )
+          .toList();
+      return users.where((user) => user.role == 'companion').toList();
+    }
     // Fallback to empty list on error
     return [];
   }
 });
 
-/// Provider for drivers and companions combined
-final driversAndCompanionsProvider =
-    FutureProvider.autoDispose<List<SimpleUser>>((ref) async {
-  final users = await ref.watch(usersByRoleProvider('driver').future);
-  return users;
-});
-
 /// Provider for dispatchers only
-final dispatchersProvider =
-    FutureProvider.autoDispose<List<SimpleUser>>((ref) async {
+final dispatchersProvider = FutureProvider.autoDispose<List<SimpleUser>>((
+  ref,
+) async {
   final users = await ref.watch(usersByRoleProvider('dispatcher').future);
   return users;
 });

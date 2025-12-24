@@ -38,7 +38,19 @@ final networkInfoProvider = Provider<NetworkInfo>((ref) => NetworkInfo());
 /// - تجديد التوكن تلقائياً عند الحاجة
 class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
   final Ref _ref;
-  final Logger _logger = Logger();
+  final Logger _logger = Logger(
+    printer: PrettyPrinter(
+      methodCount: 0, // لا تظهر stack frames للرسائل العادية
+      errorMethodCount: 5, // عدد محدود من stack frames للأخطاء
+      lineLength: 80,
+      colors: true,
+      printEmojis: false,
+      excludeBox: {
+        Level.debug: true,
+        Level.info: true,
+      },
+    ),
+  );
   final PrefsService _prefs = PrefsService();
   final SecureStorageService _secureStorage = SecureStorageService();
   final NetworkInfo _networkInfo = NetworkInfo();
@@ -86,21 +98,30 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
       // Validate that token is a proper tenant token
       if (tokenState == TokenState.valid ||
           tokenState == TokenState.needsRefresh) {
-        final tokenValidation = await BridgeCore.instance.auth.validateToken();
-        final isValidTenantToken = tokenValidation['isValid'] == true;
-        if (!isValidTenantToken) {
-          print('⚠️ [_checkAuthStatus] Token is NOT a valid tenant token!');
-          final tokenInfo = await BridgeCore.instance.auth.getTokenInfo();
-          print('📋 [_checkAuthStatus] Token details: $tokenInfo');
-          print(
-            '🔄 [_checkAuthStatus] Clearing invalid token and requiring re-login...',
-          );
+        try {
+          final tokenValidation = await BridgeCore.instance.auth.validateToken();
+          final isValidTenantToken = tokenValidation['isValid'] == true;
+          if (!isValidTenantToken) {
+            print('⚠️ [_checkAuthStatus] Token is NOT a valid tenant token!');
+            final tokenInfo = await BridgeCore.instance.auth.getTokenInfo();
+            print('📋 [_checkAuthStatus] Token details: $tokenInfo');
+            print(
+              '🔄 [_checkAuthStatus] Clearing invalid token and requiring re-login...',
+            );
+            await _clearSession();
+            await BridgeCore.instance.auth.logout();
+            state = AsyncValue.data(AuthState.invalidToken());
+            return;
+          }
+          print('✅ [_checkAuthStatus] Token is a valid tenant token');
+        } catch (e) {
+          // Token validation failed - likely invalid or expired
+          print('❌ [_checkAuthStatus] Token validation failed: $e');
           await _clearSession();
           await BridgeCore.instance.auth.logout();
           state = AsyncValue.data(AuthState.invalidToken());
           return;
         }
-        print('✅ [_checkAuthStatus] Token is a valid tenant token');
       }
 
       // Handle based on token state
@@ -168,19 +189,15 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<AuthState>> {
           break;
 
         case TokenState.none:
-          // No tokens - check legacy session
-          if (userId != null && sessionId != null && serverUrl != null) {
-            print('📦 [_checkAuthStatus] Found legacy session, migrating...');
-            await _restoreAuthenticatedSession(
-              userId: userId,
-              sessionId: sessionId,
-              serverUrl: serverUrl,
-              tokenState: TokenState.valid,
-            );
-          } else {
-            print('⚠️ [_checkAuthStatus] No session found');
-            state = const AsyncValue.data(AuthState());
+          // No BridgeCore tokens - legacy session is invalid without proper tokens
+          // CRITICAL: We must NOT restore session without valid BridgeCore tokens
+          print('❌ [_checkAuthStatus] No BridgeCore tokens found');
+          if (userId != null || sessionId != null) {
+            print('🧹 [_checkAuthStatus] Clearing legacy session data without valid tokens');
+            await _clearSession();
           }
+          print('➡️  [_checkAuthStatus] Redirecting to login');
+          state = const AsyncValue.data(AuthState());
           break;
       }
     } catch (e, stackTrace) {

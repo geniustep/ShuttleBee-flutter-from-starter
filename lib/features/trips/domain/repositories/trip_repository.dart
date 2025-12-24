@@ -108,6 +108,13 @@ abstract class TripRepository {
 
   /// Get manager analytics
   Future<Either<Failure, ManagerAnalytics>> getManagerAnalytics();
+
+  /// Create return trip from an existing trip
+  Future<Either<Failure, Trip>> createReturnTrip(
+    int tripId, {
+    required DateTime startTime,
+    DateTime? arrivalTime,
+  });
 }
 
 /// Dashboard Statistics

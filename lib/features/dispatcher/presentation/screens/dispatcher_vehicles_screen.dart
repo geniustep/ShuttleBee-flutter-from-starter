@@ -15,10 +15,10 @@ import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../vehicles/domain/entities/shuttle_vehicle.dart';
 import '../providers/dispatcher_cached_providers.dart';
-import '../widgets/dispatcher_unified_header.dart';
-import '../widgets/dispatcher_secondary_header.dart';
-import '../widgets/dispatcher_footer.dart';
-import '../widgets/dispatcher_action_fab.dart';
+import '../widgets/headers/dispatcher_unified_header.dart';
+import '../widgets/headers/dispatcher_secondary_header.dart';
+import '../widgets/common/dispatcher_footer.dart';
+import '../widgets/common/dispatcher_action_fab.dart';
 
 /// Dispatcher Vehicles Screen - شاشة إدارة المركبات للمرسل - ShuttleBee
 class DispatcherVehiclesScreen extends ConsumerStatefulWidget {

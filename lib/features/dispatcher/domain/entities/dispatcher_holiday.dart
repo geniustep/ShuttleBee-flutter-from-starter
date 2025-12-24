@@ -38,6 +38,38 @@ class DispatcherHoliday {
     );
   }
 
+  /// Create from JSON
+  factory DispatcherHoliday.fromJson(Map<String, dynamic> json) {
+    return DispatcherHoliday(
+      id: json['id'] as int? ?? 0,
+      name: json['name'] as String? ?? '',
+      startDate: json['startDate'] != null
+          ? DateTime.parse(json['startDate'] as String)
+          : DateTime(1970),
+      endDate: json['endDate'] != null
+          ? DateTime.parse(json['endDate'] as String)
+          : DateTime(1970),
+      active: json['active'] as bool? ?? true,
+      notes: json['notes'] as String?,
+      companyId: json['companyId'] as int?,
+      companyName: json['companyName'] as String?,
+    );
+  }
+
+  /// Convert to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'startDate': startDate.toIso8601String(),
+      'endDate': endDate.toIso8601String(),
+      'active': active,
+      'notes': notes,
+      'companyId': companyId,
+      'companyName': companyName,
+    };
+  }
+
   /// Whether this holiday includes the given date (date-only comparison).
   bool includesDate(DateTime date) {
     if (!active) return false;

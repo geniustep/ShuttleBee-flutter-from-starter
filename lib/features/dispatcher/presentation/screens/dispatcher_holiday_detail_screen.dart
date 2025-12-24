@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../shared/widgets/common/desktop_sidebar_wrapper.dart';
 import '../../domain/entities/dispatcher_holiday.dart';
 import '../providers/dispatcher_holiday_providers.dart';
 
@@ -135,7 +136,7 @@ class _DispatcherHolidayDetailScreenState
     final actionState = ref.watch(dispatcherHolidayActionsProvider);
     final isBusy = actionState.isLoading;
 
-    return Scaffold(
+    return DesktopScaffoldWithSidebar(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text(

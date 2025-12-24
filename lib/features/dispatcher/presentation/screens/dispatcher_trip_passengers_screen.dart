@@ -12,9 +12,9 @@ import '../../../../shared/widgets/loading/shimmer_loading.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../trips/domain/entities/trip.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
-import '../widgets/dispatcher_app_bar.dart';
-import '../widgets/dispatcher_search_field.dart';
-import '../widgets/dispatcher_add_trip_passenger_sheet.dart';
+import '../widgets/common/dispatcher_app_bar.dart';
+import '../widgets/common/dispatcher_search_field.dart';
+import '../widgets/trips/dispatcher_add_trip_passenger_sheet.dart';
 
 /// Manage passengers inside a specific trip.
 class DispatcherTripPassengersScreen extends ConsumerStatefulWidget {

@@ -3,7 +3,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// SharedPreferences service for simple key-value storage
 class PrefsService {
-  static final Logger _logger = Logger();
+  static final Logger _logger = Logger(
+    printer: PrettyPrinter(
+      methodCount: 0, // لا تظهر stack frames للرسائل العادية
+      errorMethodCount: 5, // عدد محدود من stack frames للأخطاء
+      lineLength: 80,
+      colors: true,
+      printEmojis: false,
+      excludeBox: {
+        Level.debug: true,
+        Level.info: true,
+      },
+    ),
+  );
   static SharedPreferences? _prefs;
 
   /// Initialize SharedPreferences

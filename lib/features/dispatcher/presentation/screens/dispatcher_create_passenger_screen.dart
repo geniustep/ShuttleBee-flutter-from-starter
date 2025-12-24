@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../providers/dispatcher_partner_providers.dart';
-import '../widgets/dispatcher_app_bar.dart';
+import '../widgets/common/dispatcher_app_bar.dart';
 
 class DispatcherCreatePassengerScreen extends ConsumerStatefulWidget {
   const DispatcherCreatePassengerScreen({super.key});

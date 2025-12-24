@@ -12,9 +12,9 @@ import '../../domain/entities/passenger_group_line.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
 import '../providers/dispatcher_cached_providers.dart';
 import '../providers/dispatcher_passenger_providers.dart';
-import '../widgets/dispatcher_add_passenger_sheet.dart';
-import '../widgets/dispatcher_app_bar.dart';
-import '../widgets/dispatcher_search_field.dart';
+import '../widgets/passengers/dispatcher_add_passenger_sheet.dart';
+import '../widgets/common/dispatcher_app_bar.dart';
+import '../widgets/common/dispatcher_search_field.dart';
 
 /// Manage passengers inside a specific group.
 class DispatcherGroupPassengersScreen extends ConsumerStatefulWidget {

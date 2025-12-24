@@ -15,7 +15,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../groups/domain/entities/passenger_group.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
 import '../providers/dispatcher_cached_providers.dart';
-import '../widgets/dispatcher_app_bar.dart';
+import '../widgets/common/dispatcher_app_bar.dart';
 
 /// Dispatcher Group Detail Screen - شاشة تفاصيل المجموعة للمرسل - ShuttleBee
 class DispatcherGroupDetailScreen extends ConsumerStatefulWidget {

@@ -8,6 +8,7 @@ import '../../../l10n/app_localizations.dart';
 
 /// Desktop Sidebar Wrapper
 /// يضيف القائمة الجانبية على Desktop لجميع الصفحات
+/// Desktop order: Home, Monitor, Trips, Groups, Passengers, Vehicles
 class DesktopSidebarWrapper extends StatelessWidget {
   const DesktopSidebarWrapper({
     super.key,
@@ -84,38 +85,42 @@ class _DesktopSidebar extends StatelessWidget {
     final selectedIndex = _getSelectedIndexFromPath(currentPath);
     final l10n = AppLocalizations.of(context);
     final labels = [
+      l10n.home,
       l10n.monitor,
       l10n.trips,
-      l10n.home,
       l10n.groups,
+      l10n.passengers,
       l10n.vehicles,
     ];
 
-    // نفس الأيقونات من DispatcherShellScreen
+    // نفس الأيقونات من DispatcherShellScreen (Desktop)
     const icons = <IconData>[
+      Icons.home,
       Icons.map,
       Icons.route,
-      Icons.home,
       Icons.groups,
+      Icons.people,
       Icons.directions_bus,
     ];
 
     const selectedIcons = <IconData>[
+      Icons.home_rounded,
       Icons.map_rounded,
       Icons.route_rounded,
-      Icons.home_rounded,
       Icons.groups_rounded,
+      Icons.people_rounded,
       Icons.directions_bus_rounded,
     ];
 
     // Branch paths (من DispatcherShellScreen)
-    // Monitor=0, Trips=1, Home=2, Groups=3, Vehicles=4
+    // Desktop order: Home=0, Monitor=1, Trips=2, Groups=3, Passengers=4, Vehicles=5
     const branchPaths = [
-      RoutePaths.dispatcherMonitor, // 0 - Monitor
-      RoutePaths.dispatcherTrips, // 1 - Trips
-      RoutePaths.dispatcherHome, // 2 - Home
+      RoutePaths.dispatcherHome, // 0 - Home
+      RoutePaths.dispatcherMonitor, // 1 - Monitor
+      RoutePaths.dispatcherTrips, // 2 - Trips
       RoutePaths.dispatcherGroups, // 3 - Groups
-      RoutePaths.dispatcherVehicles, // 4 - Vehicles
+      RoutePaths.dispatcherPassengers, // 4 - Passengers
+      RoutePaths.dispatcherVehicles, // 5 - Vehicles
     ];
 
     return Row(
@@ -235,12 +240,13 @@ class _DesktopSidebar extends StatelessWidget {
   }
 
   int _getSelectedIndexFromPath(String path) {
-    // Monitor=0, Trips=1, Home=2, Groups=3, Vehicles=4
+    // Desktop order: Home=0, Monitor=1, Trips=2, Groups=3, Passengers=4, Vehicles=5
     // ترتيب الفحص مهم - يجب أن نفحص المسارات الأكثر تحديداً أولاً
-    if (path.contains('/monitor')) return 0;
-    if (path.contains('/trips')) return 1;
+    if (path.contains('/monitor')) return 1;
+    if (path.contains('/trips')) return 2;
     if (path.contains('/groups')) return 3;
-    if (path.contains('/vehicles')) return 4;
+    if (path.contains('/passengers')) return 4;
+    if (path.contains('/vehicles')) return 5;
     // Default to Home for /dispatcher and paths that don't match above
     if (path == RoutePaths.dispatcherHome ||
         path == '/dispatcher' ||
@@ -251,9 +257,9 @@ class _DesktopSidebar extends StatelessWidget {
             !path.contains('/vehicles') &&
             !path.contains('/passengers') &&
             !path.contains('/holidays'))) {
-      return 2; // Home
+      return 0; // Home
     }
-    return 2; // Default to Home
+    return 0; // Default to Home
   }
 }
 

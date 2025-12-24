@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/common/desktop_sidebar_wrapper.dart';
 import '../../../../shared/widgets/loading/shimmer_loading.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
@@ -13,26 +15,24 @@ import '../../domain/entities/dispatcher_passenger_profile.dart';
 import '../../domain/entities/passenger_group_line.dart';
 import '../providers/dispatcher_passenger_providers.dart';
 import '../providers/dispatcher_partner_providers.dart';
-import '../widgets/change_location_sheet.dart';
-import '../widgets/dispatcher_app_bar.dart';
-import '../widgets/passenger_quick_actions_sheet.dart';
-import '../widgets/select_trip_for_absence_sheet.dart';
+import '../widgets/passengers/change_location_sheet.dart';
+import '../widgets/common/dispatcher_app_bar.dart';
+import '../widgets/passengers/passenger_quick_actions_sheet.dart';
+import '../widgets/trips/select_trip_for_absence_sheet.dart';
 
 class DispatcherPassengerDetailScreen extends ConsumerWidget {
   final int passengerId;
 
-  const DispatcherPassengerDetailScreen({
-    super.key,
-    required this.passengerId,
-  });
+  const DispatcherPassengerDetailScreen({super.key, required this.passengerId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync =
-        ref.watch(dispatcherPassengerProfileProvider(passengerId));
+    final profileAsync = ref.watch(
+      dispatcherPassengerProfileProvider(passengerId),
+    );
     final linesAsync = ref.watch(dispatcherPassengerLinesProvider(passengerId));
 
-    return Scaffold(
+    return DesktopScaffoldWithSidebar(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: DispatcherAppBar(
         title: 'تفاصيل الراكب',
@@ -229,10 +229,8 @@ class DispatcherPassengerDetailScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             linesAsync.when(
-              data: (lines) => _LinesSection(
-                passengerId: passengerId,
-                lines: lines,
-              ),
+              data: (lines) =>
+                  _LinesSection(passengerId: passengerId, lines: lines),
               loading: () => const ShimmerCard(height: 180),
               error: (e, _) => _ErrorBox(error: e.toString()),
             ),
@@ -258,10 +256,7 @@ class DispatcherPassengerDetailScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'إلغاء',
-              style: TextStyle(fontFamily: 'Cairo'),
-            ),
+            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
           ),
           TextButton(
             onPressed: () async {
@@ -299,8 +294,10 @@ class DispatcherPassengerDetailScreen extends ConsumerWidget {
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
             child: const Text(
               'حذف',
-              style:
-                  TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -320,8 +317,9 @@ class DispatcherPassengerDetailScreen extends ConsumerWidget {
   }
 
   void _showQuickActions(BuildContext context, WidgetRef ref) {
-    final profileAsync =
-        ref.read(dispatcherPassengerProfileProvider(passengerId));
+    final profileAsync = ref.read(
+      dispatcherPassengerProfileProvider(passengerId),
+    );
     final profile = profileAsync.asData?.value;
 
     PassengerQuickActionsSheet.show(
@@ -329,9 +327,7 @@ class DispatcherPassengerDetailScreen extends ConsumerWidget {
       passengerId: passengerId,
       passengerName: profile?.name ?? 'الراكب',
       onEditProfile: () {
-        context.push(
-          '${RoutePaths.dispatcherPassengers}/p/$passengerId/edit',
-        );
+        context.push('${RoutePaths.dispatcherPassengers}/p/$passengerId/edit');
       },
       onChangeLocation: () {
         if (profile != null) {
@@ -363,8 +359,9 @@ class DispatcherPassengerDetailScreen extends ConsumerWidget {
             return;
           }
 
-          final apiResult =
-              await repository.markPassengerAbsent(result.tripLineId);
+          final apiResult = await repository.markPassengerAbsent(
+            result.tripLineId,
+          );
           final success = apiResult.isRight();
 
           if (context.mounted) {
@@ -386,7 +383,10 @@ class DispatcherPassengerDetailScreen extends ConsumerWidget {
   }
 
   void _showChangeLocation(
-      BuildContext context, WidgetRef ref, DispatcherPassengerProfile profile) {
+    BuildContext context,
+    WidgetRef ref,
+    DispatcherPassengerProfile profile,
+  ) {
     ChangeLocationSheet.show(
       context,
       passengerId: passengerId,
@@ -410,7 +410,9 @@ class DispatcherPassengerDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _clearTemporaryLocation(
-      BuildContext context, WidgetRef ref) async {
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -432,8 +434,10 @@ class DispatcherPassengerDetailScreen extends ConsumerWidget {
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
             child: const Text(
               'إزالة',
-              style:
-                  TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -556,10 +560,13 @@ class _HeaderCard extends StatelessWidget {
                               Container(
                                 margin: const EdgeInsets.only(left: 6),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
-                                  color:
-                                      AppColors.warning.withValues(alpha: 0.3),
+                                  color: AppColors.warning.withValues(
+                                    alpha: 0.3,
+                                  ),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Row(
@@ -585,7 +592,9 @@ class _HeaderCard extends StatelessWidget {
                               ),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: active
                                     ? Colors.green.withValues(alpha: 0.3)
@@ -718,8 +727,9 @@ class _ActionButtons extends StatelessWidget {
             Expanded(
               child: _QuickActionButton(
                 icon: Icons.location_on_rounded,
-                label:
-                    profile.hasTemporaryAddress ? 'عنوان مؤقت' : 'تغيير الموقع',
+                label: profile.hasTemporaryAddress
+                    ? 'عنوان مؤقت'
+                    : 'تغيير الموقع',
                 color: profile.hasTemporaryAddress
                     ? AppColors.warning
                     : AppColors.primary,
@@ -1138,8 +1148,9 @@ class _TemporaryAddressCard extends StatelessWidget {
                   icon: const Icon(Icons.edit_rounded, size: 20),
                   tooltip: 'تعديل',
                   style: IconButton.styleFrom(
-                    backgroundColor:
-                        AppColors.dispatcherPrimary.withValues(alpha: 0.1),
+                    backgroundColor: AppColors.dispatcherPrimary.withValues(
+                      alpha: 0.1,
+                    ),
                     foregroundColor: AppColors.dispatcherPrimary,
                   ),
                 ),
@@ -1179,12 +1190,15 @@ class _TemporaryAddressCard extends StatelessWidget {
             if (profile.temporaryContactName?.isNotEmpty == true ||
                 profile.temporaryContactPhone?.isNotEmpty == true) ...[
               const Divider(height: 20),
-              Row(
+              const Row(
                 children: [
-                  const Icon(Icons.person_pin_rounded,
-                      size: 18, color: AppColors.textSecondary),
-                  const SizedBox(width: 8),
-                  const Text(
+                  Icon(
+                    Icons.person_pin_rounded,
+                    size: 18,
+                    color: AppColors.textSecondary,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
                     'شخص الاتصال',
                     style: TextStyle(
                       fontFamily: 'Cairo',
@@ -1198,10 +1212,7 @@ class _TemporaryAddressCard extends StatelessWidget {
               if (profile.temporaryContactName?.isNotEmpty == true)
                 Text(
                   profile.temporaryContactName!,
-                  style: const TextStyle(
-                    fontFamily: 'Cairo',
-                    fontSize: 14,
-                  ),
+                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
                 ),
               if (profile.temporaryContactPhone?.isNotEmpty == true)
                 Row(
@@ -1224,8 +1235,9 @@ class _TemporaryAddressCard extends StatelessWidget {
                       icon: const Icon(Icons.call_rounded, size: 18),
                       tooltip: 'اتصال',
                       style: IconButton.styleFrom(
-                        backgroundColor:
-                            AppColors.success.withValues(alpha: 0.1),
+                        backgroundColor: AppColors.success.withValues(
+                          alpha: 0.1,
+                        ),
                         foregroundColor: AppColors.success,
                       ),
                     ),
@@ -1312,11 +1324,7 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 18,
-            color: AppColors.textSecondary,
-          ),
+          Icon(icon, size: 18, color: AppColors.textSecondary),
           const SizedBox(width: 12),
           SizedBox(
             width: 140,
@@ -1350,10 +1358,7 @@ class _LinesSection extends ConsumerWidget {
   final int passengerId;
   final List<PassengerGroupLine> lines;
 
-  const _LinesSection({
-    required this.passengerId,
-    required this.lines,
-  });
+  const _LinesSection({required this.passengerId, required this.lines});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1446,8 +1451,10 @@ class _LinesSection extends ConsumerWidget {
       ),
       title: Text(
         l.groupName ?? 'غير مدرجين',
-        style:
-            const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w700),
+        style: const TextStyle(
+          fontFamily: 'Cairo',
+          fontWeight: FontWeight.w700,
+        ),
       ),
       subtitle: Text(
         'مقاعد: ${l.seatCount}${subtitleParts.isEmpty ? '' : '\n${subtitleParts.join('\n')}'}',
@@ -1467,10 +1474,7 @@ class _LinesSection extends ConsumerWidget {
               HapticFeedback.lightImpact();
               await ref
                   .read(dispatcherPassengerActionsProvider.notifier)
-                  .unassignFromGroup(
-                    lineId: l.id,
-                    groupId: l.groupId!,
-                  );
+                  .unassignFromGroup(lineId: l.id, groupId: l.groupId!);
               break;
           }
         },
@@ -1517,8 +1521,10 @@ class _ErrorBox extends StatelessWidget {
           Expanded(
             child: Text(
               error,
-              style:
-                  const TextStyle(fontFamily: 'Cairo', color: AppColors.error),
+              style: const TextStyle(
+                fontFamily: 'Cairo',
+                color: AppColors.error,
+              ),
             ),
           ),
         ],

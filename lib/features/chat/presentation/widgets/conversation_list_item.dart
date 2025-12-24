@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../domain/entities/chat_conversation.dart';
+import '../../domain/entities/chat_message.dart';
 
 class ConversationListItem extends StatelessWidget {
   final ChatConversation conversation;
@@ -89,9 +90,8 @@ class ConversationListItem extends StatelessWidget {
     }
 
     // Get first letter of conversation name
-    final initial = conversation.name.isNotEmpty
-        ? conversation.name[0].toUpperCase()
-        : '?';
+    final initial =
+        conversation.name.isNotEmpty ? conversation.name[0].toUpperCase() : '?';
 
     return CircleAvatar(
       backgroundColor: theme.colorScheme.primaryContainer,
@@ -123,8 +123,6 @@ class ConversationListItem extends StatelessWidget {
         return null;
     }
 
-    if (icon == null) return null;
-
     return Icon(
       icon,
       size: 16,
@@ -142,7 +140,7 @@ class ConversationListItem extends StatelessWidget {
 
     switch (message.type) {
       case MessageType.text:
-        return '${authorName}: ${message.text ?? ''}';
+        return '$authorName: ${message.text ?? ''}';
       case MessageType.image:
         return '$authorName sent an image';
       case MessageType.file:

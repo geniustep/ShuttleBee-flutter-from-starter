@@ -1,6 +1,18 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
+
+# Force MSVC toolset instead of ClangCL BEFORE project() call
+if(MSVC AND NOT DEFINED CMAKE_VS_PLATFORM_TOOLSET)
+  set(CMAKE_VS_PLATFORM_TOOLSET "v143" CACHE STRING "Platform Toolset" FORCE)
+endif()
+
 project(bridgecore_flutter_starter LANGUAGES CXX)
+
+# Ensure all subprojects use MSVC toolset
+if(MSVC)
+  set(CMAKE_VS_PLATFORM_TOOLSET "v143" CACHE STRING "Platform Toolset" FORCE)
+  set_property(GLOBAL PROPERTY VS_PLATFORM_TOOLSET "v143")
+endif()
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
@@ -107,3 +119,7 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
+# Fix ClangCL toolset issue in generated vcxproj files
+# Note: This is handled by fix_toolset.ps1 script manually after build
+# The script should be run after each flutter build if ClangCL errors occur

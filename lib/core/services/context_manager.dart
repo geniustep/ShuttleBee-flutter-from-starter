@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:bridgecore_flutter_starter/core/storage/secure_storage_service.dart';
 
 /// Context manager for Odoo operations
@@ -8,7 +9,7 @@ class OdooContextManager {
   factory OdooContextManager() => _instance;
   OdooContextManager._internal();
 
-  final _storage = SecureStorageService.instance;
+  FlutterSecureStorage get _storage => SecureStorageService.instance;
 
   String? _language;
   String? _timezone;
@@ -68,16 +69,15 @@ class OdooContextManager {
   Future<void> setCompany(int companyId) async {
     _companyId = companyId;
     await _storage.write(
-        key: 'context_company_id', value: companyId.toString());
+      key: 'context_company_id',
+      value: companyId.toString(),
+    );
   }
 
   /// Set allowed companies
   Future<void> setCompanyIds(List<int> ids) async {
     _companyIds = ids;
-    await _storage.write(
-      key: 'context_company_ids',
-      value: ids.join(','),
-    );
+    await _storage.write(key: 'context_company_ids', value: ids.join(','));
   }
 
   /// Set custom context value
@@ -91,9 +91,7 @@ class OdooContextManager {
   }
 
   /// Get full context for Odoo operations
-  Map<String, dynamic> getContext({
-    Map<String, dynamic>? additionalContext,
-  }) {
+  Map<String, dynamic> getContext({Map<String, dynamic>? additionalContext}) {
     final context = <String, dynamic>{
       'lang': _language,
       'tz': _timezone,
@@ -173,7 +171,8 @@ class OdooContextManager {
   Future<void> switchCompany(int companyId) async {
     if (_companyIds == null || !_companyIds!.contains(companyId)) {
       throw StateError(
-          'Cannot switch to company $companyId. User does not have access.');
+        'Cannot switch to company $companyId. User does not have access.',
+      );
     }
 
     await setCompany(companyId);

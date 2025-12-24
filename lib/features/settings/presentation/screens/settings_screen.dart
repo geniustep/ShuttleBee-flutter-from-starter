@@ -8,6 +8,7 @@ import '../../../../core/utils/responsive_utils.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/providers/global_providers.dart';
+import '../../../../shared/widgets/responsive/responsive_scaffold.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/settings_tile.dart';
 
@@ -28,10 +29,7 @@ class SettingsScreen extends ConsumerWidget {
     final padding = context.responsivePadding;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.settings),
-        centerTitle: context.isMobile,
-      ),
+      appBar: ResponsiveAppBar(title: l10n.settings),
       body: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxWidth),
@@ -47,8 +45,8 @@ class SettingsScreen extends ConsumerWidget {
                     title: l10n.profile,
                     subtitle:
                         l10n.translate('manage_profile') != 'manage_profile'
-                            ? l10n.translate('manage_profile')
-                            : 'Manage your profile information',
+                        ? l10n.translate('manage_profile')
+                        : 'Manage your profile information',
                     onTap: () => context.push(RoutePaths.profile),
                   ),
                 ],
@@ -102,8 +100,8 @@ class SettingsScreen extends ConsumerWidget {
                     title: l10n.syncStatus,
                     subtitle:
                         l10n.translate('manage_offline') != 'manage_offline'
-                            ? l10n.translate('manage_offline')
-                            : 'Manage offline settings',
+                        ? l10n.translate('manage_offline')
+                        : 'Manage offline settings',
                     onTap: () => context.push(RoutePaths.offlineSettings),
                   ),
                   SettingsTile(
@@ -184,12 +182,15 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showThemeDialog(
-      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
-    showDialog(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) {
+    showResponsiveModal(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.theme),
-        content: Column(
+      title: l10n.theme,
+      builder: (context) => SingleChildScrollView(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             RadioListTile<ThemeMode>(
@@ -226,12 +227,15 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showLanguageDialog(
-      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
-    showDialog(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) {
+    showResponsiveModal(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.language),
-        content: Column(
+      title: l10n.language,
+      builder: (context) => SingleChildScrollView(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             RadioListTile<String>(
@@ -275,11 +279,11 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     AppLocalizations l10n,
   ) {
-    showDialog(
+    showResponsiveModal(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.translate('numeral_system')),
-        content: Column(
+      title: l10n.translate('numeral_system'),
+      builder: (context) => SingleChildScrollView(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             RadioListTile<bool>(
@@ -317,11 +321,11 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     AppLocalizations l10n,
   ) {
-    showDialog(
+    showResponsiveModal(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.translate('date_format')),
-        content: Column(
+      title: l10n.translate('date_format'),
+      builder: (context) => SingleChildScrollView(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             RadioListTile<DateFormatType>(
@@ -371,24 +375,42 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showClearCacheDialog(BuildContext context, AppLocalizations l10n) {
-    showDialog(
+    showResponsiveModal(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.clearCache),
-        content: Text(l10n.confirmDelete),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
+      title: l10n.clearCache,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Text(
+              l10n.confirmDelete,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.success)),
-              );
-            },
-            child: Text(l10n.clear),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(l10n.cancel),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(l10n.success)));
+                  },
+                  child: Text(l10n.clear),
+                ),
+              ),
+            ],
           ),
         ],
       ),

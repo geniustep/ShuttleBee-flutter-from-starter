@@ -12,7 +12,7 @@ import '../../../vehicles/domain/entities/fleet_vehicle_model.dart';
 import '../../../vehicles/presentation/providers/fleet_providers.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
 import '../providers/dispatcher_cached_providers.dart';
-import '../widgets/dispatcher_app_bar.dart';
+import '../widgets/common/dispatcher_app_bar.dart';
 
 /// Dispatcher Create Vehicle Screen - شاشة إضافة مركبة - ShuttleBee
 /// تعتمد على إنشاء fleet.vehicle.model + fleet.vehicle + shuttle.vehicle

@@ -11,12 +11,10 @@ import '../../../../l10n/app_localizations.dart';
 /// Dispatcher Shell Screen
 ///
 /// Provides a persistent bottom navigation experience for Dispatcher workflow:
-/// Home / Monitor / Trips / Groups / Vehicles
+/// Desktop: Home / Monitor / Trips / Groups / Passengers / Vehicles
+/// Mobile: Monitor / Trips / Home / Groups / Vehicles (Passengers accessible from Home)
 class DispatcherShellScreen extends StatelessWidget {
-  const DispatcherShellScreen({
-    super.key,
-    required this.navigationShell,
-  });
+  const DispatcherShellScreen({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
@@ -30,12 +28,12 @@ class DispatcherShellScreen extends StatelessWidget {
 
   // We want "Home" to be the middle tab visually on mobile.
   // Mobile tabs order: Monitor, Trips, Home, Groups, Vehicles
-  // Branch indices (from router): Home=0, Monitor=1, Trips=2, Groups=3, Vehicles=4
-  static const List<int> _branchByTab = <int>[1, 2, 0, 3, 4];
+  // Branch indices (from router): Home=0, Monitor=1, Trips=2, Groups=3, Passengers=4, Vehicles=5
+  static const List<int> _branchByTab = <int>[1, 2, 0, 3, 5];
 
   // For desktop/tablet, Home should be first
-  // Desktop tabs order: Home, Monitor, Trips, Groups, Vehicles
-  static const List<int> _branchByTabDesktop = <int>[0, 1, 2, 3, 4];
+  // Desktop tabs order: Home, Monitor, Trips, Groups, Passengers, Vehicles
+  static const List<int> _branchByTabDesktop = <int>[0, 1, 2, 3, 4, 5];
 
   static const _icons = <IconData>[
     Icons.map,
@@ -51,6 +49,7 @@ class DispatcherShellScreen extends StatelessWidget {
     Icons.map,
     Icons.route,
     Icons.groups,
+    Icons.people,
     Icons.directions_bus,
   ];
 
@@ -68,6 +67,7 @@ class DispatcherShellScreen extends StatelessWidget {
     Icons.map_rounded,
     Icons.route_rounded,
     Icons.groups_rounded,
+    Icons.people_rounded,
     Icons.directions_bus_rounded,
   ];
 
@@ -93,6 +93,11 @@ class DispatcherShellScreen extends StatelessWidget {
     final branchIndex = mapping[index];
     final isSelected = navigationShell.currentIndex == branchIndex;
 
+    // Use selected icon when item is selected
+    final iconToUse = isSelected
+        ? (isMobile ? _selectedIcons : _selectedIconsDesktop)[index]
+        : icon;
+
     final iconContent = Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -105,13 +110,16 @@ class DispatcherShellScreen extends StatelessWidget {
             : Colors.transparent,
         shape: BoxShape.circle,
       ),
-      child: Icon(icon, size: 26, color: Colors.white),
+      child: Icon(iconToUse, size: 26, color: Colors.white),
     );
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
-      transform:
-          Matrix4.translationValues(0, isSelected ? -_selectedLift : 0, 0),
+      transform: Matrix4.translationValues(
+        0,
+        isSelected ? -_selectedLift : 0,
+        0,
+      ),
       curve: Curves.easeOut,
       child: isSelected
           ? ClipOval(
@@ -126,18 +134,13 @@ class DispatcherShellScreen extends StatelessWidget {
 
   // Navigation labels for desktop/tablet
   List<String> _getLabels(AppLocalizations l10n, bool isMobile) => isMobile
-      ? [
-          l10n.monitor,
-          l10n.trips,
-          l10n.home,
-          l10n.groups,
-          l10n.vehicles,
-        ]
+      ? [l10n.monitor, l10n.trips, l10n.home, l10n.groups, l10n.vehicles]
       : [
           l10n.home,
           l10n.monitor,
           l10n.trips,
           l10n.groups,
+          l10n.passengers,
           l10n.vehicles,
         ];
 
@@ -173,8 +176,10 @@ class DispatcherShellScreen extends StatelessWidget {
 
     final allowExitFromDispatcher = navigationShell.currentIndex == 0;
     final isMobile = context.isMobile;
-    final selectedTabIndex =
-        _tabIndexForBranch(navigationShell.currentIndex, isMobile);
+    final selectedTabIndex = _tabIndexForBranch(
+      navigationShell.currentIndex,
+      isMobile,
+    );
 
     return Theme(
       data: themed,
@@ -269,8 +274,9 @@ class DispatcherShellScreen extends StatelessWidget {
                                       _onDestinationSelected(index, true),
                                   radius: 28,
                                   highlightShape: BoxShape.circle,
-                                  splashColor:
-                                      Colors.white.withValues(alpha: 0.08),
+                                  splashColor: Colors.white.withValues(
+                                    alpha: 0.08,
+                                  ),
                                   child: Center(
                                     child: _getIcon(_icons[index], index, true),
                                   ),
@@ -343,8 +349,9 @@ class DispatcherShellScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(14),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.dispatcherPrimary
-                                    .withValues(alpha: 0.3),
+                                color: AppColors.dispatcherPrimary.withValues(
+                                  alpha: 0.3,
+                                ),
                                 blurRadius: 12,
                                 offset: const Offset(0, 4),
                               ),
@@ -360,9 +367,7 @@ class DispatcherShellScreen extends StatelessWidget {
                         Expanded(
                           child: Text(
                             l10n.dispatcher,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
+                            style: Theme.of(context).textTheme.titleLarge
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.dispatcherPrimary,
@@ -423,8 +428,9 @@ class DispatcherShellScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.dispatcherPrimary
-                              .withValues(alpha: 0.3),
+                          color: AppColors.dispatcherPrimary.withValues(
+                            alpha: 0.3,
+                          ),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -439,33 +445,34 @@ class DispatcherShellScreen extends StatelessWidget {
                   destinations: List.generate(icons.length, (index) {
                     final isSelected = index == selectedTabIndex;
                     return NavigationRailDestination(
-                      icon: Icon(
-                        icons[index],
-                        color: AppColors.textSecondary,
-                      ),
+                      icon: Icon(icons[index], color: AppColors.textSecondary),
                       selectedIcon: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              AppColors.dispatcherPrimary
-                                  .withValues(alpha: 0.2),
-                              AppColors.dispatcherPrimary
-                                  .withValues(alpha: 0.1),
+                              AppColors.dispatcherPrimary.withValues(
+                                alpha: 0.2,
+                              ),
+                              AppColors.dispatcherPrimary.withValues(
+                                alpha: 0.1,
+                              ),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: AppColors.dispatcherPrimary
-                                .withValues(alpha: 0.3),
+                            color: AppColors.dispatcherPrimary.withValues(
+                              alpha: 0.3,
+                            ),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.dispatcherPrimary
-                                  .withValues(alpha: 0.2),
+                              color: AppColors.dispatcherPrimary.withValues(
+                                alpha: 0.2,
+                              ),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -483,8 +490,9 @@ class DispatcherShellScreen extends StatelessWidget {
                           color: isSelected
                               ? AppColors.dispatcherPrimary
                               : AppColors.textSecondary,
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.w500,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
                           fontFamily: 'Cairo',
                         ),
                       ),
@@ -564,15 +572,15 @@ class _CustomNavigationDrawerItemState
                     end: Alignment.bottomRight,
                   )
                 : _isHovered
-                    ? LinearGradient(
-                        colors: [
-                          AppColors.dispatcherPrimary.withValues(alpha: 0.08),
-                          AppColors.dispatcherPrimary.withValues(alpha: 0.04),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : null,
+                ? LinearGradient(
+                    colors: [
+                      AppColors.dispatcherPrimary.withValues(alpha: 0.08),
+                      AppColors.dispatcherPrimary.withValues(alpha: 0.04),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
             color: widget.isSelected || _isHovered ? null : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
             border: widget.isSelected
@@ -581,38 +589,38 @@ class _CustomNavigationDrawerItemState
                     width: 1.5,
                   )
                 : _isHovered
-                    ? Border.all(
-                        color:
-                            AppColors.dispatcherPrimary.withValues(alpha: 0.2),
-                        width: 1,
-                      )
-                    : null,
+                ? Border.all(
+                    color: AppColors.dispatcherPrimary.withValues(alpha: 0.2),
+                    width: 1,
+                  )
+                : null,
             boxShadow: widget.isSelected
                 ? [
                     BoxShadow(
-                      color:
-                          AppColors.dispatcherPrimary.withValues(alpha: 0.15),
+                      color: AppColors.dispatcherPrimary.withValues(
+                        alpha: 0.15,
+                      ),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                       spreadRadius: 0,
                     ),
                     BoxShadow(
-                      color:
-                          AppColors.dispatcherPrimary.withValues(alpha: 0.08),
+                      color: AppColors.dispatcherPrimary.withValues(
+                        alpha: 0.08,
+                      ),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
                   ]
                 : _isHovered
-                    ? [
-                        BoxShadow(
-                          color: AppColors.dispatcherPrimary
-                              .withValues(alpha: 0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
+                ? [
+                    BoxShadow(
+                      color: AppColors.dispatcherPrimary.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             children: [
@@ -634,14 +642,15 @@ class _CustomNavigationDrawerItemState
                   color: widget.isSelected
                       ? null
                       : _isHovered
-                          ? AppColors.dispatcherPrimary.withValues(alpha: 0.12)
-                          : AppColors.dispatcherPrimary.withValues(alpha: 0.06),
+                      ? AppColors.dispatcherPrimary.withValues(alpha: 0.12)
+                      : AppColors.dispatcherPrimary.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: widget.isSelected
                       ? [
                           BoxShadow(
-                            color: AppColors.dispatcherPrimary
-                                .withValues(alpha: 0.3),
+                            color: AppColors.dispatcherPrimary.withValues(
+                              alpha: 0.3,
+                            ),
                             blurRadius: 8,
                             offset: const Offset(0, 3),
                           ),
@@ -653,8 +662,8 @@ class _CustomNavigationDrawerItemState
                   color: widget.isSelected
                       ? Colors.white
                       : _isHovered
-                          ? AppColors.dispatcherPrimary
-                          : AppColors.textSecondary,
+                      ? AppColors.dispatcherPrimary
+                      : AppColors.textSecondary,
                   size: 22,
                 ),
               ),
@@ -664,13 +673,14 @@ class _CustomNavigationDrawerItemState
                   widget.label,
                   style: TextStyle(
                     fontSize: 15,
-                    fontWeight:
-                        widget.isSelected ? FontWeight.w600 : FontWeight.w500,
+                    fontWeight: widget.isSelected
+                        ? FontWeight.w600
+                        : FontWeight.w500,
                     color: widget.isSelected
                         ? AppColors.dispatcherPrimary
                         : _isHovered
-                            ? AppColors.textPrimary
-                            : AppColors.textSecondary,
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
                     fontFamily: 'Cairo',
                   ),
                 ),
@@ -684,8 +694,9 @@ class _CustomNavigationDrawerItemState
                     borderRadius: BorderRadius.circular(2),
                     boxShadow: [
                       BoxShadow(
-                        color:
-                            AppColors.dispatcherPrimary.withValues(alpha: 0.4),
+                        color: AppColors.dispatcherPrimary.withValues(
+                          alpha: 0.4,
+                        ),
                         blurRadius: 4,
                         offset: const Offset(0, 1),
                       ),

@@ -9,14 +9,26 @@ import '../../constants/storage_keys.dart';
 
 /// BridgeCore client wrapper for Odoo integration
 class BridgecoreClient {
-  final Logger _logger = Logger();
+  final Logger _logger = Logger(
+    printer: PrettyPrinter(
+      methodCount: 0, // لا تظهر stack frames للرسائل العادية
+      errorMethodCount: 5, // عدد محدود من stack frames للأخطاء
+      lineLength: 80,
+      colors: true,
+      printEmojis: false,
+      excludeBox: {
+        Level.debug: true,
+        Level.info: true,
+      },
+    ),
+  );
   late final _bridgeCore = BridgeCore.instance.odoo;
 
   bool _isAuthenticated = false;
   String? _sessionId;
   int? _userId;
   String? _database;
-  late final FlutterSecureStorage _storage = SecureStorageService.instance;
+  FlutterSecureStorage get _storage => SecureStorageService.instance;
 
   /// Check if client is authenticated
   bool get isAuthenticated => _isAuthenticated;
@@ -78,8 +90,9 @@ class BridgecoreClient {
             model: model,
             listFields: listFields.cast<String>(),
           );
-          _logger
-              .d('Using odoo_fields_check: model=$model, fields=$listFields');
+          _logger.d(
+            'Using odoo_fields_check: model=$model, fields=$listFields',
+          );
         }
       }
 
@@ -103,10 +116,7 @@ class BridgecoreClient {
       _database = session.tenant.odooDatabase;
 
       // Legacy key expected by the rest of the app
-      await _storage.write(
-        key: StorageKeys.sessionId,
-        value: _sessionId,
-      );
+      await _storage.write(key: StorageKeys.sessionId, value: _sessionId);
 
       _logger.d('✅ [login] Tokens saved to SecureStorage for compatibility');
 
@@ -114,10 +124,10 @@ class BridgecoreClient {
       final userId = session.user.odooUserId;
       final odooFieldsData = session.odooFieldsData?.toJson();
 
-// هذه اللائحة للعرض فقط أو للإرسال
+      // هذه اللائحة للعرض فقط أو للإرسال
       final List<Map<String, dynamic>> fieldsList = [];
 
-// هنا نخزن data بالكامل
+      // هنا نخزن data بالكامل
       Map<String, dynamic> data = {};
 
       if (odooFieldsData != null) {
@@ -126,15 +136,13 @@ class BridgecoreClient {
 
         // تحويلها إلى لائحة
         for (final entry in data.entries) {
-          fieldsList.add({
-            'key': entry.key,
-            'value': entry.value,
-          });
+          fieldsList.add({'key': entry.key, 'value': entry.value});
         }
       }
 
       // Extract shuttle_role directly from odooFieldsData if available
-      final shuttleRole = odooFieldsData?['shuttle_role'] ??
+      final shuttleRole =
+          odooFieldsData?['shuttle_role'] ??
           odooFieldsData?['data']?['shuttle_role'] ??
           data['shuttle_role'];
 
@@ -233,15 +241,11 @@ class BridgecoreClient {
       AppLogger.debug(
         '📥 [getCurrentUser] Employee ID: ${meResponse.employeeId}',
       );
-      AppLogger.debug(
-        '📥 [getCurrentUser] Is Admin: ${meResponse.isAdmin}',
-      );
+      AppLogger.debug('📥 [getCurrentUser] Is Admin: ${meResponse.isAdmin}');
       AppLogger.debug(
         '📥 [getCurrentUser] Is Internal User: ${meResponse.isInternalUser}',
       );
-      AppLogger.debug(
-        '📥 [getCurrentUser] Groups: ${meResponse.groups}',
-      );
+      AppLogger.debug('📥 [getCurrentUser] Groups: ${meResponse.groups}');
       AppLogger.debug(
         '📥 [getCurrentUser] Company IDs: ${meResponse.companyIds}',
       );
@@ -370,10 +374,7 @@ class BridgecoreClient {
 
       _logger.d('create: $model, values: $values');
 
-      final result = await _bridgeCore.create(
-        model: model,
-        values: values,
-      );
+      final result = await _bridgeCore.create(model: model, values: values);
 
       _logger.i('create successful, new ID: $result');
       return result;
@@ -409,19 +410,13 @@ class BridgecoreClient {
   }
 
   /// Delete records
-  Future<bool> unlink({
-    required String model,
-    required List<int> ids,
-  }) async {
+  Future<bool> unlink({required String model, required List<int> ids}) async {
     try {
       _ensureAuthenticated();
 
       _logger.d('unlink: $model, ids: $ids');
 
-      final result = await _bridgeCore.delete(
-        model: model,
-        ids: ids,
-      );
+      final result = await _bridgeCore.delete(model: model, ids: ids);
 
       _logger.i('unlink successful');
       return result;
@@ -456,6 +451,13 @@ class BridgecoreClient {
         return response.result;
       }
       throw Exception(response.error ?? 'Unknown callKw error');
+    } on MissingOdooCredentialsException catch (e, stackTrace) {
+      _logger.e(
+        'callKw failed: Missing Odoo credentials',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      rethrow;
     } catch (e, stackTrace) {
       _logger.e('callKw failed', error: e, stackTrace: stackTrace);
       rethrow;
@@ -488,10 +490,7 @@ class BridgecoreClient {
   // ==================== Action Methods (Odoo 18) ====================
 
   /// Validate records (e.g., confirm a sale order)
-  Future<bool> validate({
-    required String model,
-    required List<int> ids,
-  }) async {
+  Future<bool> validate({required String model, required List<int> ids}) async {
     try {
       _ensureAuthenticated();
 
@@ -511,10 +510,7 @@ class BridgecoreClient {
   }
 
   /// Mark records as done
-  Future<bool> done({
-    required String model,
-    required List<int> ids,
-  }) async {
+  Future<bool> done({required String model, required List<int> ids}) async {
     try {
       _ensureAuthenticated();
 
@@ -534,10 +530,7 @@ class BridgecoreClient {
   }
 
   /// Approve records
-  Future<bool> approve({
-    required String model,
-    required List<int> ids,
-  }) async {
+  Future<bool> approve({required String model, required List<int> ids}) async {
     try {
       _ensureAuthenticated();
 
@@ -557,10 +550,7 @@ class BridgecoreClient {
   }
 
   /// Reject records
-  Future<bool> reject({
-    required String model,
-    required List<int> ids,
-  }) async {
+  Future<bool> reject({required String model, required List<int> ids}) async {
     try {
       _ensureAuthenticated();
 
@@ -604,10 +594,7 @@ class BridgecoreClient {
   }
 
   /// Unlock records
-  Future<bool> unlock({
-    required String model,
-    required List<int> ids,
-  }) async {
+  Future<bool> unlock({required String model, required List<int> ids}) async {
     try {
       _ensureAuthenticated();
 

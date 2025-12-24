@@ -1,10 +1,7 @@
-import 'package:bridgecore_flutter_starter/features/dispatcher/presentation/providers/dispatcher_cached_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/enums/enums.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -12,23 +9,22 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/common/desktop_sidebar_wrapper.dart';
-import '../../../groups/domain/entities/passenger_group.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
 import '../../../trips/domain/entities/trip.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
-import '../../../vehicles/domain/entities/shuttle_vehicle.dart';
-import '../../../vehicles/presentation/providers/fleet_providers.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
-import '../widgets/dispatcher_app_bar.dart';
+import '../widgets/common/dispatcher_app_bar.dart';
+
+// Import extracted widgets
+import 'create_trip/widgets/from_group_tab.dart';
+import 'create_trip/widgets/manual_trip_tab.dart';
+import 'create_trip/widgets/passenger_selection_sheet.dart';
 
 /// Dispatcher Create Trip Screen - شاشة إنشاء/توليد رحلة - ShuttleBee
 class DispatcherCreateTripScreen extends ConsumerStatefulWidget {
   final int? initialGroupId;
 
-  const DispatcherCreateTripScreen({
-    super.key,
-    this.initialGroupId,
-  });
+  const DispatcherCreateTripScreen({super.key, this.initialGroupId});
 
   @override
   ConsumerState<DispatcherCreateTripScreen> createState() =>
@@ -43,15 +39,24 @@ class _DispatcherCreateTripScreenState
 
   // Form fields
   final _nameController = TextEditingController();
+  final _notesController = TextEditingController();
   TripType _tripType = TripType.pickup;
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
   int? _selectedGroupId;
   int? _selectedVehicleId;
   int? _selectedDriverId;
-  int? _selectedCompanionId; // NEW: المرافق
+  int? _selectedCompanionId;
   int _weeksAhead = 1;
   bool _isLoading = false;
+
+  // Selected passengers
+  final Set<int> _selectedPassengerIds = <int>{};
+
+  // Return trip options
+  bool _createReturnTrip = false;
+  DateTime? _returnTripStartTime;
+  DateTime? _returnTripArrivalTime;
 
   @override
   void initState() {
@@ -68,6 +73,7 @@ class _DispatcherCreateTripScreenState
   void dispose() {
     _tabController.dispose();
     _nameController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -84,12 +90,12 @@ class _DispatcherCreateTripScreenState
           unselectedLabelColor: Colors.white70,
           tabs: [
             Tab(
-              icon: const Icon(Icons.groups_rounded),
-              text: AppLocalizations.of(context).generateFromGroup,
-            ),
-            Tab(
               icon: const Icon(Icons.add_circle_outline_rounded),
               text: AppLocalizations.of(context).manualTrip,
+            ),
+            Tab(
+              icon: const Icon(Icons.groups_rounded),
+              text: AppLocalizations.of(context).generateFromGroup,
             ),
           ],
         ),
@@ -97,984 +103,137 @@ class _DispatcherCreateTripScreenState
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildFromGroupTab(),
-          _buildManualTripTab(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFromGroupTab() {
-    final groupsAsync = ref.watch(allGroupsProvider);
-    final l10n = AppLocalizations.of(context);
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Info Card
-        _buildInfoCard(
-          icon: Icons.lightbulb_outline_rounded,
-          title: l10n.generateTripsFromGroup,
-          message: l10n.selectGroupToGenerate,
-        ),
-        const SizedBox(height: 24),
-
-        // Group Selection
-        _buildSectionHeader(l10n.group, Icons.groups_rounded),
-        const SizedBox(height: 12),
-        _buildGroupSelectionCard(groupsAsync),
-
-        const SizedBox(height: 24),
-
-        // Generation Options
-        _buildSectionHeader(l10n.generationOptions, Icons.settings_rounded),
-        const SizedBox(height: 12),
-        _buildGenerationOptionsCard(),
-
-        const SizedBox(height: 32),
-
-        // Generate Button
-        _buildGenerateButton(),
-
-        const SizedBox(height: 32),
-      ],
-    );
-  }
-
-  Widget _buildManualTripTab() {
-    final vehiclesAsync = ref.watch(allVehiclesProvider);
-    final groupsAsync = ref.watch(allGroupsProvider);
-    final l10n = AppLocalizations.of(context);
-
-    return Form(
-      key: _formKey,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Info Card
-          _buildInfoCard(
-            icon: Icons.info_outline_rounded,
-            title: l10n.createManualTrip,
-            message: l10n.createManualTripDesc,
-          ),
-          const SizedBox(height: 24),
-
-          // Basic Info
-          _buildSectionHeader(l10n.basicInfo, Icons.info_outline_rounded),
-          const SizedBox(height: 12),
-          _buildManualBasicInfoCard(),
-
-          const SizedBox(height: 24),
-
-          // Trip Type
-          _buildSectionHeader(l10n.tripType, Icons.route_rounded),
-          const SizedBox(height: 12),
-          _buildTripTypeCard(),
-
-          const SizedBox(height: 24),
-
-          // Date & Time
-          _buildSectionHeader(
-            '${l10n.date} ${l10n.time}',
-            Icons.schedule_rounded,
-          ),
-          const SizedBox(height: 12),
-          _buildDateTimeCard(),
-
-          const SizedBox(height: 24),
-
-          // Group, Driver & Vehicle
-          _buildSectionHeader(
-            '${l10n.group}, ${l10n.driver} & ${l10n.vehicle}',
-            Icons.directions_bus_rounded,
-          ),
-          const SizedBox(height: 12),
-          _buildGroupDriverVehicleCard(groupsAsync, vehiclesAsync),
-
-          const SizedBox(height: 32),
-
-          // Create Button
-          _buildCreateManualButton(),
-
-          const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoCard({
-    required IconData icon,
-    required String title,
-    required String message,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.dispatcherPrimary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.dispatcherPrimary.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.dispatcherPrimary, size: 32),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Cairo',
-                    color: AppColors.dispatcherPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontFamily: 'Cairo',
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 300.ms);
-  }
-
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: AppColors.dispatcherPrimary),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Cairo',
-            color: AppColors.dispatcherPrimary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGroupSelectionCard(
-    AsyncValue<List<PassengerGroup>> groupsAsync,
-  ) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: groupsAsync.when(
-          data: (groups) {
-            final activeGroups = groups.where((g) => g.active).toList();
-            if (activeGroups.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    AppLocalizations.of(context).noActiveGroups,
-                    style: const TextStyle(fontFamily: 'Cairo'),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              );
-            }
-
-            return Column(
-              children: activeGroups.map((group) {
-                final isSelected = _selectedGroupId == group.id;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: InkWell(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      setState(() => _selectedGroupId = group.id);
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.dispatcherPrimary.withValues(alpha: 0.1)
-                            : Colors.grey.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isSelected
-                              ? AppColors.dispatcherPrimary
-                              : Colors.grey.withValues(alpha: 0.2),
-                          width: isSelected ? 2 : 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.dispatcherPrimary
-                                      .withValues(alpha: 0.2)
-                                  : Colors.grey.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.groups_rounded,
-                              color: isSelected
-                                  ? AppColors.dispatcherPrimary
-                                  : AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  group.name,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'Cairo',
-                                    color: isSelected
-                                        ? AppColors.dispatcherPrimary
-                                        : AppColors.textPrimary,
-                                  ),
-                                ),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 4,
-                                  children: [
-                                    Text(
-                                      '${group.memberCount} ${AppLocalizations.of(context).passenger}',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontFamily: 'Cairo',
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
-                                    Text(
-                                      '• ${group.tripType.getLocalizedLabel(context)}',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontFamily: 'Cairo',
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (isSelected)
-                            const Icon(
-                              Icons.check_circle_rounded,
-                              color: AppColors.dispatcherPrimary,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            );
-          },
-          loading: () => const Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
-            ),
-          ),
-          error: (_, __) => Center(
-            child: Text(
-              AppLocalizations.of(context).failedToLoadGroups,
-              style:
-                  const TextStyle(fontFamily: 'Cairo', color: AppColors.error),
-            ),
-          ),
-        ),
-      ),
-    ).animate().fadeIn(duration: 300.ms, delay: 100.ms);
-  }
-
-  Widget _buildGenerationOptionsCard() {
-    final l10n = AppLocalizations.of(context);
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Weeks Selection
-            Row(
-              children: [
-                const Icon(
-                  Icons.date_range_rounded,
-                  size: 20,
-                  color: AppColors.textSecondary,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    l10n.weeksToGenerate,
-                    style: const TextStyle(fontFamily: 'Cairo'),
-                  ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.remove_rounded),
-                        onPressed: _weeksAhead > 1
-                            ? () => setState(() => _weeksAhead--)
-                            : null,
-                      ),
-                      SizedBox(
-                        width: 30,
-                        child: Text(
-                          '$_weeksAhead',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Cairo',
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add_rounded),
-                        onPressed: _weeksAhead < 4
-                            ? () => setState(() => _weeksAhead++)
-                            : null,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.info_outline_rounded,
-                    color: Colors.blue,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '${l10n.willGenerateTrips} $_weeksAhead ${_weeksAhead == 1 ? l10n.week : l10n.weeks} ${l10n.weeksAhead}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontFamily: 'Cairo',
-                        color: Colors.blue,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(duration: 300.ms, delay: 200.ms);
-  }
-
-  Widget _buildManualBasicInfoCard() {
-    final l10n = AppLocalizations.of(context);
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: TextFormField(
-          controller: _nameController,
-          decoration: _buildInputDecoration(
-            label: l10n.tripName,
-            hint: l10n.tripNameExample,
-            icon: Icons.route_rounded,
-          ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return l10n.fieldRequired;
-            }
-            return null;
-          },
-        ),
-      ),
-    ).animate().fadeIn(duration: 300.ms, delay: 100.ms);
-  }
-
-  Widget _buildTripTypeCard() {
-    final l10n = AppLocalizations.of(context);
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: _buildTripTypeOption(
-                type: TripType.pickup,
-                icon: Icons.arrow_upward_rounded,
-                label: l10n.pickup,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildTripTypeOption(
-                type: TripType.dropoff,
-                icon: Icons.arrow_downward_rounded,
-                label: l10n.dropoff,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(duration: 300.ms, delay: 200.ms);
-  }
-
-  Widget _buildTripTypeOption({
-    required TripType type,
-    required IconData icon,
-    required String label,
-  }) {
-    final isSelected = _tripType == type;
-    return InkWell(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() => _tripType = type);
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.dispatcherPrimary.withValues(alpha: 0.1)
-              : Colors.grey.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected
-                ? AppColors.dispatcherPrimary
-                : Colors.grey.withValues(alpha: 0.2),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 32,
-              color: isSelected
-                  ? AppColors.dispatcherPrimary
-                  : AppColors.textSecondary,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Cairo',
-                color: isSelected
-                    ? AppColors.dispatcherPrimary
-                    : AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDateTimeCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Date Selection
-            InkWell(
-              onTap: () => _selectDate(context),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.grey.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_today_rounded,
-                      color: AppColors.dispatcherPrimary,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            AppLocalizations.of(context).date,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontFamily: 'Cairo',
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          Text(
-                            Formatters.displayDate(_selectedDate),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Cairo',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.chevron_left_rounded),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Time Selection
-            InkWell(
-              onTap: () => _selectTime(context),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.grey.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.access_time_rounded,
-                      color: AppColors.dispatcherPrimary,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            AppLocalizations.of(context).time,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontFamily: 'Cairo',
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          Text(
-                            _selectedTime.format(context),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Cairo',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.chevron_left_rounded),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(duration: 300.ms, delay: 300.ms);
-  }
-
-  Widget _buildGroupDriverVehicleCard(
-    AsyncValue<List<PassengerGroup>> groupsAsync,
-    AsyncValue<List<ShuttleVehicle>> vehiclesAsync,
-  ) {
-    final driversAsync = ref.watch(availableDriversProvider);
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Driver Dropdown (Required)
-            driversAsync.when(
-              data: (drivers) {
-                if (drivers.isEmpty) {
-                  return Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.warning_rounded, color: Colors.orange),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            AppLocalizations.of(context).noDriversAvailable,
-                            style: const TextStyle(
-                              fontFamily: 'Cairo',
-                              color: Colors.orange,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
+          ManualTripTab(
+            formKey: _formKey,
+            nameController: _nameController,
+            notesController: _notesController,
+            tripType: _tripType,
+            selectedDate: _selectedDate,
+            selectedTime: _selectedTime,
+            selectedGroupId: _selectedGroupId,
+            selectedVehicleId: _selectedVehicleId,
+            selectedDriverId: _selectedDriverId,
+            selectedCompanionId: _selectedCompanionId,
+            selectedPassengerIds: _selectedPassengerIds,
+            createReturnTrip: _createReturnTrip,
+            returnTripStartTime: _returnTripStartTime,
+            returnTripArrivalTime: _returnTripArrivalTime,
+            isLoading: _isLoading,
+            onTripTypeChanged: (type) {
+              setState(() => _tripType = type);
+            },
+            onDateTimeSelect: () => _selectDateTime(context),
+            onQuickTimeSelect: (time) {
+              setState(() => _selectedTime = time);
+              HapticFeedback.selectionClick();
+            },
+            onGroupChanged: (groupId) {
+              setState(() => _selectedGroupId = groupId);
+            },
+            onDriverChanged: (driverId) {
+              setState(() => _selectedDriverId = driverId);
+            },
+            onVehicleChanged: (vehicleId) {
+              setState(() {
+                _selectedVehicleId = vehicleId;
+                // Auto-assign driver when vehicle is selected
+                if (vehicleId != null) {
+                  final vehiclesAsync = ref.read(allVehiclesProvider);
+                  vehiclesAsync.whenData((vehicles) {
+                    final vehicle = vehicles.firstWhere((v) => v.id == vehicleId);
+                    if (vehicle.driverId != null) {
+                      _selectedDriverId = vehicle.driverId;
+                    }
+                  });
                 }
-                return DropdownButtonFormField<int>(
-                  initialValue: _selectedDriverId,
-                  isExpanded: true,
-                  decoration: _buildInputDecoration(
-                    label: '${AppLocalizations.of(context).driver} *',
-                    hint: AppLocalizations.of(context).selectDriver,
-                    icon: Icons.person_rounded,
-                  ),
-                  items: drivers.map((driver) {
-                    return DropdownMenuItem<int>(
-                      value: driver.id,
-                      child: Text(
-                        driver.name,
-                        style: const TextStyle(fontFamily: 'Cairo'),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _selectedDriverId = value);
-                  },
-                  validator: (value) {
-                    if (value == null) {
-                      return AppLocalizations.of(context).pleaseSelectDriver;
-                    }
-                    return null;
-                  },
-                );
-              },
-              loading: () => const LinearProgressIndicator(),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
-            const SizedBox(height: 16),
-
-            // Group Dropdown
-            groupsAsync.when(
-              data: (groups) {
-                final activeGroups = groups.where((g) => g.active).toList();
-                return DropdownButtonFormField<int>(
-                  initialValue: _selectedGroupId,
-                  isExpanded: true,
-                  decoration: _buildInputDecoration(
-                    label:
-                        '${AppLocalizations.of(context).group} (${AppLocalizations.of(context).optional})',
-                    hint: AppLocalizations.of(context).selectGroup,
-                    icon: Icons.groups_rounded,
-                  ),
-                  items: [
-                    DropdownMenuItem<int>(
-                      value: null,
-                      child: Text(
-                        AppLocalizations.of(context).noGroup,
-                        style: const TextStyle(fontFamily: 'Cairo'),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    ...activeGroups.map((group) {
-                      return DropdownMenuItem<int>(
-                        value: group.id,
-                        child: Text(
-                          group.name,
-                          style: const TextStyle(fontFamily: 'Cairo'),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }),
-                  ],
-                  onChanged: (value) {
-                    setState(() => _selectedGroupId = value);
-                  },
-                );
-              },
-              loading: () => const LinearProgressIndicator(),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
-            const SizedBox(height: 16),
-
-            // Vehicle Dropdown
-            vehiclesAsync.when(
-              data: (vehicles) {
-                final activeVehicles =
-                    vehicles.where((v) => v.active == true).toList();
-                return DropdownButtonFormField<int>(
-                  initialValue: _selectedVehicleId,
-                  isExpanded: true,
-                  decoration: _buildInputDecoration(
-                    label:
-                        '${AppLocalizations.of(context).vehicle} (${AppLocalizations.of(context).optional})',
-                    hint: AppLocalizations.of(context).selectVehicle,
-                    icon: Icons.directions_bus_rounded,
-                  ),
-                  items: [
-                    DropdownMenuItem<int>(
-                      value: null,
-                      child: Text(
-                        AppLocalizations.of(context).noVehicle,
-                        style: const TextStyle(fontFamily: 'Cairo'),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    ...activeVehicles.map((vehicle) {
-                      return DropdownMenuItem<int>(
-                        value: vehicle.id,
-                        child: Text(
-                          '${vehicle.name} (${vehicle.licensePlate ?? AppLocalizations.of(context).noLicensePlate})',
-                          style: const TextStyle(fontFamily: 'Cairo'),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }),
-                  ],
-                  onChanged: (value) {
-                    int? newDriverId;
-                    // تحديث السائق تلقائياً عند تغيير السيارة
-                    if (value != null) {
-                      try {
-                        final selectedVehicle =
-                            activeVehicles.firstWhere((v) => v.id == value);
-                        if (selectedVehicle.driverId != null) {
-                          // التحقق من أن السائق موجود في قائمة السائقين المتاحين
-                          final drivers = driversAsync.value;
-                          if (drivers != null) {
-                            final driverExists = drivers.any(
-                              (driver) => driver.id == selectedVehicle.driverId,
-                            );
-                            if (driverExists) {
-                              newDriverId = selectedVehicle.driverId;
-                            }
-                          }
-                        }
-                      } catch (e) {
-                        // السيارة غير موجودة، لا شيء
-                      }
-                    }
-                    setState(() {
-                      _selectedVehicleId = value;
-                      if (newDriverId != null) {
-                        _selectedDriverId = newDriverId;
-                      }
-                    });
-                  },
-                );
-              },
-              loading: () => const LinearProgressIndicator(),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
-
-            const SizedBox(height: 16),
-
-            // NEW: Companion Dropdown
-            ref.watch(driversAndCompanionsProvider).when(
-                  data: (users) {
-                    final l10n = AppLocalizations.of(context);
-                    return DropdownButtonFormField<int>(
-                      initialValue: _selectedCompanionId,
-                      isExpanded: true,
-                      decoration: _buildInputDecoration(
-                        label: l10n.companionOptional,
-                        hint: l10n.selectCompanion,
-                        icon: Icons.person_add_alt_rounded,
-                      ),
-                      items: [
-                        DropdownMenuItem<int>(
-                          value: null,
-                          child: Text(
-                            l10n.noCompanion,
-                            style: const TextStyle(fontFamily: 'Cairo'),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        ...users.map((user) {
-                          return DropdownMenuItem<int>(
-                            value: user.id,
-                            child: Text(
-                              user.name,
-                              style: const TextStyle(fontFamily: 'Cairo'),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }),
-                      ],
-                      onChanged: (value) {
-                        setState(() => _selectedCompanionId = value);
-                      },
-                    );
-                  },
-                  loading: () => const LinearProgressIndicator(),
-                  error: (_, __) => const SizedBox.shrink(),
+              });
+            },
+            onCompanionChanged: (companionId) {
+              setState(() => _selectedCompanionId = companionId);
+            },
+            onRemovePassenger: (passengerId) {
+              setState(() => _selectedPassengerIds.remove(passengerId));
+            },
+            onShowPassengerSheet: () => _showPassengerSelectionSheet(context),
+            onCreateReturnTripChanged: (value) {
+              setState(() => _createReturnTrip = value);
+            },
+            onReturnTripStartTimeSelect: () =>
+                _selectReturnTripStartTime(context),
+            onReturnTripArrivalTimeSelect: () =>
+                _selectReturnTripArrivalTime(context),
+            onCreateManualTrip: _createManualTrip,
+            buildInputDecoration: ({
+              required String label,
+              required String hint,
+              required IconData icon,
+            }) {
+              return InputDecoration(
+                labelText: label,
+                hintText: hint,
+                prefixIcon: Icon(icon),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(duration: 300.ms, delay: 400.ms);
-  }
-
-  Widget _buildGenerateButton() {
-    final l10n = AppLocalizations.of(context);
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton.icon(
-        onPressed: _selectedGroupId == null || _isLoading
-            ? null
-            : _generateTripsFromGroup,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.success,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: Colors.grey.withValues(alpha: 0.3),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+                filled: true,
+                fillColor: Colors.white,
+              );
+            },
           ),
-        ),
-        icon: _isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Icon(Icons.auto_awesome_rounded),
-        label: Text(
-          _isLoading ? l10n.generating : l10n.generateTrips,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Cairo',
+          FromGroupTab(
+            selectedGroupId: _selectedGroupId,
+            weeksAhead: _weeksAhead,
+            createReturnTrip: _createReturnTrip,
+            returnTripStartTime: _returnTripStartTime,
+            returnTripArrivalTime: _returnTripArrivalTime,
+            isLoading: _isLoading,
+            selectedPassengerIds: _selectedPassengerIds,
+            onGroupSelected: (groupId) {
+              setState(() => _selectedGroupId = groupId);
+            },
+            onWeeksAheadChanged: (weeks) {
+              setState(() => _weeksAhead = weeks);
+            },
+            onCreateReturnTripChanged: (value) {
+              setState(() => _createReturnTrip = value);
+            },
+            onReturnTripStartTimeSelect: () =>
+                _selectReturnTripStartTime(context),
+            onReturnTripArrivalTimeSelect: () =>
+                _selectReturnTripArrivalTime(context),
+            onGenerate: _generateTripsFromGroup,
           ),
-        ),
+        ],
       ),
-    ).animate().fadeIn(duration: 300.ms, delay: 300.ms);
-  }
-
-  Widget _buildCreateManualButton() {
-    final l10n = AppLocalizations.of(context);
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton.icon(
-        onPressed: _isLoading ? null : _createManualTrip,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.dispatcherPrimary,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        icon: _isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Icon(Icons.add_rounded),
-        label: Text(
-          _isLoading ? l10n.creating : l10n.createTrip,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Cairo',
-          ),
-        ),
-      ),
-    ).animate().fadeIn(duration: 300.ms, delay: 500.ms);
-  }
-
-  InputDecoration _buildInputDecoration({
-    required String label,
-    required String hint,
-    required IconData icon,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      prefixIcon: Icon(icon, color: AppColors.dispatcherPrimary),
-      labelStyle: const TextStyle(fontFamily: 'Cairo'),
-      hintStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 13),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide:
-            const BorderSide(color: AppColors.dispatcherPrimary, width: 2),
-      ),
-      filled: true,
-      fillColor: Colors.white,
     );
   }
 
-  Future<void> _selectDate(BuildContext context) async {
-    final picked = await showDatePicker(
+  // ==================== Business Logic Methods ====================
+
+  Future<void> _selectDateTime(BuildContext context) async {
+    // First select date
+    final pickedDate = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       locale: const Locale('ar'),
     );
-    if (picked != null && picked != _selectedDate) {
-      setState(() => _selectedDate = picked);
-    }
-  }
 
-  Future<void> _selectTime(BuildContext context) async {
-    final picked = await showTimePicker(
+    if (pickedDate == null) return;
+
+    // Then select time
+    final pickedTime = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
     );
-    if (picked != null && picked != _selectedTime) {
-      setState(() => _selectedTime = picked);
+
+    if (pickedTime != null) {
+      setState(() {
+        _selectedDate = pickedDate;
+        _selectedTime = pickedTime;
+      });
+      HapticFeedback.selectionClick();
     }
   }
 
@@ -1082,6 +241,21 @@ class _DispatcherCreateTripScreenState
     if (_selectedGroupId == null) return;
 
     final l10n = AppLocalizations.of(context);
+
+    // Validate return trip options
+    if (_createReturnTrip && _returnTripStartTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.pleaseSelectReturnTripStartTime,
+            style: const TextStyle(fontFamily: 'Cairo'),
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     HapticFeedback.mediumImpact();
 
@@ -1098,17 +272,62 @@ class _DispatcherCreateTripScreenState
           if (repository != null && result.tripIds.isNotEmpty) {
             try {
               final trips = <Trip>[];
+              Trip? pickupTrip;
+
               for (final tripId in result.tripIds) {
                 final tripResult = await repository.getTripById(tripId);
-                tripResult.fold(
-                  (failure) => null,
-                  (trip) => trips.add(trip),
-                );
+                tripResult.fold((failure) => null, (trip) {
+                  trips.add(trip);
+                  // Find the first pickup trip for return trip creation
+                  if (pickupTrip == null && trip.tripType == TripType.pickup) {
+                    pickupTrip = trip;
+                  }
+                });
+              }
+
+              // Create return trip if requested
+              if (_createReturnTrip &&
+                  pickupTrip != null &&
+                  _returnTripStartTime != null) {
+                try {
+                  final returnTripResult = await repository.createReturnTrip(
+                    pickupTrip!.id,
+                    startTime: _returnTripStartTime!,
+                    arrivalTime: _returnTripArrivalTime,
+                  );
+
+                  returnTripResult.fold(
+                    (failure) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            '${l10n.errorCreatingReturnTrip}: ${failure.message}',
+                            style: const TextStyle(fontFamily: 'Cairo'),
+                          ),
+                          backgroundColor: AppColors.warning,
+                        ),
+                      );
+                    },
+                    (returnTrip) {
+                      trips.add(returnTrip);
+                    },
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '${l10n.errorCreatingReturnTrip}: $e',
+                        style: const TextStyle(fontFamily: 'Cairo'),
+                      ),
+                      backgroundColor: AppColors.warning,
+                    ),
+                  );
+                }
               }
 
               // إظهار حوار مع الرحلات المولدة
               if (mounted && trips.isNotEmpty) {
-                await _showGeneratedTripsDialog(trips, result.count);
+                await _showGeneratedTripsDialog(trips, trips.length);
               }
             } catch (e) {
               // في حالة فشل جلب الرحلات، نعرض رسالة بسيطة
@@ -1175,6 +394,106 @@ class _DispatcherCreateTripScreenState
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<void> _selectReturnTripStartTime(BuildContext context) async {
+    final now = DateTime.now();
+    final initialDate =
+        _returnTripStartTime ?? now.add(const Duration(hours: 2));
+
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      locale: const Locale('ar'),
+    );
+
+    if (pickedDate == null) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initialDate),
+    );
+
+    if (pickedTime != null) {
+      setState(() {
+        _returnTripStartTime = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+        // Auto-set arrival time to 1 hour after start if not set
+        if (_returnTripArrivalTime == null ||
+            _returnTripArrivalTime!.isBefore(_returnTripStartTime!)) {
+          _returnTripArrivalTime = _returnTripStartTime!.add(
+            const Duration(hours: 1),
+          );
+        }
+      });
+    }
+  }
+
+  Future<void> _selectReturnTripArrivalTime(BuildContext context) async {
+    if (_returnTripStartTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context).pleaseSelectStartTimeFirst,
+            style: const TextStyle(fontFamily: 'Cairo'),
+          ),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _returnTripArrivalTime ?? _returnTripStartTime!,
+      firstDate: _returnTripStartTime!,
+      lastDate: _returnTripStartTime!.add(const Duration(days: 365)),
+      locale: const Locale('ar'),
+    );
+
+    if (pickedDate == null) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(
+        _returnTripArrivalTime ??
+            _returnTripStartTime!.add(const Duration(hours: 1)),
+      ),
+    );
+
+    if (pickedTime != null) {
+      final selected = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+
+      if (selected.isBefore(_returnTripStartTime!)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context).arrivalTimeMustBeAfterStartTime,
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+
+      setState(() {
+        _returnTripArrivalTime = selected;
+      });
     }
   }
 
@@ -1262,8 +581,7 @@ class _DispatcherCreateTripScreenState
                           ),
                           if (trip.plannedStartTime != null)
                             Text(
-                              DateFormat('HH:mm')
-                                  .format(trip.plannedStartTime!),
+                              Formatters.time(trip.plannedStartTime!),
                               style: const TextStyle(
                                 fontFamily: 'Cairo',
                                 fontSize: 12,
@@ -1321,10 +639,26 @@ class _DispatcherCreateTripScreenState
   Future<void> _createManualTrip() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final l10n = AppLocalizations.of(context);
+
+    // Validate return trip options if enabled
+    if (_createReturnTrip && _tripType == TripType.pickup) {
+      if (_returnTripStartTime == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              l10n.pleaseSelectReturnTripStartTime,
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() => _isLoading = true);
     HapticFeedback.mediumImpact();
-
-    final l10n = AppLocalizations.of(context);
 
     try {
       // إنشاء كائن الرحلة من البيانات المدخلة
@@ -1343,6 +677,7 @@ class _DispatcherCreateTripScreenState
 
       // التحقق من وجود السائق (إلزامي)
       if (_selectedDriverId == null) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1350,6 +685,49 @@ class _DispatcherCreateTripScreenState
               style: const TextStyle(fontFamily: 'Cairo'),
             ),
             backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: l10n.ok,
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+        return;
+      }
+
+      // التحقق من وجود ركاب (إلزامي)
+      if (_selectedPassengerIds.isEmpty) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              l10n.pleaseSelectAtLeastOnePassenger,
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: l10n.ok,
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+        return;
+      }
+
+      // التحقق من أن التاريخ والوقت في المستقبل
+      if (plannedStartDateTime.isBefore(DateTime.now())) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              l10n.dateTimeMustBeInFuture,
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
           ),
         );
         return;
@@ -1364,10 +742,12 @@ class _DispatcherCreateTripScreenState
         plannedStartTime: plannedStartDateTime,
         plannedArrivalTime: plannedArrivalDateTime,
         driverId: _selectedDriverId, // السائق إلزامي
-        companionId: _selectedCompanionId, // NEW: المرافق (اختياري)
+        companionId: _selectedCompanionId, // المرافق (اختياري)
         vehicleId: _selectedVehicleId,
         groupId: _selectedGroupId,
-        notes: null,
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(), // الملاحظات
       );
 
       // إنشاء الرحلة عبر الـ repository
@@ -1382,26 +762,90 @@ class _DispatcherCreateTripScreenState
         HapticFeedback.heavyImpact();
         result.fold(
           (failure) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  '${l10n.errorCreatingTrip}: ${failure.message}',
-                  style: const TextStyle(fontFamily: 'Cairo'),
+            // Check if it's a driver conflict error
+            if (failure.message.contains('Driver conflict') ||
+                failure.message.contains('already assigned')) {
+              _showDriverConflictDialog(failure.message, l10n);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    '${l10n.errorCreatingTrip}: ${failure.message}',
+                    style: const TextStyle(fontFamily: 'Cairo'),
+                  ),
+                  backgroundColor: AppColors.error,
                 ),
-                backgroundColor: AppColors.error,
-              ),
-            );
+              );
+            }
           },
-          (createdTrip) {
+          (createdTrip) async {
+            // Create return trip if requested and trip is pickup
+            Trip? returnTrip;
+            if (_createReturnTrip &&
+                _tripType == TripType.pickup &&
+                _returnTripStartTime != null) {
+              try {
+                final returnTripResult = await repository.createReturnTrip(
+                  createdTrip.id,
+                  startTime: _returnTripStartTime!,
+                  arrivalTime: _returnTripArrivalTime,
+                );
+
+                returnTripResult.fold(
+                  (failure) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '${l10n.errorCreatingReturnTrip}: ${failure.message}',
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
+                        backgroundColor: AppColors.warning,
+                      ),
+                    );
+                  },
+                  (trip) {
+                    returnTrip = trip;
+                  },
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '${l10n.errorCreatingReturnTrip}: $e',
+                      style: const TextStyle(fontFamily: 'Cairo'),
+                    ),
+                    backgroundColor: AppColors.warning,
+                  ),
+                );
+              }
+            }
+
+            // Show success message
+            final message = returnTrip != null
+                ? l10n.returnTripCreatedSuccessfully
+                : l10n.createdSuccessfully;
+
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  l10n.createdSuccessfully,
+                  message,
                   style: const TextStyle(fontFamily: 'Cairo'),
                 ),
                 backgroundColor: AppColors.success,
+                action: returnTrip != null
+                    ? SnackBarAction(
+                        label: l10n.view,
+                        textColor: Colors.white,
+                        onPressed: () {
+                          context.go(
+                            '${RoutePaths.dispatcherHome}/trips/${returnTrip!.id}',
+                          );
+                        },
+                      )
+                    : null,
               ),
             );
+
             // الانتقال مباشرة إلى صفحة تفاصيل الرحلة بعد إنشاء الرحلة
             context.go('${RoutePaths.dispatcherHome}/trips/${createdTrip.id}');
           },
@@ -1423,6 +867,294 @@ class _DispatcherCreateTripScreenState
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  /// Show driver conflict dialog with formatted details
+  Future<void> _showDriverConflictDialog(
+    String errorMessage,
+    AppLocalizations l10n,
+  ) async {
+    // Parse conflict details from error message
+    final conflictDetails = _parseDriverConflict(errorMessage);
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.warning_rounded,
+                color: AppColors.error,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                l10n.driverConflict,
+                style: const TextStyle(
+                  fontFamily: 'Cairo',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Error message
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.error.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Text(
+                  l10n.driverConflictMessage,
+                  style: const TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              if (conflictDetails.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  l10n.details,
+                  style: const TextStyle(
+                    fontFamily: 'Cairo',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Conflict details
+                if (conflictDetails.containsKey('driver'))
+                  _buildConflictDetailRow(
+                    icon: Icons.person_rounded,
+                    label: l10n.driver,
+                    value: conflictDetails['driver']!,
+                    color: AppColors.dispatcherPrimary,
+                  ),
+                if (conflictDetails.containsKey('driver'))
+                  const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.route_rounded,
+                            size: 16,
+                            color: AppColors.warning,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            l10n.trip,
+                            style: const TextStyle(
+                              fontFamily: 'Cairo',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: AppColors.warning,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (conflictDetails.containsKey('trip'))
+                        _buildConflictDetailRow(
+                          icon: Icons.label_rounded,
+                          label: l10n.tripName,
+                          value: conflictDetails['trip']!,
+                        ),
+                      if (conflictDetails.containsKey('trip'))
+                        const SizedBox(height: 6),
+                      if (conflictDetails.containsKey('time'))
+                        _buildConflictDetailRow(
+                          icon: Icons.schedule_rounded,
+                          label: l10n.time,
+                          value: conflictDetails['time']!,
+                        ),
+                      if (conflictDetails.containsKey('time'))
+                        const SizedBox(height: 6),
+                      if (conflictDetails.containsKey('group'))
+                        _buildConflictDetailRow(
+                          icon: Icons.groups_rounded,
+                          label: l10n.group,
+                          value: conflictDetails['group']!,
+                        ),
+                      if (conflictDetails.containsKey('group'))
+                        const SizedBox(height: 6),
+                      if (conflictDetails.containsKey('vehicle'))
+                        _buildConflictDetailRow(
+                          icon: Icons.directions_bus_rounded,
+                          label: l10n.vehicle,
+                          value: conflictDetails['vehicle']!,
+                        ),
+                      if (conflictDetails.containsKey('vehicle'))
+                        const SizedBox(height: 6),
+                      if (conflictDetails.containsKey('status'))
+                        _buildConflictDetailRow(
+                          icon: Icons.info_rounded,
+                          label: l10n.status,
+                          value: conflictDetails['status']!,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              l10n.ok,
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Map<String, String> _parseDriverConflict(String errorMessage) {
+    final details = <String, String>{};
+
+    // Extract driver name
+    final driverMatch = RegExp(r'Driver "([^"]+)"').firstMatch(errorMessage);
+    if (driverMatch != null) {
+      details['driver'] = driverMatch.group(1)!;
+    }
+
+    // Extract trip name
+    final tripMatch = RegExp(r'Trip: ([^\n]+)').firstMatch(errorMessage);
+    if (tripMatch != null) {
+      details['trip'] = tripMatch.group(1)!.trim();
+    }
+
+    // Extract time
+    final timeMatch = RegExp(r'Time: ([^\n]+)').firstMatch(errorMessage);
+    if (timeMatch != null) {
+      details['time'] = timeMatch.group(1)!.trim();
+    }
+
+    // Extract group
+    final groupMatch = RegExp(r'Group: ([^\n]+)').firstMatch(errorMessage);
+    if (groupMatch != null) {
+      details['group'] = groupMatch.group(1)!.trim();
+    }
+
+    // Extract vehicle
+    final vehicleMatch = RegExp(r'Vehicle: ([^\n]+)').firstMatch(errorMessage);
+    if (vehicleMatch != null) {
+      details['vehicle'] = vehicleMatch.group(1)!.trim();
+    }
+
+    // Extract status
+    final statusMatch = RegExp(r'Status: ([^\n]+)').firstMatch(errorMessage);
+    if (statusMatch != null) {
+      details['status'] = statusMatch.group(1)!.trim();
+    }
+
+    return details;
+  }
+
+  /// Build a conflict detail row
+  Widget _buildConflictDetailRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    Color? color,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: color ?? AppColors.textSecondary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 13,
+                color: AppColors.textPrimary,
+              ),
+              children: [
+                TextSpan(
+                  text: '$label: ',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: color ?? AppColors.textSecondary,
+                  ),
+                ),
+                TextSpan(
+                  text: value,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showPassengerSelectionSheet(BuildContext context) async {
+    final vehiclesAsync = ref.read(allVehiclesProvider);
+    int? maxSeats;
+
+    // Get max seats from selected vehicle
+    if (_selectedVehicleId != null) {
+      vehiclesAsync.whenData((vehicles) {
+        final vehicle =
+            vehicles.firstWhere((v) => v.id == _selectedVehicleId);
+        maxSeats = vehicle.seatCapacity;
+      });
+    }
+
+    // Show passenger selection sheet from extracted widget
+    final result = await showModalBottomSheet<Set<int>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => PassengerSelectionSheet(
+        selectedPassengerIds: Set.from(_selectedPassengerIds),
+        maxSeats: maxSeats,
+        onSelectionChanged: (ids) {
+          Navigator.of(context).pop(ids);
+        },
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedPassengerIds.clear();
+        _selectedPassengerIds.addAll(result);
+      });
     }
   }
 }

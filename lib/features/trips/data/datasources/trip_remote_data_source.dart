@@ -583,6 +583,83 @@ class TripRemoteDataSource {
     );
   }
 
+  /// Create return trip from an existing trip
+  Future<Trip> createReturnTrip(
+    int tripId, {
+    required DateTime startTime,
+    DateTime? arrivalTime,
+  }) async {
+    final formattedStartTime = _formatOdooDateTime(startTime);
+    final formattedArrivalTime =
+        arrivalTime != null ? _formatOdooDateTime(arrivalTime) : false;
+
+    // Call the Odoo method - it takes start_time and optional arrival_time
+    // The method signature is: create_return_trip(self, start_time, arrival_time=False)
+    final result = await _client.callKw(
+      model: _tripModel,
+      method: 'create_return_trip',
+      args: [
+        [tripId],
+        formattedStartTime,
+        formattedArrivalTime,
+      ],
+    );
+
+    // The method might return the trip ID directly or in a dict
+    int? returnTripId;
+    if (result is int) {
+      returnTripId = result;
+    } else if (result is Map<String, dynamic>) {
+      returnTripId = result['id'] as int?;
+    }
+
+    // If we got the ID, fetch the trip
+    if (returnTripId != null) {
+      return getTripById(returnTripId);
+    }
+
+    // Fallback: search for the return trip
+    final originalTrip = await getTripById(tripId);
+    final returnTrips = await _client.searchRead(
+      model: _tripModel,
+      domain: [
+        if (originalTrip.groupId != null) ['group_id', '=', originalTrip.groupId],
+        ['date', '=', _formatDate(originalTrip.date)],
+        ['name', 'ilike', 'Return'],
+      ],
+      fields: _tripFields,
+      order: 'id desc',
+      limit: 1,
+    );
+
+    if (returnTrips.isNotEmpty) {
+      return getTripById(returnTrips.first['id'] as int);
+    }
+
+    // Last fallback: search all recent trips
+    final allTrips = await _client.searchRead(
+      model: _tripModel,
+      domain: [
+        ['date', '=', _formatDate(originalTrip.date)],
+      ],
+      fields: _tripFields,
+      order: 'id desc',
+      limit: 10,
+    );
+
+    // Find the return trip (opposite type, same group)
+    for (final tripJson in allTrips) {
+      final trip = Trip.fromOdoo(tripJson);
+      if (trip.groupId == originalTrip.groupId &&
+          trip.tripType != originalTrip.tripType &&
+          trip.name.contains('Return')) {
+        return getTripById(trip.id);
+      }
+    }
+
+    throw Exception('Return trip not found after creation');
+  }
+
   /// Update passenger status
   Future<TripLine> updatePassengerStatus(
     int tripLineId,

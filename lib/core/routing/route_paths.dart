@@ -75,6 +75,10 @@ class RoutePaths {
   // === Offline Manager ===
   static const String offlineStatus = '/offline-manager';
   static const String pendingOperations = '/offline-manager/pending';
+
+  // === Chat ===
+  static const String conversations = '/conversations';
+  static const String chat = '/chat/:conversationId';
 }
 
 /// Route names for named navigation
@@ -138,4 +142,8 @@ class RouteNames {
   static const String search = 'search';
   static const String offlineStatus = 'offlineStatus';
   static const String pendingOperations = 'pendingOperations';
+
+  // Chat
+  static const String conversations = 'conversations';
+  static const String chat = 'chat';
 }

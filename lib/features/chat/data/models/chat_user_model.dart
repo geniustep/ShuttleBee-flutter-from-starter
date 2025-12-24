@@ -5,7 +5,8 @@ part 'chat_user_model.freezed.dart';
 part 'chat_user_model.g.dart';
 
 @freezed
-class ChatUserModel with _$ChatUserModel {
+abstract class ChatUserModel with _$ChatUserModel {
+  const ChatUserModel._();
   const factory ChatUserModel({
     required String id,
     required String firstName,

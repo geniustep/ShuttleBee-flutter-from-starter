@@ -1,18 +1,49 @@
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/error_handling/failures.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../../domain/entities/chat_message.dart';
 import '../datasources/chat_remote_data_source.dart';
+import '../models/chat_conversation_model.dart';
+import '../models/chat_message_model.dart';
 
 abstract class ChatRepository {
   Future<Either<Failure, List<ChatConversation>>> getConversations();
-  Future<Either<Failure, ChatConversation>> getConversation(String conversationId);
-  Future<Either<Failure, List<ChatMessage>>> getMessages(String conversationId, {int? limit, int? offset});
-  Future<Either<Failure, ChatMessage>> sendMessage(String conversationId, String text, {String? repliedMessageId});
-  Future<Either<Failure, ChatMessage>> sendImageMessage(String conversationId, String imageUrl, {String? fileName});
-  Future<Either<Failure, ChatMessage>> sendFileMessage(String conversationId, String fileUrl, String fileName, int fileSize, {String? mimeType});
-  Future<Either<Failure, void>> markAsRead(String conversationId, List<String> messageIds);
-  Future<Either<Failure, ChatConversation>> createConversation(String name, String type, List<String> participantIds, {Map<String, dynamic>? metadata});
+  Future<Either<Failure, ChatConversation>> getConversation(
+    String conversationId,
+  );
+  Future<Either<Failure, List<ChatMessage>>> getMessages(
+    String conversationId, {
+    int? limit,
+    int? offset,
+  });
+  Future<Either<Failure, ChatMessage>> sendMessage(
+    String conversationId,
+    String text, {
+    String? repliedMessageId,
+  });
+  Future<Either<Failure, ChatMessage>> sendImageMessage(
+    String conversationId,
+    String imageUrl, {
+    String? fileName,
+  });
+  Future<Either<Failure, ChatMessage>> sendFileMessage(
+    String conversationId,
+    String fileUrl,
+    String fileName,
+    int fileSize, {
+    String? mimeType,
+  });
+  Future<Either<Failure, void>> markAsRead(
+    String conversationId,
+    List<String> messageIds,
+  );
+  Future<Either<Failure, ChatConversation>> createConversation(
+    String name,
+    String type,
+    List<String> participantIds, {
+    Map<String, dynamic>? metadata,
+  });
   Future<Either<Failure, void>> deleteConversation(String conversationId);
   Future<Either<Failure, String>> uploadFile(String filePath);
 }
@@ -27,15 +58,29 @@ class ChatRepositoryImpl implements ChatRepository {
     try {
       final conversations = await remoteDataSource.getConversations();
       return Right(conversations.map((model) => model.toEntity()).toList());
+    } on DioException catch (e) {
+      // Handle 404 gracefully - feature not available yet
+      if (e.response?.statusCode == 404) {
+        return const Right([]);
+      }
+      return Left(ServerFailure(message: e.toString()));
     } catch (e) {
+      // Handle other exceptions (including "Conversations feature not available")
+      if (e.toString().contains('not available')) {
+        return const Right([]);
+      }
       return Left(ServerFailure(message: e.toString()));
     }
   }
 
   @override
-  Future<Either<Failure, ChatConversation>> getConversation(String conversationId) async {
+  Future<Either<Failure, ChatConversation>> getConversation(
+    String conversationId,
+  ) async {
     try {
-      final conversation = await remoteDataSource.getConversation(conversationId);
+      final conversation = await remoteDataSource.getConversation(
+        conversationId,
+      );
       return Right(conversation.toEntity());
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
@@ -55,6 +100,11 @@ class ChatRepositoryImpl implements ChatRepository {
         offset: offset,
       );
       return Right(messages.map((model) => model.toEntity()).toList());
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return const Right([]);
+      }
+      return Left(ServerFailure(message: e.toString()));
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
     }
@@ -152,7 +202,9 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, void>> deleteConversation(String conversationId) async {
+  Future<Either<Failure, void>> deleteConversation(
+    String conversationId,
+  ) async {
     try {
       await remoteDataSource.deleteConversation(conversationId);
       return const Right(null);

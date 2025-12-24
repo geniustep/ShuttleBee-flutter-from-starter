@@ -214,4 +214,19 @@ class TripRepositoryImpl extends BaseRepository implements TripRepository {
     );
     // return execute(() => _remoteDataSource.getManagerAnalytics());
   }
+
+  @override
+  Future<Either<Failure, Trip>> createReturnTrip(
+    int tripId, {
+    required DateTime startTime,
+    DateTime? arrivalTime,
+  }) async {
+    return execute(
+      () => _remoteDataSource.createReturnTrip(
+        tripId,
+        startTime: startTime,
+        arrivalTime: arrivalTime,
+      ),
+    );
+  }
 }

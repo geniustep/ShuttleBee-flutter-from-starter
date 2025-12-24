@@ -72,8 +72,12 @@ class AppLocalizations {
       'submit': 'Submit',
       'select': 'Select',
       'select_all': 'Select All',
+      'selected': 'Selected',
       'clear': 'Clear',
       'clear_all': 'Clear All',
+      'search_passengers': 'Search passengers...',
+      'no_results_found': 'No results found',
+      'filter_by_group': 'Filter by Group',
       'refresh': 'Refresh',
       'filter': 'Filter',
       'filters': 'Filters',
@@ -278,6 +282,27 @@ class AppLocalizations {
       'start_trip': 'Start Trip',
       'end_trip': 'End Trip',
       'cancel_trip': 'Cancel Trip',
+      'create_return_trip': 'Create Return Trip',
+      'create_return_trip_desc':
+          'Create a return trip with reversed pickup and dropoff locations',
+      'create_return_trip_round_trip': 'Create Return Trip (Round Trip)',
+      'return_trip_start_time': 'Return Trip Start Time',
+      'return_trip_arrival_time': 'Return Trip Arrival Time',
+      'return_trip_round_trip': 'Return Trip (Round Trip)',
+      'return_trip_created_successfully': 'Return trip created successfully',
+      'error_creating_return_trip': 'Error creating return trip',
+      'please_select_return_trip_start_time':
+          'Please select a start time for the return trip',
+      'please_select_start_time_first': 'Please select start time first',
+      'arrival_time_must_be_after_start_time':
+          'Arrival time must be after start time',
+      'select_time': 'Select Time',
+      'driver_conflict': 'Driver Conflict',
+      'driver_conflict_message':
+          'This driver is already assigned to another trip at the same time.',
+      'conflicting_trip': 'Conflicting Trip',
+      'driver_conflict_suggestion':
+          'Please choose a different driver or adjust the trip time.',
       'trip_history': 'Trip History',
       'trip_status': 'Trip Status',
       'scheduled': 'Scheduled',
@@ -382,6 +407,14 @@ class AppLocalizations {
       // Passengers
       'passengers': 'Passengers',
       'passengers_management': 'Passengers Management',
+      'no_passengers_selected': 'No passengers selected',
+      'please_select_at_least_one_passenger':
+          'Please select at least one passenger',
+      'add_passengers_first_to_enable_return_trip':
+          'Add passengers first to enable return trip',
+      'failed_to_load_passengers': 'Failed to load passengers',
+      'no_passengers_available': 'No passengers available',
+      'select_passengers': 'Select Passengers',
       'passenger': 'Passenger',
       'passenger_details': 'Passenger Details',
       'add_passenger': 'Add Passenger',
@@ -442,6 +475,10 @@ class AppLocalizations {
       'capacity': 'Capacity',
       'seats': 'Seats',
       'available_seats': 'Available Seats',
+      'select_vehicle_first_to_add_passengers':
+          'Select a vehicle first to add passengers',
+      'exceeded_seat_capacity': 'Exceeded seat capacity',
+      'seat_capacity_exceeded': 'Seat capacity exceeded',
       'no_vehicles': 'No vehicles',
       'bus': 'Bus',
       'van': 'Van',
@@ -665,6 +702,8 @@ class AppLocalizations {
       'passwords_dont_match': 'Passwords do not match',
       'invalid_phone': 'Invalid phone number',
       'invalid_input': 'Invalid input',
+      'date_time_must_be_in_future': 'Date and time must be in the future',
+      'add_notes_optional': 'Add notes (optional)',
 
       // Misc
       'real_time_updates': 'Real-time Updates',
@@ -721,8 +760,12 @@ class AppLocalizations {
       'submit': 'إرسال',
       'select': 'اختيار',
       'select_all': 'اختيار الكل',
+      'selected': 'محدد',
       'clear': 'مسح',
       'clear_all': 'مسح الكل',
+      'search_passengers': 'ابحث عن الركاب...',
+      'no_results_found': 'لا توجد نتائج',
+      'filter_by_group': 'فلترة حسب المجموعة',
       'refresh': 'تحديث',
       'filter': 'تصفية',
       'filters': 'المرشحات',
@@ -927,6 +970,24 @@ class AppLocalizations {
       'start_trip': 'بدء الرحلة',
       'end_trip': 'إنهاء الرحلة',
       'cancel_trip': 'إلغاء الرحلة',
+      'create_return_trip': 'إنشاء رحلة العودة',
+      'create_return_trip_desc': 'إنشاء رحلة عودة مع عكس مواقع الصعود والنزول',
+      'create_return_trip_round_trip': 'إنشاء رحلة العودة (ذهاب وعودة)',
+      'return_trip_start_time': 'وقت بدء رحلة العودة',
+      'return_trip_arrival_time': 'وقت وصول رحلة العودة',
+      'return_trip_round_trip': 'رحلة العودة (ذهاب وعودة)',
+      'return_trip_created_successfully': 'تم إنشاء رحلة العودة بنجاح',
+      'error_creating_return_trip': 'خطأ في إنشاء رحلة العودة',
+      'please_select_return_trip_start_time': 'يرجى اختيار وقت بدء رحلة العودة',
+      'please_select_start_time_first': 'يرجى اختيار وقت البدء أولاً',
+      'arrival_time_must_be_after_start_time':
+          'وقت الوصول يجب أن يكون بعد وقت البدء',
+      'select_time': 'اختر الوقت',
+      'driver_conflict': 'تعارض السائق',
+      'driver_conflict_message':
+          'هذا السائق مخصص بالفعل لرحلة أخرى في نفس الوقت.',
+      'conflicting_trip': 'الرحلة المتعارضة',
+      'driver_conflict_suggestion': 'يرجى اختيار سائق آخر أو تعديل وقت الرحلة.',
       'trip_history': 'سجل الرحلات',
       'trip_status': 'حالة الرحلة',
       'scheduled': 'مجدول',
@@ -1031,6 +1092,13 @@ class AppLocalizations {
       // Passengers
       'passengers': 'الركاب',
       'passengers_management': 'إدارة الركاب',
+      'no_passengers_selected': 'لم يتم اختيار ركاب',
+      'please_select_at_least_one_passenger': 'يرجى اختيار راكب واحد على الأقل',
+      'add_passengers_first_to_enable_return_trip':
+          'أضف الركاب أولاً لتفعيل رحلة العودة',
+      'failed_to_load_passengers': 'فشل تحميل الركاب',
+      'no_passengers_available': 'لا يوجد ركاب متاحون',
+      'select_passengers': 'اختيار الركاب',
       'passenger': 'راكب',
       'passenger_details': 'تفاصيل الراكب',
       'add_passenger': 'إضافة راكب',
@@ -1090,6 +1158,10 @@ class AppLocalizations {
       'capacity': 'السعة',
       'seats': 'المقاعد',
       'available_seats': 'المقاعد المتاحة',
+      'select_vehicle_first_to_add_passengers':
+          'اختر مركبة أولاً لإضافة الركاب',
+      'exceeded_seat_capacity': 'تم تجاوز سعة المقاعد',
+      'seat_capacity_exceeded': 'تم تجاوز سعة المقاعد',
       'no_vehicles': 'لا توجد مركبات',
       'bus': 'حافلة',
       'van': 'فان',
@@ -1312,6 +1384,8 @@ class AppLocalizations {
       'passwords_dont_match': 'كلمات المرور غير متطابقة',
       'invalid_phone': 'رقم الهاتف غير صالح',
       'invalid_input': 'إدخال غير صالح',
+      'date_time_must_be_in_future': 'يجب أن يكون التاريخ والوقت في المستقبل',
+      'add_notes_optional': 'إضافة ملاحظات (اختياري)',
 
       // Misc
       'real_time_updates': 'التحديثات الفورية',
@@ -1368,8 +1442,12 @@ class AppLocalizations {
       'submit': 'Soumettre',
       'select': 'Sélectionner',
       'select_all': 'Tout sélectionner',
+      'selected': 'Sélectionné',
       'clear': 'Effacer',
       'clear_all': 'Tout effacer',
+      'search_passengers': 'Rechercher des passagers...',
+      'no_results_found': 'Aucun résultat trouvé',
+      'filter_by_group': 'Filtrer par groupe',
       'refresh': 'Actualiser',
       'filter': 'Filtrer',
       'filters': 'Filtres',
@@ -1679,6 +1757,14 @@ class AppLocalizations {
       // Passengers
       'passengers': 'Passagers',
       'passengers_management': 'Gestion des Passagers',
+      'no_passengers_selected': 'Aucun passager sélectionné',
+      'please_select_at_least_one_passenger':
+          'Veuillez sélectionner au moins un passager',
+      'add_passengers_first_to_enable_return_trip':
+          'Ajoutez d\'abord des passagers pour activer le voyage de retour',
+      'failed_to_load_passengers': 'Échec du chargement des passagers',
+      'no_passengers_available': 'Aucun passager disponible',
+      'select_passengers': 'Sélectionner les passagers',
       'passenger': 'Passager',
       'passenger_details': 'Détails du passager',
       'add_passenger': 'Ajouter un passager',
@@ -1740,6 +1826,10 @@ class AppLocalizations {
       'capacity': 'Capacité',
       'seats': 'Places',
       'available_seats': 'Places disponibles',
+      'select_vehicle_first_to_add_passengers':
+          'Sélectionnez d\'abord un véhicule pour ajouter des passagers',
+      'exceeded_seat_capacity': 'Capacité des sièges dépassée',
+      'seat_capacity_exceeded': 'Capacité des sièges dépassée',
       'no_vehicles': 'Aucun véhicule',
       'bus': 'Bus',
       'van': 'Fourgon',
@@ -2010,8 +2100,12 @@ class AppLocalizations {
   String get submit => translate('submit');
   String get select => translate('select');
   String get selectAll => translate('select_all');
+  String get selected => translate('selected');
   String get clear => translate('clear');
   String get clearAll => translate('clear_all');
+  String get searchPassengers => translate('search_passengers');
+  String get noResultsFound => translate('no_results_found');
+  String get filterByGroup => translate('filter_by_group');
   String get refresh => translate('refresh');
   String get filter => translate('filter');
   String get filters => translate('filters');
@@ -2227,6 +2321,14 @@ class AppLocalizations {
   // Passengers
   String get passengers => translate('passengers');
   String get passengersManagement => translate('passengers_management');
+  String get noPassengersSelected => translate('no_passengers_selected');
+  String get pleaseSelectAtLeastOnePassenger =>
+      translate('please_select_at_least_one_passenger');
+  String get addPassengersFirstToEnableReturnTrip =>
+      translate('add_passengers_first_to_enable_return_trip');
+  String get failedToLoadPassengers => translate('failed_to_load_passengers');
+  String get noPassengersAvailable => translate('no_passengers_available');
+  String get selectPassengers => translate('select_passengers');
   String get passenger => translate('passenger');
   String get passengerDetails => translate('passenger_details');
   String get addPassenger => translate('add_passenger');
@@ -2286,6 +2388,10 @@ class AppLocalizations {
   String get capacity => translate('capacity');
   String get seats => translate('seats');
   String get availableSeats => translate('available_seats');
+  String get selectVehicleFirstToAddPassengers =>
+      translate('select_vehicle_first_to_add_passengers');
+  String get exceededSeatCapacity => translate('exceeded_seat_capacity');
+  String get seatCapacityExceeded => translate('seat_capacity_exceeded');
   String get noVehicles => translate('no_vehicles');
   String get bus => translate('bus');
   String get van => translate('van');
@@ -2474,6 +2580,8 @@ class AppLocalizations {
   String get passwordsDontMatch => translate('passwords_dont_match');
   String get invalidPhone => translate('invalid_phone');
   String get invalidInput => translate('invalid_input');
+  String get dateTimeMustBeInFuture => translate('date_time_must_be_in_future');
+  String get addNotesOptional => translate('add_notes_optional');
 
   // Misc
   String get realTimeUpdates => translate('real_time_updates');
@@ -2575,6 +2683,32 @@ class AppLocalizations {
   String get errorCreatingTrip => translate('error_creating_trip');
   String get cannotAccessTripRepository =>
       translate('cannot_access_trip_repository');
+
+  // Return Trip
+  String get createReturnTrip => translate('create_return_trip');
+  String get createReturnTripDesc => translate('create_return_trip_desc');
+  String get createReturnTripRoundTrip =>
+      translate('create_return_trip_round_trip');
+  String get returnTripStartTime => translate('return_trip_start_time');
+  String get returnTripArrivalTime => translate('return_trip_arrival_time');
+  String get returnTripRoundTrip => translate('return_trip_round_trip');
+  String get returnTripCreatedSuccessfully =>
+      translate('return_trip_created_successfully');
+  String get errorCreatingReturnTrip => translate('error_creating_return_trip');
+  String get pleaseSelectReturnTripStartTime =>
+      translate('please_select_return_trip_start_time');
+  String get pleaseSelectStartTimeFirst =>
+      translate('please_select_start_time_first');
+  String get arrivalTimeMustBeAfterStartTime =>
+      translate('arrival_time_must_be_after_start_time');
+  String get selectTime => translate('select_time');
+
+  // Driver Conflict
+  String get driverConflict => translate('driver_conflict');
+  String get driverConflictMessage => translate('driver_conflict_message');
+  String get conflictingTrip => translate('conflicting_trip');
+  String get driverConflictSuggestion =>
+      translate('driver_conflict_suggestion');
 
   // Additional Group Getters
   String get newGroup => translate('new_group');

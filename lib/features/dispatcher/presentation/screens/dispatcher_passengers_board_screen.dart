@@ -15,12 +15,12 @@ import '../../../trips/presentation/providers/trip_providers.dart';
 import '../../domain/entities/passenger_group_line.dart';
 import '../providers/dispatcher_cached_providers.dart';
 import '../providers/dispatcher_passenger_providers.dart';
-import '../widgets/change_location_sheet.dart';
-import '../widgets/dispatcher_app_bar.dart';
-import '../widgets/dispatcher_secondary_header.dart';
-import '../widgets/dispatcher_footer.dart';
-import '../widgets/passenger_quick_actions_sheet.dart';
-import '../widgets/select_trip_for_absence_sheet.dart';
+import '../widgets/passengers/change_location_sheet.dart';
+import '../widgets/common/dispatcher_app_bar.dart';
+import '../widgets/headers/dispatcher_secondary_header.dart';
+import '../widgets/common/dispatcher_footer.dart';
+import '../widgets/passengers/passenger_quick_actions_sheet.dart';
+import '../widgets/trips/select_trip_for_absence_sheet.dart';
 
 /// Dispatcher Passengers Board
 ///

@@ -6,7 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/loading/shimmer_loading.dart';
 import '../../domain/entities/dispatcher_passenger_profile.dart';
 import '../providers/dispatcher_partner_providers.dart';
-import '../widgets/dispatcher_app_bar.dart';
+import '../widgets/common/dispatcher_app_bar.dart';
 
 class DispatcherEditPassengerScreen extends ConsumerStatefulWidget {
   final int passengerId;

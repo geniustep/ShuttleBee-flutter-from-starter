@@ -381,25 +381,61 @@ class HeroHeader extends StatelessWidget {
           ),
         ],
       ),
-      child: IconButton(
-        icon: action.isLoading
-            ? SizedBox(
-                width: iconSize * 0.8,
-                height: iconSize * 0.8,
-                child: const CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            icon: action.isLoading
+                ? SizedBox(
+                    width: iconSize * 0.8,
+                    height: iconSize * 0.8,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Icon(action.icon, color: Colors.white, size: iconSize),
+            onPressed: action.isLoading
+                ? null
+                : () {
+                    HapticFeedback.lightImpact();
+                    action.onPressed?.call();
+                  },
+            tooltip: action.tooltip,
+            splashRadius: buttonSize / 2,
+          ),
+          if (action.badge != null && action.badge! > 0)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
                 ),
-              )
-            : Icon(action.icon, color: Colors.white, size: iconSize),
-        onPressed: action.isLoading
-            ? null
-            : () {
-                HapticFeedback.lightImpact();
-                action.onPressed?.call();
-              },
-        tooltip: action.tooltip,
-        splashRadius: buttonSize / 2,
+                constraints: const BoxConstraints(
+                  minWidth: 18,
+                  minHeight: 18,
+                ),
+                child: Center(
+                  child: Text(
+                    action.badge! > 99 ? '99+' : '${action.badge}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -412,12 +448,14 @@ class HeroHeaderAction {
     required this.tooltip,
     this.onPressed,
     this.isLoading = false,
+    this.badge,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback? onPressed;
   final bool isLoading;
+  final int? badge;
 }
 
 /// Hexagon Pattern Painter

@@ -3,7 +3,19 @@ import 'package:logger/logger.dart';
 
 /// Secure storage service for sensitive data
 class SecureStorageService {
-  static final Logger _logger = Logger();
+  static final Logger _logger = Logger(
+    printer: PrettyPrinter(
+      methodCount: 0, // لا تظهر stack frames للرسائل العادية
+      errorMethodCount: 5, // عدد محدود من stack frames للأخطاء
+      lineLength: 80,
+      colors: true,
+      printEmojis: false,
+      excludeBox: {
+        Level.debug: true,
+        Level.info: true,
+      },
+    ),
+  );
   static FlutterSecureStorage? _storage;
 
   /// Android options
@@ -26,11 +38,16 @@ class SecureStorageService {
   }
 
   /// Get storage instance
+  /// Automatically initializes if not already initialized
   static FlutterSecureStorage get instance {
     if (_storage == null) {
-      throw StateError(
-        'SecureStorageService not initialized. Call init() first.',
+      // Auto-initialize if not already done
+      _logger.w('⚠️ SecureStorage not initialized, auto-initializing...');
+      _storage = const FlutterSecureStorage(
+        aOptions: _androidOptions,
+        iOptions: _iosOptions,
       );
+      _logger.d('✅ SecureStorage auto-initialized successfully');
     }
     return _storage!;
   }
@@ -38,7 +55,7 @@ class SecureStorageService {
   /// Read a value
   Future<String?> read(String key) async {
     try {
-      return await _storage?.read(key: key);
+      return await instance.read(key: key);
     } catch (e) {
       _logger.e('Error reading from secure storage', error: e);
       return null;
@@ -48,7 +65,7 @@ class SecureStorageService {
   /// Write a value
   Future<void> write(String key, String value) async {
     try {
-      await _storage?.write(key: key, value: value);
+      await instance.write(key: key, value: value);
     } catch (e) {
       _logger.e('Error writing to secure storage', error: e);
       rethrow;
@@ -58,7 +75,7 @@ class SecureStorageService {
   /// Delete a value
   Future<void> delete(String key) async {
     try {
-      await _storage?.delete(key: key);
+      await instance.delete(key: key);
     } catch (e) {
       _logger.e('Error deleting from secure storage', error: e);
       rethrow;
@@ -68,7 +85,7 @@ class SecureStorageService {
   /// Delete all values
   Future<void> deleteAll() async {
     try {
-      await _storage?.deleteAll();
+      await instance.deleteAll();
       _logger.d('All secure storage data deleted');
     } catch (e) {
       _logger.e('Error deleting all secure storage data', error: e);
@@ -79,7 +96,7 @@ class SecureStorageService {
   /// Check if key exists
   Future<bool> containsKey(String key) async {
     try {
-      return await _storage?.containsKey(key: key) ?? false;
+      return await instance.containsKey(key: key);
     } catch (e) {
       _logger.e('Error checking key in secure storage', error: e);
       return false;
@@ -89,7 +106,7 @@ class SecureStorageService {
   /// Read all values
   Future<Map<String, String>> readAll() async {
     try {
-      return await _storage?.readAll() ?? {};
+      return await instance.readAll();
     } catch (e) {
       _logger.e('Error reading all from secure storage', error: e);
       return {};

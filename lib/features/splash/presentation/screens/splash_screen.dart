@@ -88,6 +88,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       return;
     }
 
+    // Check if token is invalid (needs re-login)
+    if (auth.error != null && auth.error!.contains('انتهت صلاحية الجلسة')) {
+      // Invalid token detected - clear and go to login
+      _updateStatus('يرجى تسجيل الدخول مجدداً');
+      await Future.delayed(const Duration(milliseconds: 500));
+      _navigateToLogin();
+      return;
+    }
+
     // Handle different auth states
     switch (auth.tokenState) {
       case TokenState.valid:

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/select_company_screen.dart';
+import '../../features/auth/domain/entities/user.dart';
 import '../../features/home/presentation/screens/dashboard_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
@@ -24,7 +25,8 @@ import '../../features/driver/presentation/screens/driver_live_trip_map_screen.d
 import '../../features/dispatcher/presentation/screens/dispatcher_home_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_trips_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_vehicles_screen.dart';
-import '../../features/dispatcher/presentation/screens/dispatcher_monitor_screen.dart';
+import '../../features/dispatcher/presentation/screens/live_tracking_monitor_screen.dart';
+import 'package:bridgecore_flutter/bridgecore_flutter.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_groups_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_create_group_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_edit_group_screen.dart';
@@ -32,6 +34,7 @@ import '../../features/dispatcher/presentation/screens/dispatcher_create_trip_sc
 import '../../features/dispatcher/presentation/screens/dispatcher_shell_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_create_vehicle_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_group_passengers_screen.dart';
+import '../../features/vehicles/presentation/providers/vehicle_providers.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_group_detail_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_passengers_board_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_create_passenger_screen.dart';
@@ -65,26 +68,60 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: RoutePaths.splash,
     debugLogDiagnostics: true,
     redirect: (context, state) {
-      final isLoggedIn = authState.asData?.value.isAuthenticated ?? false;
-      final user = authState.asData?.value.user;
       final isLoggingIn = state.matchedLocation == RoutePaths.login;
       final isSplash = state.matchedLocation == RoutePaths.splash;
       final isSelectCompany = state.matchedLocation == RoutePaths.selectCompany;
-      final isOldHome = state.matchedLocation == RoutePaths.home;
 
-      // Allow splash screen
-      if (isSplash) return null;
+      // Always allow splash and login screens
+      if (isSplash || isLoggingIn) return null;
+
+      // If auth state is still loading, allow navigation (will be checked when ready)
+      // This prevents blocking navigation during initial auth check
+      if (authState.isLoading) {
+        return null;
+      }
+
+      final auth = authState.asData?.value;
+      final isLoggedIn = auth?.isAuthenticated ?? false;
+      final tokenState = auth?.tokenState;
+      final user = auth?.user;
+      final isOldHome = state.matchedLocation == RoutePaths.home;
 
       // Allow select company after login
       if (isSelectCompany && isLoggedIn) return null;
 
-      // Redirect to login if not authenticated
-      if (!isLoggedIn && !isLoggingIn) {
-        return RoutePaths.login;
+      // Check if trying to access a role-based route
+      final isRoleRoute = isRoleHomeRoute(state.matchedLocation) ||
+          state.matchedLocation.startsWith('/dispatcher') ||
+          state.matchedLocation.startsWith('/driver') ||
+          state.matchedLocation.startsWith('/passenger') ||
+          state.matchedLocation.startsWith('/manager');
+
+      // For role-based routes, require authentication
+      if (isRoleRoute) {
+        // If not logged in or token is completely missing, redirect to login
+        if (!isLoggedIn || tokenState == null || tokenState == TokenState.none) {
+          return RoutePaths.login;
+        }
+        // If authenticated (even if token needs refresh), allow access
+        // This is important for ShuttleBee where drivers/dispatchers can work offline
+        return null;
+      }
+
+      // For non-role routes, check authentication
+      // Redirect to login if not authenticated OR if tokens are completely missing
+      if ((!isLoggedIn || tokenState == null || tokenState == TokenState.none) &&
+          !isLoggingIn) {
+        // Only redirect to login if trying to access protected routes
+        // Allow public routes (like settings, notifications) to handle their own auth
+        return null;
       }
 
       // Redirect to role-based home if authenticated and on login page
-      if (isLoggedIn && isLoggingIn) {
+      if (isLoggedIn &&
+          isLoggingIn &&
+          tokenState != null &&
+          tokenState != TokenState.none) {
         return getHomeRouteForRole(user?.role);
       }
 
@@ -199,74 +236,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                         name: RouteNames.dispatcherHolidayDetail,
                         parentNavigatorKey: rootNavigatorKey,
                         builder: (context, state) {
-                          final holidayId =
-                              int.parse(state.pathParameters['holidayId']!);
+                          final holidayId = int.parse(
+                            state.pathParameters['holidayId']!,
+                          );
                           return DispatcherHolidayDetailScreen(
                             key: ValueKey('dispatcher_holiday_$holidayId'),
                             holidayId: holidayId,
                           );
-                        },
-                      ),
-                    ],
-                  ),
-                  GoRoute(
-                    path: 'passengers',
-                    name: RouteNames.dispatcherPassengers,
-                    parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) {
-                      return const DispatcherPassengersBoardScreen();
-                    },
-                    routes: [
-                      GoRoute(
-                        path: 'p/:passengerId',
-                        name: RouteNames.dispatcherPassengerDetail,
-                        parentNavigatorKey: rootNavigatorKey,
-                        builder: (context, state) {
-                          final passengerId =
-                              int.parse(state.pathParameters['passengerId']!);
-                          return DispatcherPassengerDetailScreen(
-                            key: ValueKey(
-                                'dispatcher_passenger_detail_$passengerId'),
-                            passengerId: passengerId,
-                          );
-                        },
-                        routes: [
-                          GoRoute(
-                            path: 'edit',
-                            name: RouteNames.dispatcherEditPassenger,
-                            parentNavigatorKey: rootNavigatorKey,
-                            builder: (context, state) {
-                              final passengerId = int.parse(
-                                  state.pathParameters['passengerId']!);
-                              return DispatcherEditPassengerScreen(
-                                key: ValueKey(
-                                    'dispatcher_edit_passenger_$passengerId'),
-                                passengerId: passengerId,
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                      GoRoute(
-                        path: 'groups/:groupId',
-                        name: RouteNames.dispatcherPassengersGroupPassengers,
-                        parentNavigatorKey: rootNavigatorKey,
-                        builder: (context, state) {
-                          final groupId =
-                              int.parse(state.pathParameters['groupId']!);
-                          return DispatcherGroupPassengersScreen(
-                            key: ValueKey(
-                                'dispatcher_passengers_group_$groupId'),
-                            groupId: groupId,
-                          );
-                        },
-                      ),
-                      GoRoute(
-                        path: 'create',
-                        name: RouteNames.dispatcherCreatePassenger,
-                        parentNavigatorKey: rootNavigatorKey,
-                        builder: (context, state) {
-                          return const DispatcherCreatePassengerScreen();
                         },
                       ),
                     ],
@@ -281,7 +257,21 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: RoutePaths.dispatcherMonitor,
                 name: RouteNames.dispatcherMonitor,
-                builder: (context, state) => const DispatcherMonitorScreen(),
+                builder: (context, state) {
+                  // Get user ID from auth state
+                  final container = ProviderScope.containerOf(context);
+                  final authState = container.read(authStateProvider);
+                  final userId = authState.asData?.value.user?.id ?? 0;
+                  
+                  // Get vehicle data source for loading vehicles from server
+                  final vehicleDataSource = container.read(vehicleDataSourceProvider);
+                  
+                  return LiveTrackingMonitorScreen(
+                    dispatcherId: userId,
+                    trackingService: BridgeCore.instance.liveTracking,
+                    vehicleDataSource: vehicleDataSource,
+                  );
+                },
               ),
             ],
           ),
@@ -300,8 +290,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) {
                       final groupId = state.uri.queryParameters['groupId'];
                       return DispatcherCreateTripScreen(
-                        initialGroupId:
-                            groupId != null ? int.tryParse(groupId) : null,
+                        initialGroupId: groupId != null
+                            ? int.tryParse(groupId)
+                            : null,
                       );
                     },
                   ),
@@ -322,8 +313,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                         name: RouteNames.dispatcherEditTrip,
                         parentNavigatorKey: rootNavigatorKey,
                         builder: (context, state) {
-                          final tripId =
-                              int.parse(state.pathParameters['tripId']!);
+                          final tripId = int.parse(
+                            state.pathParameters['tripId']!,
+                          );
                           return DispatcherEditTripScreen(
                             key: ValueKey('dispatcher_edit_trip_$tripId'),
                             tripId: tripId,
@@ -335,8 +327,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                         name: RouteNames.dispatcherTripPassengers,
                         parentNavigatorKey: rootNavigatorKey,
                         builder: (context, state) {
-                          final tripId =
-                              int.parse(state.pathParameters['tripId']!);
+                          final tripId = int.parse(
+                            state.pathParameters['tripId']!,
+                          );
                           return DispatcherTripPassengersScreen(
                             key: ValueKey('dispatcher_trip_passengers_$tripId'),
                             tripId: tripId,
@@ -369,8 +362,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                     name: RouteNames.dispatcherGroupDetail,
                     parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) {
-                      final groupId =
-                          int.parse(state.pathParameters['groupId']!);
+                      final groupId = int.parse(
+                        state.pathParameters['groupId']!,
+                      );
                       return DispatcherGroupDetailScreen(
                         key: ValueKey('dispatcher_group_detail_$groupId'),
                         groupId: groupId,
@@ -382,11 +376,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                         name: RouteNames.dispatcherGroupPassengers,
                         parentNavigatorKey: rootNavigatorKey,
                         builder: (context, state) {
-                          final groupId =
-                              int.parse(state.pathParameters['groupId']!);
+                          final groupId = int.parse(
+                            state.pathParameters['groupId']!,
+                          );
                           return DispatcherGroupPassengersScreen(
                             key: ValueKey(
-                                'dispatcher_group_passengers_$groupId'),
+                              'dispatcher_group_passengers_$groupId',
+                            ),
                             groupId: groupId,
                           );
                         },
@@ -396,8 +392,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                         name: RouteNames.dispatcherEditGroup,
                         parentNavigatorKey: rootNavigatorKey,
                         builder: (context, state) {
-                          final groupId =
-                              int.parse(state.pathParameters['groupId']!);
+                          final groupId = int.parse(
+                            state.pathParameters['groupId']!,
+                          );
                           return DispatcherEditGroupScreen(
                             key: ValueKey('dispatcher_edit_group_$groupId'),
                             groupId: groupId,
@@ -409,16 +406,90 @@ final routerProvider = Provider<GoRouter>((ref) {
                         name: RouteNames.dispatcherGroupSchedules,
                         parentNavigatorKey: rootNavigatorKey,
                         builder: (context, state) {
-                          final groupId =
-                              int.parse(state.pathParameters['groupId']!);
+                          final groupId = int.parse(
+                            state.pathParameters['groupId']!,
+                          );
                           return GroupSchedulesScreen(
-                            key:
-                                ValueKey('dispatcher_group_schedules_$groupId'),
+                            key: ValueKey(
+                              'dispatcher_group_schedules_$groupId',
+                            ),
                             groupId: groupId,
                           );
                         },
                       ),
                     ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Passengers
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.dispatcherPassengers,
+                name: RouteNames.dispatcherPassengers,
+                builder: (context, state) {
+                  return const DispatcherPassengersBoardScreen();
+                },
+                routes: [
+                  GoRoute(
+                    path: 'p/:passengerId',
+                    name: RouteNames.dispatcherPassengerDetail,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (context, state) {
+                      final passengerId = int.parse(
+                        state.pathParameters['passengerId']!,
+                      );
+                      return DispatcherPassengerDetailScreen(
+                        key: ValueKey(
+                          'dispatcher_passenger_detail_$passengerId',
+                        ),
+                        passengerId: passengerId,
+                      );
+                    },
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        name: RouteNames.dispatcherEditPassenger,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (context, state) {
+                          final passengerId = int.parse(
+                            state.pathParameters['passengerId']!,
+                          );
+                          return DispatcherEditPassengerScreen(
+                            key: ValueKey(
+                              'dispatcher_edit_passenger_$passengerId',
+                            ),
+                            passengerId: passengerId,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'groups/:groupId',
+                    name: RouteNames.dispatcherPassengersGroupPassengers,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (context, state) {
+                      final groupId = int.parse(
+                        state.pathParameters['groupId']!,
+                      );
+                      return DispatcherGroupPassengersScreen(
+                        key: ValueKey(
+                          'dispatcher_passengers_group_$groupId',
+                        ),
+                        groupId: groupId,
+                      );
+                    },
+                  ),
+                  GoRoute(
+                    path: 'create',
+                    name: RouteNames.dispatcherCreatePassenger,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (context, state) {
+                      return const DispatcherCreatePassengerScreen();
+                    },
                   ),
                 ],
               ),
@@ -546,13 +617,13 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Chat
       GoRoute(
-        path: '/conversations',
-        name: 'conversations',
+        path: RoutePaths.conversations,
+        name: RouteNames.conversations,
         builder: (context, state) => const ConversationsScreen(),
       ),
       GoRoute(
-        path: '/chat/:conversationId',
-        name: 'chat',
+        path: RoutePaths.chat,
+        name: RouteNames.chat,
         builder: (context, state) {
           final conversationId = state.pathParameters['conversationId']!;
           return ChatScreen(conversationId: conversationId);
@@ -564,11 +635,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red,
-            ),
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
             Text(
               'Page not found',

@@ -2,7 +2,13 @@
 
 ## 📋 Overview
 
-Professional chat feature integrated into ShuttleBee using `flutter_chat_ui` library. This implementation follows Clean Architecture principles and integrates seamlessly with the existing app structure.
+Professional chat feature integrated into ShuttleBee using `flutter_chat_ui` library. This implementation follows Clean Architecture principles and integrates seamlessly with **BridgeCore Conversations API** for Odoo-based messaging.
+
+**Key Integration:**
+- ✅ BridgeCore `ConversationService` for REST API calls
+- ✅ BridgeCore `ConversationWebSocketService` for real-time messaging
+- ✅ Odoo `mail.channel` and `mail.message` models
+- ✅ Support for Channels, Direct Messages, and Chatter
 
 ## 🏗️ Architecture
 
@@ -20,11 +26,11 @@ lib/features/chat/
 │   │   ├── chat_user_model.dart
 │   │   ├── chat_message_model.dart
 │   │   └── chat_conversation_model.dart
-│   ├── datasources/       # Remote data sources
-│   │   └── chat_remote_data_source.dart
+│   ├── datasources/       # Remote data sources (BridgeCore integration)
+│   │   └── chat_remote_data_source.dart  # Uses ConversationService
 │   ├── repositories/      # Repository implementations
 │   │   └── chat_repository.dart
-│   └── services/          # WebSocket integration
+│   └── services/          # WebSocket integration (legacy, use BridgeCore WS)
 │       └── chat_websocket_service.dart
 └── presentation/
     ├── providers/         # Riverpod state management
@@ -91,6 +97,10 @@ flutter_chat_types: ^3.6.2
 mime: ^2.0.0
 open_filex: ^4.5.0
 
+# BridgeCore Integration
+bridgecore_flutter:
+  path: ../../package/bridgecore_flutter  # v3.3.0+ with Conversations
+
 # Already in project
 file_picker: ^8.1.4
 image_picker: ^1.1.2
@@ -100,23 +110,36 @@ image_picker: ^1.1.2
 
 Uses **Riverpod 3.0.3** for state management:
 
-- `conversationsProvider` - List of all conversations
+- `conversationServiceProvider` - BridgeCore ConversationService
+- `conversationWebSocketProvider` - BridgeCore WebSocket service
+- `conversationsProvider` - List of all conversations (from BridgeCore)
 - `conversationProvider(id)` - Single conversation details
-- `messagesProvider(id)` - Messages for a conversation
+- `messagesProvider(id)` - **StreamProvider** with real-time WebSocket updates
 - `chatUiProvider` - UI state (loading, errors, sending)
 - `unreadMessagesCountProvider` - Total unread count
 
-### WebSocket Events
+### WebSocket Integration (BridgeCore)
 
-**Listening to:**
-- `chat:message:new` - New message received
-- `chat:message:updated` - Message status updated
-- `chat:conversation:updated` - Conversation updated
-- `chat:typing` - Typing indicator
+**BridgeCore WebSocket Service:**
+- Automatically connects when `messagesProvider` is accessed
+- Subscribes to channels for real-time message delivery
+- Handles reconnection automatically
 
-**Emitting:**
-- `chat:typing` - Send typing status
-- `chat:message:read` - Mark message as read
+**Message Types:**
+- `channel_message` - New message in channel
+- `chatter_message` - New message in chatter (record thread)
+- `thread_message` - Thread reply
+- `channel_updated` - Channel metadata updated
+
+**Usage:**
+```dart
+final ws = BridgeCore.instance.conversationsWebSocket;
+await ws.connect(token: accessToken);
+await ws.subscribeChannel(channelId: 123);
+ws.messageStream.listen((message) {
+  // Handle new message
+});
+```
 
 ## 📱 Usage
 
@@ -156,16 +179,23 @@ final chatNotifier = ref.read(chatUiProvider.notifier);
 await chatNotifier.markAsRead(conversationId, messageIds);
 ```
 
-#### Join a Conversation (WebSocket)
+#### Real-time Messages (BridgeCore WebSocket)
+
+The `messagesProvider` automatically handles WebSocket connection:
 
 ```dart
-final wsService = ChatWebSocketService();
-wsService.joinConversation(conversationId);
+// Provider automatically:
+// 1. Loads initial messages via REST
+// 2. Connects WebSocket if needed
+// 3. Subscribes to channel
+// 4. Streams new messages in real-time
 
-// Listen to new messages
-wsService.newMessages.listen((message) {
-  // Handle new message
-});
+final messagesAsync = ref.watch(messagesProvider(conversationId));
+messagesAsync.when(
+  data: (messages) => Chat(messages: messages),
+  loading: () => CircularProgressIndicator(),
+  error: (err, _) => ErrorWidget(err),
+);
 ```
 
 ## 🎨 Customization
@@ -207,37 +237,125 @@ enum MessageType {
 }
 ```
 
-## 🔌 Backend Integration
+## 🔌 BridgeCore Integration
 
-### API Endpoints
+### API Endpoints (BridgeCore)
 
-The chat feature expects the following API endpoints:
+The chat feature uses BridgeCore Conversations API:
 
 ```
-GET    /chat/conversations              # Get all conversations
-GET    /chat/conversations/:id          # Get single conversation
-GET    /chat/conversations/:id/messages # Get messages
-POST   /chat/conversations/:id/messages # Send message
-POST   /chat/conversations              # Create conversation
-DELETE /chat/conversations/:id          # Delete conversation
-POST   /chat/upload                     # Upload file
-POST   /chat/conversations/:id/read     # Mark as read
+GET    /api/v1/conversations/channels                    # Get all channels
+GET    /api/v1/conversations/direct-messages            # Get direct messages
+GET    /api/v1/conversations/channels/{id}/messages      # Get channel messages
+GET    /api/v1/conversations/chatter/{model}/{id}       # Get chatter messages
+POST   /api/v1/conversations/messages/send              # Send message
+WS     /ws/conversations?token={token}                  # WebSocket endpoint
 ```
 
-### WebSocket Connection
+**Status:**
+- ✅ Channels endpoint - **Available & Ready**
+- ✅ Messages endpoint - **Available & Ready**
+- ✅ Send message - **Available & Ready**
+- ✅ WebSocket - **Available & Ready**
+- ⏳ File upload - Pending backend
+- ⏳ Create/Delete - Pending backend
 
-WebSocket should be initialized in app startup:
+### Testing Endpoints
+
+**All endpoints are registered and ready for testing!**
+
+#### Using cURL
+
+```bash
+# 1. Login first
+curl -X POST "http://localhost:8000/api/v1/auth/tenant/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@company.com", "password": "password123"}'
+
+# 2. Get Channels (use token from login)
+curl -X GET "http://localhost:8000/api/v1/conversations/channels" \
+  -H "Authorization: Bearer {YOUR_ACCESS_TOKEN}"
+
+# 3. Get Channel Messages
+curl -X GET "http://localhost:8000/api/v1/conversations/channels/1/messages?limit=50&offset=0" \
+  -H "Authorization: Bearer {YOUR_ACCESS_TOKEN}"
+
+# 4. Send Message
+curl -X POST "http://localhost:8000/api/v1/conversations/messages/send" \
+  -H "Authorization: Bearer {YOUR_ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "mail.channel",
+    "res_id": 1,
+    "body": "<p>Hello from API!</p>"
+  }'
+```
+
+#### Using FastAPI Swagger UI
+
+1. Open `http://localhost:8000/docs`
+2. Find **"conversations"** section
+3. Click **"Authorize"** and enter: `Bearer {YOUR_ACCESS_TOKEN}`
+4. Test endpoints interactively
+
+#### Using Flutter SDK
 
 ```dart
-final wsService = WebSocketService();
-await wsService.connect(
-  serverUrl: 'wss://your-server.com',
-  auth: {'token': authToken},
+// Get channels
+final channels = await BridgeCore.instance.conversations.getChannels();
+print('Total channels: ${channels.total}');
+
+// Get messages
+final messages = await BridgeCore.instance.conversations.getChannelMessages(
+  channelId: 1,
+  limit: 50,
 );
 
-final chatWsService = ChatWebSocketService();
-await chatWsService.initialize();
+// Send message
+final result = await BridgeCore.instance.conversations.sendMessage(
+  model: 'mail.channel',
+  resId: 1,
+  body: '<p>Test message!</p>',
+);
 ```
+
+### BridgeCore Services
+
+```dart
+// REST API
+final conversations = BridgeCore.instance.conversations;
+final channels = await conversations.getChannels();
+final messages = await conversations.getChannelMessages(channelId: 123);
+await conversations.sendMessage(
+  model: 'mail.channel',
+  resId: 123,
+  body: '<p>Hello!</p>',
+);
+
+// WebSocket (automatically handled by messagesProvider)
+final ws = BridgeCore.instance.conversationsWebSocket;
+// Connection and subscription handled automatically
+```
+
+### Security Notes
+
+⚠️ **Critical Security:**
+- `partner_id` is extracted from JWT token automatically (not accepted from client)
+- `author_id` is extracted from Odoo session automatically (not accepted from client)
+- WebSocket authentication via token in query parameter
+- **Never accept `user_id`, `partner_id`, or `author_id` from client input!**
+
+### Error Handling
+
+**404 Not Found:**
+- Automatically handled - returns empty lists
+- Logs warnings instead of errors
+- App continues to work normally
+
+**Other Errors:**
+- Network errors are caught and handled gracefully
+- User-friendly error messages displayed in UI
+- Automatic retry for transient failures
 
 ## 🚀 Next Steps
 
@@ -281,16 +399,76 @@ await chatWsService.initialize();
    - Add French translations
    - RTL support enhancements
 
+## ⚠️ Error Handling
+
+### 404 Not Found (Endpoint Not Available)
+
+The implementation gracefully handles 404 errors when the Conversations endpoint is not yet deployed:
+
+- **Automatic Fallback:** Returns empty lists instead of throwing errors
+- **Warning Logs:** Logs warnings instead of errors for better debugging
+- **No App Crashes:** App continues to work normally even if endpoint is unavailable
+
+**Implementation:**
+```dart
+// In ChatRemoteDataSourceImpl
+on NotFoundException {
+  logger.w('Conversations endpoint not available (404). Returning empty list.');
+  return [];
+}
+```
+
+**Note:** All endpoints are now available! The 404 handling is kept for backward compatibility and future-proofing.
+
+### Troubleshooting
+
+**401 Unauthorized:**
+- Check token is valid and not expired
+- Ensure `Bearer` prefix is included
+- Verify token in Authorization header
+
+**404 Not Found:**
+- Verify server is running
+- Check URL format: `/api/v1/conversations/...`
+- Ensure router is registered in `main.py`
+
+**422 Validation Error:**
+- Check JSON format in request body
+- Verify all required fields are present
+- Review request schema
+
+**500 Internal Server Error:**
+- Check server logs
+- Verify Odoo connection is working
+- Ensure user has permissions in Odoo
+
 ## 📝 Notes
 
-- The current implementation uses mock user data. Update `_currentUser` in `ChatScreen` to use actual authenticated user.
-- File uploads require proper server endpoint configuration.
-- WebSocket connection should be managed at app level for reliability.
-- Consider implementing pagination for large conversation lists and message history.
+- **Endpoints Status:** All core endpoints are **available and ready** for testing
+- **404 Handling:** Gracefully handles 404 errors (kept for backward compatibility)
+- **User Data:** Update `_currentUser` in `ChatScreen` to use actual authenticated user
+- **File Uploads:** Not yet implemented in BridgeCore (needs backend endpoint)
+- **WebSocket:** Automatically managed by `messagesProvider` - no manual connection needed
+- **Pagination:** Use `limit` and `offset` parameters for message pagination
+- **Security:** All user IDs extracted from JWT automatically (never accept from client)
 
 ## 🐛 Known Issues
 
-None currently documented.
+- **File Upload:** `uploadFile()` throws `UnimplementedError` - needs backend endpoint
+- **Create/Delete:** `createConversation()` and `deleteConversation()` not available in BridgeCore yet
+- **Mark as Read:** `markAsRead()` is a no-op (not implemented in BridgeCore yet)
+
+## ✅ Testing Checklist
+
+- [x] All endpoints registered in backend router
+- [x] Endpoints accessible via `/api/v1/conversations/*`
+- [x] Authentication working (JWT token)
+- [x] Get channels endpoint tested
+- [x] Get messages endpoint tested
+- [x] Send message endpoint tested
+- [x] WebSocket connection tested
+- [ ] File upload endpoint (pending)
+- [ ] Create/Delete endpoints (pending)
 
 ## 📚 References
 

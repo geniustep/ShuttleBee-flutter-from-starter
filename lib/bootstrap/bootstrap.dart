@@ -5,9 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:logger/logger.dart';
 
+import 'package:bridgecore_flutter/bridgecore_flutter.dart';
+
 import '../app.dart';
-import '../core/utils/logger_config.dart';
-import 'app_initializer.dart';
+import '../core/config/env_config.dart';
+import '../core/storage/prefs_service.dart';
+import '../core/storage/secure_storage_service.dart';
 
 /// Bootstrap the application
 Future<void> bootstrap() async {
@@ -62,12 +65,48 @@ Future<void> bootstrap() async {
   // Initialize Hive for local storage
   await Hive.initFlutter();
 
-  // Initialize app services
-  await AppInitializer.initialize();
+  // Create logger instance with proper configuration
+  final logger = Logger(
+    printer: PrettyPrinter(
+      methodCount: 0, // لا تظهر stack frames للرسائل العادية
+      errorMethodCount: 5, // عدد محدود من stack frames للأخطاء
+      lineLength: 80,
+      colors: true,
+      printEmojis: false,
+      excludeBox: {
+        Level.debug: true,
+        Level.info: true,
+      },
+    ),
+  );
+
+  // Initialize Secure Storage
+  logger.d('🔐 Initializing SecureStorage...');
+  await SecureStorageService.init();
+  logger.d('✅ SecureStorage initialized successfully');
+
+  // Initialize Prefs Service
+  logger.d('💾 Initializing PrefsService...');
+  await PrefsService.init();
+  logger.d('✅ PrefsService initialized successfully');
+
+  // Initialize BridgeCore
+  logger.d('🌉 Initializing BridgeCore...');
+  BridgeCore.initialize(
+    baseUrl: EnvConfig.odooUrl,
+    debugMode: EnvConfig.debugMode,
+    enableLogging: EnvConfig.debugMode,
+  );
+  logger.d('✅ BridgeCore initialized successfully');
+
+  // Initialize Local Storage (platform-specific)
+  // Note: Full initialization happens via storageInitializationProvider
+  // This is just a placeholder - actual init happens in ProviderScope
+  logger.d('💾 Local Storage will be initialized via Riverpod providers');
 
   // Setup global error handling
   FlutterError.onError = (details) {
-    Logger().e(
+    logger.e(
       'Flutter Error',
       error: details.exception,
       stackTrace: details.stack,
@@ -75,9 +114,5 @@ Future<void> bootstrap() async {
   };
 
   // Run the app with Riverpod
-  runApp(
-    const ProviderScope(
-      child: App(),
-    ),
-  );
+  runApp(const ProviderScope(child: App()));
 }

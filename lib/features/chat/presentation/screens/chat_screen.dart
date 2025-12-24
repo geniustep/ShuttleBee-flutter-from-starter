@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
-import 'package:flutter_chat_ui/flutter_chat_ui.dart';
+import 'package:flutter_chat_ui/flutter_chat_ui.dart' as chat_ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -15,10 +15,7 @@ import '../providers/chat_providers.dart';
 class ChatScreen extends ConsumerStatefulWidget {
   final String conversationId;
 
-  const ChatScreen({
-    super.key,
-    required this.conversationId,
-  });
+  const ChatScreen({super.key, required this.conversationId});
 
   @override
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
@@ -36,7 +33,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final conversationAsync = ref.watch(conversationProvider(widget.conversationId));
+    final conversationAsync = ref.watch(
+      conversationProvider(widget.conversationId),
+    );
     final messagesAsync = ref.watch(messagesProvider(widget.conversationId));
     final chatUiState = ref.watch(chatUiProvider);
 
@@ -84,7 +83,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               .map((msg) => msg.toFlutterChatMessage())
               .toList();
 
-          return Chat(
+          return chat_ui.Chat(
             messages: chatMessages,
             onSendPressed: _handleSendPressed,
             onAttachmentPressed: _handleAttachmentPressed,
@@ -94,8 +93,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             theme: _getChatTheme(context),
             showUserAvatars: true,
             showUserNames: true,
-            inputOptions: const InputOptions(
-              sendButtonVisibilityMode: SendButtonVisibilityMode.editing,
+            inputOptions: const chat_ui.InputOptions(
+              sendButtonVisibilityMode:
+                  chat_ui.SendButtonVisibilityMode.editing,
             ),
           );
         },
@@ -121,11 +121,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  DefaultChatTheme _getChatTheme(BuildContext context) {
+  chat_ui.DefaultChatTheme _getChatTheme(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return DefaultChatTheme(
+    return chat_ui.DefaultChatTheme(
       primaryColor: colorScheme.primary,
       secondaryColor: colorScheme.secondary,
       backgroundColor: colorScheme.surface,
@@ -233,9 +233,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _handleFileSelection() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-    );
+    final result = await FilePicker.platform.pickFiles(type: FileType.any);
 
     if (result != null && result.files.single.path != null) {
       final file = File(result.files.single.path!);

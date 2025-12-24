@@ -5,7 +5,7 @@ publish_to: "none"
 version: 1.0.0
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
+  sdk: ">=3.8.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -35,7 +35,7 @@ dependencies:
 
   # Storage
   shared_preferences: ^2.5.3
-  flutter_secure_storage: ^9.2.4
+  flutter_secure_storage: ^10.0.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
 
@@ -132,9 +132,11 @@ dependencies:
   mobile_scanner: ^5.2.3
 
   # Maps
-  google_maps_flutter: ^2.11.1
+  google_maps_flutter: ^2.14.0
   geolocator: ^13.0.4
   geocoding: ^3.0.0
+  flutter_map: ^8.0.0
+  latlong2: ^0.9.1
 
   # Camera
   camera: ^0.11.0+2
@@ -156,7 +158,7 @@ dev_dependencies:
   riverpod_lint: ^3.0.3
 
   # Testing
-  mockito: 5.5.0
+  mockito: ^5.5.0
   bloc_test: ^10.0.0
   mocktail: ^1.0.4
   integration_test:

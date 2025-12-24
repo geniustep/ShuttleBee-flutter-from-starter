@@ -160,8 +160,10 @@ final passengerTripsProvider =
 });
 
 /// Trip Detail Provider
+/// Note: Removed autoDispose to prevent excessive requests
+/// The provider will cache results and only refresh when explicitly invalidated
 final tripDetailProvider =
-    FutureProvider.autoDispose.family<Trip?, int>((ref, tripId) async {
+    FutureProvider.family<Trip?, int>((ref, tripId) async {
   final repository = ref.watch(tripRepositoryProvider);
   if (repository == null) return null;
 

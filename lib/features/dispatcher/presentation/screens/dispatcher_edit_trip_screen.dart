@@ -15,8 +15,8 @@ import '../../../groups/domain/entities/passenger_group.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
 import '../../../vehicles/domain/entities/shuttle_vehicle.dart';
 import '../../../vehicles/presentation/providers/vehicle_providers.dart';
-import '../widgets/dispatcher_app_bar.dart';
-import '../widgets/dispatcher_add_trip_passenger_sheet.dart';
+import '../widgets/common/dispatcher_app_bar.dart';
+import '../widgets/trips/dispatcher_add_trip_passenger_sheet.dart';
 
 /// Dispatcher Edit Trip Screen - شاشة تعديل الرحلة للمرسل - ShuttleBee
 class DispatcherEditTripScreen extends ConsumerStatefulWidget {

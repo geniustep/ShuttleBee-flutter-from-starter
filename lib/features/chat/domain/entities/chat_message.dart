@@ -3,22 +3,10 @@ import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'chat_user.dart';
 
 /// Message types supported by the chat system
-enum MessageType {
-  text,
-  image,
-  file,
-  system,
-  custom,
-}
+enum MessageType { text, image, file, system, custom }
 
 /// Message status
-enum MessageStatus {
-  sending,
-  sent,
-  delivered,
-  read,
-  error,
-}
+enum MessageStatus { sending, sent, delivered, read, error }
 
 /// Domain entity representing a chat message
 class ChatMessage extends Equatable {
@@ -65,7 +53,7 @@ class ChatMessage extends Equatable {
             lastName: author.lastName,
             imageUrl: author.imageUrl,
             metadata: author.metadata,
-            role: author.role != null ? types.Role.custom : null,
+            role: author.role != null ? types.Role.user : null,
           ),
           createdAt: createdAt.millisecondsSinceEpoch,
           id: id,
@@ -162,21 +150,21 @@ class ChatMessage extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        author,
-        createdAt,
-        type,
-        status,
-        text,
-        imageUrl,
-        fileName,
-        fileUrl,
-        fileSize,
-        mimeType,
-        repliedMessageId,
-        metadata,
-        updatedAt,
-      ];
+    id,
+    author,
+    createdAt,
+    type,
+    status,
+    text,
+    imageUrl,
+    fileName,
+    fileUrl,
+    fileSize,
+    mimeType,
+    repliedMessageId,
+    metadata,
+    updatedAt,
+  ];
 
   ChatMessage copyWith({
     String? id,

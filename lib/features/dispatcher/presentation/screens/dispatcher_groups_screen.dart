@@ -17,10 +17,10 @@ import '../../../groups/domain/entities/passenger_group.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/dispatcher_cached_providers.dart';
-import '../widgets/dispatcher_unified_header.dart';
-import '../widgets/dispatcher_secondary_header.dart';
-import '../widgets/dispatcher_footer.dart';
-import '../widgets/dispatcher_action_fab.dart';
+import '../widgets/headers/dispatcher_unified_header.dart';
+import '../widgets/headers/dispatcher_secondary_header.dart';
+import '../widgets/common/dispatcher_footer.dart';
+import '../widgets/common/dispatcher_action_fab.dart';
 
 /// Dispatcher Groups Screen - شاشة إدارة المجموعات للمرسل - ShuttleBee
 class DispatcherGroupsScreen extends ConsumerStatefulWidget {
@@ -129,12 +129,20 @@ class _DispatcherGroupsScreenState
       onSearchClear: () => setState(() => _searchQuery = ''),
       showSearch: !context.isMobile,
       onRefresh: () async {
+        // Save providers and container before async operations
+        if (!mounted) return;
         final cache = ref.read(dispatcherCacheDataSourceProvider);
         final userId = ref.read(authStateProvider).asData?.value.user?.id ?? 0;
+        final container = ref.container;
+
         if (userId != 0) {
           await cache.delete(DispatcherCacheKeys.groups(userId: userId));
         }
-        ref.invalidate(dispatcherGroupsProvider);
+
+        // Check if widget is still mounted before using container
+        if (mounted) {
+          container.invalidate(dispatcherGroupsProvider);
+        }
       },
       isLoading: groupsAsync.isLoading,
       actions: [
@@ -401,15 +409,17 @@ class _DispatcherGroupsScreenState
     }
 
     if (_tripTypeFilter != null) {
-      filteredGroups =
-          filteredGroups.where((g) => g.tripType == _tripTypeFilter).toList();
+      filteredGroups = filteredGroups
+          .where((g) => g.tripType == _tripTypeFilter)
+          .toList();
     }
     if (_onlyWithDriver) {
       filteredGroups = filteredGroups.where((g) => g.driverId != null).toList();
     }
     if (_onlyWithVehicle) {
-      filteredGroups =
-          filteredGroups.where((g) => g.vehicleId != null).toList();
+      filteredGroups = filteredGroups
+          .where((g) => g.vehicleId != null)
+          .toList();
     }
     if (_onlyWithDestination) {
       filteredGroups = filteredGroups.where((g) => g.hasDestination).toList();
@@ -438,12 +448,20 @@ class _DispatcherGroupsScreenState
 
     return RefreshIndicator(
       onRefresh: () async {
+        // Save providers and container before async operations
+        if (!mounted) return;
         final cache = ref.read(dispatcherCacheDataSourceProvider);
         final userId = ref.read(authStateProvider).asData?.value.user?.id ?? 0;
+        final container = ref.container;
+
         if (userId != 0) {
           await cache.delete(DispatcherCacheKeys.groups(userId: userId));
         }
-        ref.invalidate(dispatcherGroupsProvider);
+
+        // Check if widget is still mounted before using container
+        if (mounted) {
+          container.invalidate(dispatcherGroupsProvider);
+        }
       },
       child: ListView.builder(
         padding: EdgeInsets.fromLTRB(
@@ -487,8 +505,9 @@ class _DispatcherGroupsScreenState
               margin: const EdgeInsets.only(top: 100),
               decoration: BoxDecoration(
                 color: Theme.of(ctx).colorScheme.surface,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.2),
@@ -710,177 +729,175 @@ class _DispatcherGroupsScreenState
     };
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          context.go('${RoutePaths.dispatcherHome}/groups/${group.id}');
-        },
-        onLongPress: () {
-          HapticFeedback.mediumImpact();
-          _showGroupActions(group);
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              context.go('${RoutePaths.dispatcherHome}/groups/${group.id}');
+            },
+            onLongPress: () {
+              HapticFeedback.mediumImpact();
+              _showGroupActions(group);
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: tripTypeColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      Icons.groups_rounded,
-                      size: 28,
-                      color: tripTypeColor,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                  Row(
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: tripTypeColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          Icons.groups_rounded,
+                          size: 28,
+                          color: tripTypeColor,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Text(
-                                group.name,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'Cairo',
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    group.name,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: 'Cairo',
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                                if (group.code != null)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      group.code!,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                        fontFamily: 'Cairo',
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
-                            if (group.code != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: tripTypeColor.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    group.tripType.getLocalizedLabel(context),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: tripTypeColor,
+                                      fontFamily: 'Cairo',
+                                    ),
+                                  ),
                                 ),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
+                                const SizedBox(width: 8),
+                                const Icon(
+                                  Icons.people_rounded,
+                                  size: 14,
+                                  color: AppColors.textSecondary,
                                 ),
-                                child: Text(
-                                  group.code!,
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${Formatters.formatSimple(group.memberCount)} ${AppLocalizations.of(context).passengerSingular}',
                                   style: const TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     color: AppColors.textSecondary,
                                     fontFamily: 'Cairo',
                                   ),
                                 ),
-                              ),
+                              ],
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        Row(
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: tripTypeColor.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                group.tripType.getLocalizedLabel(context),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: tripTypeColor,
-                                  fontFamily: 'Cairo',
-                                ),
-                              ),
+                            _buildInfoChip(
+                              Icons.person_rounded,
+                              group.driverName ??
+                                  AppLocalizations.of(context).notAssigned,
+                              group.hasDriver
+                                  ? AppColors.success
+                                  : AppColors.textSecondary,
                             ),
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.people_rounded,
-                              size: 14,
-                              color: AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${Formatters.formatSimple(group.memberCount)} ${AppLocalizations.of(context).passengerSingular}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                                fontFamily: 'Cairo',
-                              ),
+                            _buildInfoChip(
+                              Icons.directions_bus_rounded,
+                              group.vehicleName ??
+                                  AppLocalizations.of(context).notAssigned,
+                              group.hasVehicle
+                                  ? AppColors.primary
+                                  : AppColors.textSecondary,
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.play_circle_rounded),
+                        color: AppColors.success,
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          context.go(
+                            '${RoutePaths.dispatcherHome}/trips/create?groupId=${group.id}',
+                          );
+                        },
+                        tooltip: AppLocalizations.of(context).generateTrip,
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              const Divider(height: 1),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildInfoChip(
-                          Icons.person_rounded,
-                          group.driverName ??
-                              AppLocalizations.of(context).notAssigned,
-                          group.hasDriver
-                              ? AppColors.success
-                              : AppColors.textSecondary,
-                        ),
-                        _buildInfoChip(
-                          Icons.directions_bus_rounded,
-                          group.vehicleName ??
-                              AppLocalizations.of(context).notAssigned,
-                          group.hasVehicle
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.play_circle_rounded),
-                    color: AppColors.success,
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      context.go(
-                        '${RoutePaths.dispatcherHome}/trips/create?groupId=${group.id}',
-                      );
-                    },
-                    tooltip: AppLocalizations.of(context).generateTrip,
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
-    ).animate().fadeIn(duration: 300.ms, delay: (index * 50).ms).slideX(
-          begin: 0.05,
-          end: 0,
-          duration: 300.ms,
-          delay: (index * 50).ms,
-        );
+        )
+        .animate()
+        .fadeIn(duration: 300.ms, delay: (index * 50).ms)
+        .slideX(begin: 0.05, end: 0, duration: 300.ms, delay: (index * 50).ms);
   }
 
   Widget _buildInfoChip(IconData icon, String label, Color color) {
@@ -899,11 +916,7 @@ class _DispatcherGroupsScreenState
           Flexible(
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 11,
-                color: color,
-                fontFamily: 'Cairo',
-              ),
+              style: TextStyle(fontSize: 11, color: color, fontFamily: 'Cairo'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -953,13 +966,21 @@ class _DispatcherGroupsScreenState
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () async {
+              // Save providers and container before async operations
+              if (!mounted) return;
               final cache = ref.read(dispatcherCacheDataSourceProvider);
               final userId =
                   ref.read(authStateProvider).asData?.value.user?.id ?? 0;
+              final container = ref.container;
+
               if (userId != 0) {
                 await cache.delete(DispatcherCacheKeys.groups(userId: userId));
               }
-              ref.invalidate(dispatcherGroupsProvider);
+
+              // Check if widget is still mounted before using container
+              if (mounted) {
+                container.invalidate(dispatcherGroupsProvider);
+              }
             },
             icon: const Icon(Icons.refresh_rounded),
             label: Text(l10n.retry),
@@ -1036,8 +1057,9 @@ class _DispatcherGroupsScreenState
               color: AppColors.warning,
               onTap: () {
                 Navigator.pop(context);
-                context
-                    .go('${RoutePaths.dispatcherHome}/groups/${group.id}/edit');
+                context.go(
+                  '${RoutePaths.dispatcherHome}/groups/${group.id}/edit',
+                );
               },
             ),
             const SizedBox(height: 12),
@@ -1117,9 +1139,7 @@ class _DispatcherGroupsScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           l10n.deleteGroupTitle,
           style: const TextStyle(
@@ -1158,19 +1178,27 @@ class _DispatcherGroupsScreenState
 
     HapticFeedback.mediumImpact();
 
-    final success =
-        await ref.read(groupActionsProvider.notifier).deleteGroup(group.id);
+    // Save providers and container before async operations
+    if (!mounted) return;
+    final groupActionsNotifier = ref.read(groupActionsProvider.notifier);
+    final cache = ref.read(dispatcherCacheDataSourceProvider);
+    final userId = ref.read(authStateProvider).asData?.value.user?.id ?? 0;
+    final container = ref.container;
+
+    final success = await groupActionsNotifier.deleteGroup(group.id);
 
     if (!mounted) return;
 
     if (success) {
       // Clear cache and refresh
-      final cache = ref.read(dispatcherCacheDataSourceProvider);
-      final userId = ref.read(authStateProvider).asData?.value.user?.id ?? 0;
       if (userId != 0) {
         await cache.delete(DispatcherCacheKeys.groups(userId: userId));
       }
-      ref.invalidate(dispatcherGroupsProvider);
+
+      // Check if widget is still mounted before using container
+      if (mounted) {
+        container.invalidate(dispatcherGroupsProvider);
+      }
 
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()

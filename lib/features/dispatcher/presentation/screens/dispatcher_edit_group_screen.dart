@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
-import '../widgets/dispatcher_app_bar.dart';
+import '../widgets/common/dispatcher_app_bar.dart';
 import 'dispatcher_create_group_screen.dart';
 
 class DispatcherEditGroupScreen extends ConsumerWidget {
