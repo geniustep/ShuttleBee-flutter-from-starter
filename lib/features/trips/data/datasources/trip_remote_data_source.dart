@@ -150,7 +150,11 @@ class TripRemoteDataSource {
     }
 
     final tripJson = result.first;
+    // Log state value from server for debugging
+    final stateValue = tripJson['state'];
+    print('🔍 [getTripById] Raw state value from server: $stateValue (type: ${stateValue.runtimeType})');
     var trip = Trip.fromOdoo(tripJson);
+    print('🔍 [getTripById] Parsed trip state: ${trip.state.value} (${trip.state.arabicLabel})');
 
     // جلب بيانات الشركة (إحداثيات الوجهة النهائية) إذا لم تكن موجودة
     if (trip.companyId != null &&
@@ -1013,17 +1017,75 @@ class TripRemoteDataSource {
           result.containsKey('total_passengers') ||
           result.containsKey('present_count') ||
           result.containsKey('absent_count')) {
+        // حساب المركبات والسائقين من الرحلات إذا لم تكن موجودة في النتيجة
+        final trips = await getTripsByDate(date);
+        final uniqueVehicles = trips
+            .where((t) => t.vehicleId != null)
+            .map((t) => t.vehicleId!)
+            .toSet();
+        final activeVehiclesSet = trips
+            .where((t) =>
+                t.vehicleId != null &&
+                (t.state == TripState.ongoing || t.state == TripState.planned))
+            .map((t) => t.vehicleId!)
+            .toSet();
+        
+        final uniqueDrivers = trips
+            .where((t) => t.driverId != null)
+            .map((t) => t.driverId!)
+            .toSet();
+        final activeDriversSet = trips
+            .where((t) =>
+                t.driverId != null &&
+                (t.state == TripState.ongoing || t.state == TripState.planned))
+            .map((t) => t.driverId!)
+            .toSet();
+
         return TripDashboardStats(
-          totalTripsToday: (result['total_trips'] as num?)?.toInt() ?? 0,
-          totalPassengers: (result['total_passengers'] as num?)?.toInt() ?? 0,
-          boardedPassengers: (result['present_count'] as num?)?.toInt() ?? 0,
-          absentPassengers: (result['absent_count'] as num?)?.toInt() ?? 0,
+          totalTripsToday: (result['total_trips'] as num?)?.toInt() ?? trips.length,
+          ongoingTrips: trips.where((t) => t.state == TripState.ongoing).length,
+          completedTrips: trips.where((t) => t.state == TripState.done).length,
+          cancelledTrips: trips.where((t) => t.state == TripState.cancelled).length,
+          plannedTrips: trips.where((t) => t.state == TripState.planned).length,
+          totalPassengers: (result['total_passengers'] as num?)?.toInt() ?? 
+              trips.fold(0, (sum, t) => sum + t.totalPassengers),
+          boardedPassengers: (result['present_count'] as num?)?.toInt() ?? 
+              trips.fold(0, (sum, t) => sum + t.boardedCount),
+          absentPassengers: (result['absent_count'] as num?)?.toInt() ?? 
+              trips.fold(0, (sum, t) => sum + t.absentCount),
+          totalVehicles: (result['total_vehicles'] as num?)?.toInt() ?? uniqueVehicles.length,
+          activeVehicles: (result['active_vehicles'] as num?)?.toInt() ?? activeVehiclesSet.length,
+          totalDrivers: (result['total_drivers'] as num?)?.toInt() ?? uniqueDrivers.length,
+          activeDrivers: (result['active_drivers'] as num?)?.toInt() ?? activeDriversSet.length,
         );
       }
     }
 
     // Fallback: calculate stats manually
     final trips = await getTripsByDate(date);
+
+    // حساب المركبات والسائقين من الرحلات
+    final uniqueVehicles = trips
+        .where((t) => t.vehicleId != null)
+        .map((t) => t.vehicleId!)
+        .toSet();
+    final activeVehiclesSet = trips
+        .where((t) =>
+            t.vehicleId != null &&
+            (t.state == TripState.ongoing || t.state == TripState.planned))
+        .map((t) => t.vehicleId!)
+        .toSet();
+    
+    final uniqueDrivers = trips
+        .where((t) => t.driverId != null)
+        .map((t) => t.driverId!)
+        .toSet();
+    final activeDriversSet = trips
+        .where((t) =>
+            t.driverId != null &&
+            (t.state == TripState.ongoing || t.state == TripState.planned))
+        .map((t) => t.driverId!)
+        .toSet();
 
     return TripDashboardStats(
       totalTripsToday: trips.length,
@@ -1034,6 +1096,10 @@ class TripRemoteDataSource {
       totalPassengers: trips.fold(0, (sum, t) => sum + t.totalPassengers),
       boardedPassengers: trips.fold(0, (sum, t) => sum + t.boardedCount),
       absentPassengers: trips.fold(0, (sum, t) => sum + t.absentCount),
+      totalVehicles: uniqueVehicles.length,
+      activeVehicles: activeVehiclesSet.length,
+      totalDrivers: uniqueDrivers.length,
+      activeDrivers: activeDriversSet.length,
     );
   }
 

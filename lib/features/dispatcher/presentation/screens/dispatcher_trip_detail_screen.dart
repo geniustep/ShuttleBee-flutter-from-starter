@@ -10,6 +10,7 @@ import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/common/desktop_sidebar_wrapper.dart';
 import '../../../trips/domain/entities/trip.dart';
 import '../../../trips/presentation/providers/trip_providers.dart';
+import '../../../trips/data/cache/trip_cache_service.dart';
 import '../providers/trip_filter_provider.dart';
 import '../../../../core/utils/error_translator.dart';
 import '../widgets/common/dispatcher_app_bar.dart';
@@ -31,6 +32,17 @@ class _DispatcherTripDetailScreenState
     extends ConsumerState<DispatcherTripDetailScreen> {
   // Save notifier reference to safely use in dispose()
   TripFilterNotifier? _filterNotifier;
+  
+  // حالة المزامنة
+  bool _isRefreshing = false;
+  DateTime? _lastSyncTime;
+  String? _syncError;
+  
+  // حالة تحميل الأزرار
+  bool _isConfirming = false;
+  bool _isStarting = false;
+  bool _isCompleting = false;
+  bool _isCancelling = false;
 
   @override
   void dispose() {
@@ -44,6 +56,52 @@ class _DispatcherTripDetailScreenState
       }
     }
     super.dispose();
+  }
+  
+  /// إعادة تحميل البيانات من السيرفر
+  Future<void> _refreshTrip({bool showLoading = true}) async {
+    if (_isRefreshing) return; // منع التحديث المتزامن
+    
+    setState(() {
+      if (showLoading) {
+        _isRefreshing = true;
+      }
+      _syncError = null;
+    });
+    
+    try {
+      // مسح الـ cache أولاً لإجبار إعادة الجلب من السيرفر
+      try {
+        final cacheService = TripCacheService.instance;
+        await cacheService.init();
+        await cacheService.clearTripCache(widget.tripId);
+      } catch (_) {
+        // تجاهل أخطاء الـ cache - نتابع التحديث
+      }
+      
+      // استخدام refresh لإجبار إعادة الجلب من السيرفر
+      final trip = await ref.refresh(tripDetailProvider(widget.tripId).future);
+      
+      if (trip == null) {
+        throw Exception('فشل تحميل بيانات الرحلة');
+      }
+      
+      setState(() {
+        _isRefreshing = false;
+        _lastSyncTime = DateTime.now();
+        _syncError = null;
+      });
+    } catch (e) {
+      setState(() {
+        _isRefreshing = false;
+        _syncError = e.toString().replaceAll('Exception: ', '');
+      });
+      
+      // في حالة الخطأ، نستخدم invalidate كبديل
+      if (mounted) {
+        ref.invalidate(tripDetailProvider(widget.tripId));
+      }
+    }
   }
 
   @override
@@ -69,13 +127,45 @@ class _DispatcherTripDetailScreenState
             },
             tooltip: l10n.editTrip,
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              ref.invalidate(tripDetailProvider(widget.tripId));
-            },
-            tooltip: l10n.refresh,
+          // زر التحديث مع مؤشر المزامنة
+          Stack(
+            children: [
+              IconButton(
+                icon: _isRefreshing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.primary,
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.refresh_rounded),
+                onPressed: _isRefreshing
+                    ? null
+                    : () {
+                        HapticFeedback.lightImpact();
+                        _refreshTrip();
+                      },
+                tooltip: _isRefreshing ? l10n.syncing : l10n.refresh,
+              ),
+              // مؤشر المزامنة الناجحة
+              if (_lastSyncTime != null && !_isRefreshing)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -98,12 +188,51 @@ class _DispatcherTripDetailScreenState
         // شريط البحث والفلتر الدائم في الأعلى
         TripSearchBar(tripId: widget.tripId),
 
+        // مؤشر حالة المزامنة
+        if (_isRefreshing || _lastSyncTime != null || _syncError != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: _syncError != null
+                ? Colors.red.shade50
+                : _isRefreshing
+                    ? Colors.blue.shade50
+                    : Colors.green.shade50,
+            child: Row(
+              children: [
+                if (_isRefreshing)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else if (_syncError != null)
+                  const Icon(Icons.error_outline, size: 16, color: Colors.red)
+                else
+                  const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _isRefreshing
+                        ? l10n.syncing
+                        : _syncError != null
+                            ? 'خطأ في المزامنة: ${_syncError}'
+                            : _lastSyncTime != null
+                                ? 'آخر مزامنة: ${_formatSyncTime(_lastSyncTime!)}'
+                                : '',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontFamily: 'Cairo',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         // المحتوى القابل للتمرير
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(tripDetailProvider(widget.tripId));
-            },
+            onRefresh: () => _refreshTrip(showLoading: false),
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -327,39 +456,143 @@ class _DispatcherTripDetailScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // زر التعديل
-        ElevatedButton.icon(
-          onPressed: () {
-            HapticFeedback.mediumImpact();
-            context.go(
-              '${RoutePaths.dispatcherHome}/trips/${widget.tripId}/edit',
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.dispatcherPrimary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+        // زر تأكيد الرحلة (فقط للرحلات المسودة)
+        if (trip.state == TripState.draft)
+          ElevatedButton.icon(
+            onPressed: _isConfirming ? null : () => _confirmTrip(trip, l10n),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: _isConfirming
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.check_circle_rounded),
+            label: Text(
+              _isConfirming ? 'جاري التأكيد...' : 'تأكيد الرحلة',
+              style: const TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
           ),
-          icon: const Icon(Icons.edit_rounded),
-          label: Text(
-            l10n.editTrip,
-            style: const TextStyle(
-              fontFamily: 'Cairo',
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-        ),
 
-        const SizedBox(height: 12),
+        if (trip.state == TripState.draft) const SizedBox(height: 12),
+
+        // زر بدء الرحلة (فقط للرحلات المخططة)
+        if (trip.canStart)
+          ElevatedButton.icon(
+            onPressed: _isStarting ? null : () => _startTrip(trip, l10n),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: _isStarting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.play_circle_rounded),
+            label: Text(
+              _isStarting ? 'جاري البدء...' : 'بدء الرحلة',
+              style: const TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+
+        if (trip.canStart) const SizedBox(height: 12),
+
+        // زر إنهاء الرحلة (فقط للرحلات الجارية)
+        if (trip.canComplete)
+          ElevatedButton.icon(
+            onPressed: _isCompleting ? null : () => _completeTrip(trip, l10n),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: _isCompleting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.check_circle_outline_rounded),
+            label: Text(
+              _isCompleting ? 'جاري الإنهاء...' : 'إنهاء الرحلة',
+              style: const TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+
+        if (trip.canComplete) const SizedBox(height: 12),
+
+        // زر التعديل (متاح لجميع الحالات ما عدا المنتهية والملغاة)
+        if (trip.state != TripState.done && trip.state != TripState.cancelled)
+          ElevatedButton.icon(
+            onPressed: () {
+              HapticFeedback.mediumImpact();
+              context.go(
+                '${RoutePaths.dispatcherHome}/trips/${widget.tripId}/edit',
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.dispatcherPrimary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: const Icon(Icons.edit_rounded),
+            label: Text(
+              l10n.editTrip,
+              style: const TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+
+        if (trip.state != TripState.done && trip.state != TripState.cancelled)
+          const SizedBox(height: 12),
 
         // زر إلغاء الرحلة (فقط إذا كانت قابلة للإلغاء)
         if (trip.canCancel)
           OutlinedButton.icon(
-            onPressed: () => _cancelTrip(trip, l10n),
+            onPressed: _isCancelling ? null : () => _cancelTrip(trip, l10n),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               side: const BorderSide(color: AppColors.error),
@@ -367,10 +600,19 @@ class _DispatcherTripDetailScreenState
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            icon: const Icon(Icons.cancel_rounded, color: AppColors.error),
-            label: const Text(
-              'إلغاء الرحلة',
-              style: TextStyle(
+            icon: _isCancelling
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.error),
+                    ),
+                  )
+                : const Icon(Icons.cancel_rounded, color: AppColors.error),
+            label: Text(
+              _isCancelling ? 'جاري الإلغاء...' : 'إلغاء الرحلة',
+              style: const TextStyle(
                 fontFamily: 'Cairo',
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -407,8 +649,8 @@ class _DispatcherTripDetailScreenState
         if (trip.state == TripState.cancelled || trip.state == TripState.draft)
           const SizedBox(height: 12),
 
-        // زر إنشاء رحلة عودة (فقط لرحلات الذهاب)
-        if (trip.tripType == TripType.pickup)
+        // زر إنشاء رحلة عودة (فقط لرحلات الذهاب المكتملة)
+        if (trip.tripType == TripType.pickup && trip.state == TripState.done)
           OutlinedButton.icon(
             onPressed: () {
               // TODO: تطبيق منطق إنشاء رحلة العودة
@@ -443,6 +685,356 @@ class _DispatcherTripDetailScreenState
             ),
           ),
       ],
+    );
+  }
+
+  Future<void> _confirmTrip(Trip trip, AppLocalizations l10n) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'تأكيد الرحلة',
+          style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'هل أنت متأكد من تأكيد الرحلة "${trip.name}"؟',
+          style: const TextStyle(fontFamily: 'Cairo'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.success),
+            child: const Text(
+              'تأكيد',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    HapticFeedback.mediumImpact();
+
+    setState(() {
+      _isConfirming = true;
+    });
+
+    final repository = ref.read(tripRepositoryProvider);
+    if (repository == null) {
+      if (!mounted) return;
+      setState(() {
+        _isConfirming = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'خطأ في الاتصال. يرجى المحاولة مرة أخرى',
+            style: TextStyle(fontFamily: 'Cairo'),
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final result = await repository.confirmTrip(widget.tripId);
+
+    if (!mounted) return;
+
+    result.fold(
+      (failure) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              ErrorTranslator.translate(failure.message),
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      },
+      (updatedTrip) async {
+        if (!mounted) return;
+        setState(() {
+          _isConfirming = false;
+        });
+        // مسح الـ cache أولاً ثم تحديث الـ provider
+        try {
+          final cacheService = TripCacheService.instance;
+          await cacheService.init();
+          await cacheService.clearTripCache(widget.tripId);
+        } catch (_) {
+          // تجاهل أخطاء الـ cache
+        }
+        // استخدام refresh لإجبار إعادة الجلب من السيرفر
+        // ننتظر اكتمال التحديث قبل عرض رسالة النجاح
+        try {
+          final refreshedTrip = await ref.refresh(tripDetailProvider(widget.tripId).future);
+          // استخدام القيمة المحدثة للتأكد من التحديث
+          if (refreshedTrip == null) {
+            ref.invalidate(tripDetailProvider(widget.tripId));
+          }
+        } catch (_) {
+          // في حالة الخطأ، نستخدم invalidate كبديل
+          ref.invalidate(tripDetailProvider(widget.tripId));
+        }
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تم تأكيد الرحلة بنجاح',
+              style: TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _startTrip(Trip trip, AppLocalizations l10n) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'بدء الرحلة',
+          style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'هل أنت متأكد من بدء الرحلة "${trip.name}"؟',
+          style: const TextStyle(fontFamily: 'Cairo'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.warning),
+            child: const Text(
+              'بدء',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    HapticFeedback.mediumImpact();
+
+    setState(() {
+      _isStarting = true;
+    });
+
+    final repository = ref.read(tripRepositoryProvider);
+    if (repository == null) {
+      if (!mounted) return;
+      setState(() {
+        _isStarting = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'خطأ في الاتصال. يرجى المحاولة مرة أخرى',
+            style: TextStyle(fontFamily: 'Cairo'),
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final result = await repository.startTrip(widget.tripId);
+
+    if (!mounted) return;
+
+    result.fold(
+      (failure) {
+        if (!mounted) return;
+        setState(() {
+          _isStarting = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              ErrorTranslator.translate(failure.message),
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      },
+      (updatedTrip) async {
+        if (!mounted) return;
+        setState(() {
+          _isStarting = false;
+        });
+        // مسح الـ cache أولاً ثم تحديث الـ provider
+        try {
+          final cacheService = TripCacheService.instance;
+          await cacheService.init();
+          await cacheService.clearTripCache(widget.tripId);
+        } catch (_) {
+          // تجاهل أخطاء الـ cache
+        }
+        // استخدام refresh لإجبار إعادة الجلب من السيرفر
+        // ننتظر اكتمال التحديث قبل عرض رسالة النجاح
+        try {
+          final refreshedTrip = await ref.refresh(tripDetailProvider(widget.tripId).future);
+          // استخدام القيمة المحدثة للتأكد من التحديث
+          if (refreshedTrip == null) {
+            ref.invalidate(tripDetailProvider(widget.tripId));
+          }
+        } catch (_) {
+          // في حالة الخطأ، نستخدم invalidate كبديل
+          ref.invalidate(tripDetailProvider(widget.tripId));
+        }
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تم بدء الرحلة بنجاح',
+              style: TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _completeTrip(Trip trip, AppLocalizations l10n) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'إنهاء الرحلة',
+          style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'هل أنت متأكد من إنهاء الرحلة "${trip.name}"؟',
+          style: const TextStyle(fontFamily: 'Cairo'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.success),
+            child: const Text(
+              'إنهاء',
+              style: TextStyle(
+                fontFamily: 'Cairo',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    HapticFeedback.mediumImpact();
+
+    setState(() {
+      _isCompleting = true;
+    });
+
+    final repository = ref.read(tripRepositoryProvider);
+    if (repository == null) {
+      if (!mounted) return;
+      setState(() {
+        _isCompleting = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'خطأ في الاتصال. يرجى المحاولة مرة أخرى',
+            style: TextStyle(fontFamily: 'Cairo'),
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final result = await repository.completeTrip(widget.tripId);
+
+    if (!mounted) return;
+
+    result.fold(
+      (failure) {
+        if (!mounted) return;
+        setState(() {
+          _isCompleting = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              ErrorTranslator.translate(failure.message),
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      },
+      (updatedTrip) async {
+        if (!mounted) return;
+        setState(() {
+          _isCompleting = false;
+        });
+        // مسح الـ cache أولاً ثم تحديث الـ provider
+        try {
+          final cacheService = TripCacheService.instance;
+          await cacheService.init();
+          await cacheService.clearTripCache(widget.tripId);
+        } catch (_) {
+          // تجاهل أخطاء الـ cache
+        }
+        // استخدام refresh لإجبار إعادة الجلب من السيرفر
+        // ننتظر اكتمال التحديث قبل عرض رسالة النجاح
+        try {
+          final refreshedTrip = await ref.refresh(tripDetailProvider(widget.tripId).future);
+          // استخدام القيمة المحدثة للتأكد من التحديث
+          if (refreshedTrip == null) {
+            ref.invalidate(tripDetailProvider(widget.tripId));
+          }
+        } catch (_) {
+          // في حالة الخطأ، نستخدم invalidate كبديل
+          ref.invalidate(tripDetailProvider(widget.tripId));
+        }
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تم إنهاء الرحلة بنجاح',
+              style: TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      },
     );
   }
 
@@ -482,9 +1074,16 @@ class _DispatcherTripDetailScreenState
 
     HapticFeedback.mediumImpact();
 
+    setState(() {
+      _isCancelling = true;
+    });
+
     final repository = ref.read(tripRepositoryProvider);
     if (repository == null) {
       if (!mounted) return;
+      setState(() {
+        _isCancelling = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -503,6 +1102,10 @@ class _DispatcherTripDetailScreenState
 
     result.fold(
       (failure) {
+        if (!mounted) return;
+        setState(() {
+          _isCancelling = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -513,7 +1116,31 @@ class _DispatcherTripDetailScreenState
           ),
         );
       },
-      (_) {
+      (_) async {
+        if (!mounted) return;
+        setState(() {
+          _isCancelling = false;
+        });
+        // مسح الـ cache أولاً ثم تحديث الـ provider
+        try {
+          final cacheService = TripCacheService.instance;
+          await cacheService.init();
+          await cacheService.clearTripCache(widget.tripId);
+        } catch (_) {
+          // تجاهل أخطاء الـ cache
+        }
+        // استخدام refresh لإجبار إعادة الجلب من السيرفر
+        try {
+          final refreshedTrip = await ref.refresh(tripDetailProvider(widget.tripId).future);
+          if (refreshedTrip == null) {
+            ref.invalidate(tripDetailProvider(widget.tripId));
+          }
+        } catch (_) {
+          // في حالة الخطأ، نستخدم invalidate كبديل
+          ref.invalidate(tripDetailProvider(widget.tripId));
+        }
+        
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -523,7 +1150,6 @@ class _DispatcherTripDetailScreenState
             backgroundColor: AppColors.success,
           ),
         );
-        ref.invalidate(tripDetailProvider(widget.tripId));
       },
     );
   }
@@ -658,6 +1284,22 @@ class _DispatcherTripDetailScreenState
         ],
       ),
     );
+  }
+
+  /// تنسيق وقت المزامنة
+  String _formatSyncTime(DateTime time) {
+    final now = DateTime.now();
+    final difference = now.difference(time);
+    
+    if (difference.inSeconds < 60) {
+      return 'منذ ${difference.inSeconds} ثانية';
+    } else if (difference.inMinutes < 60) {
+      return 'منذ ${difference.inMinutes} دقيقة';
+    } else if (difference.inHours < 24) {
+      return 'منذ ${difference.inHours} ساعة';
+    } else {
+      return '${time.day}/${time.month}/${time.year} ${time.hour}:${time.minute.toString().padLeft(2, '0')}';
+    }
   }
 
   Widget _buildNotFoundState(AppLocalizations l10n) {

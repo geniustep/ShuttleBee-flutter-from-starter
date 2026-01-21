@@ -1,43 +1,49 @@
-import 'package:bridgecore_flutter_starter/features/vehicles/data/datasources/vehicle_remote_data_source.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 
 import 'package:bridgecore_flutter/bridgecore_flutter.dart';
 import '../../../../core/config/company_config.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/platform_utils.dart';
+import '../../../vehicles/data/datasources/vehicle_remote_data_source.dart';
+import '../../../shuttlebee/data/services/shuttlebee_api_service.dart';
 import '../widgets/tracking_map_widget.dart';
 import '../widgets/driver_list_panel.dart';
 import '../widgets/tracking_controls.dart';
 import '../widgets/connection_status_indicator.dart';
 import '../bloc/tracking_monitor_cubit.dart';
 
-/// Live Tracking Monitor Screen
+/// 📍 Live Tracking Monitor Screen - شاشة التتبع الحي
 ///
-/// Professional tracking interface optimized for:
-/// - Mobile (Portrait & Landscape)
-/// - Tablet (Adaptive layout)
-/// - Desktop (Multi-panel view)
-/// - Web (Responsive design)
+/// واجهة تتبع احترافية محسّنة لجميع المنصات:
+/// - 📱 Mobile (Portrait & Landscape)
+/// - 📲 Tablet (Adaptive layout)
+/// - 🖥️ Desktop (Multi-panel view)
+/// - 🌐 Web (Responsive design)
 ///
-/// Features:
-/// - Real-time vehicle tracking with Google Maps
-/// - Driver status monitoring
-/// - On-demand location requests
-/// - Connection status indicator
-/// - Responsive adaptive layout
-/// - Smooth animations and transitions
-/// - Load vehicles from server
+/// المميزات:
+/// - تتبع المركبات في الوقت الحقيقي
+/// - مراقبة حالة السائقين
+/// - طلب الموقع عند الطلب
+/// - مؤشر حالة الاتصال
+/// - تخطيط responsive متكيف
+/// - انيميشن سلسة
+/// - تحميل المركبات من السيرفر
 class LiveTrackingMonitorScreen extends StatefulWidget {
   final int dispatcherId;
+  final int? companyId;
   final LiveTrackingService trackingService;
   final VehicleRemoteDataSource? vehicleDataSource;
+  final ShuttleBeeApiService? shuttleBeeApiService;
 
   const LiveTrackingMonitorScreen({
     super.key,
     required this.dispatcherId,
+    this.companyId,
     required this.trackingService,
     this.vehicleDataSource,
+    this.shuttleBeeApiService,
   });
 
   @override
@@ -75,6 +81,8 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
     _cubit = TrackingMonitorCubit(
       trackingService: widget.trackingService,
       vehicleDataSource: widget.vehicleDataSource,
+      shuttleBeeApiService: widget.shuttleBeeApiService,
+      companyId: widget.companyId,
     );
     _drawerAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -101,16 +109,16 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
     });
 
     try {
-      // Load vehicles from server first
+      // تحميل المركبات من السيرفر أولاً
       await _cubit.loadVehiclesFromServer();
 
-      // Connect to WebSocket
+      // الاتصال بـ WebSocket
       await widget.trackingService.connect(userId: widget.dispatcherId);
 
-      // Subscribe to live tracking
+      // الاشتراك في التتبع الحي
       await widget.trackingService.subscribeLiveTracking();
 
-      // Setup stream listeners
+      // إعداد مستمعي الـ streams
       _setupStreamListeners();
 
       if (mounted) {
@@ -125,7 +133,7 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
         setState(() {
           _isLoading = false;
           _isRefreshing = false;
-          _errorMessage = 'Failed to connect: $e';
+          _errorMessage = 'فشل الاتصال: $e';
         });
       }
     }
@@ -134,18 +142,18 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
   void _setupStreamListeners() {
     _clearStreamListeners();
 
-    // Listen to vehicle position updates
+    // الاستماع لتحديثات مواقع المركبات
     _vehiclePositionSubscription = widget.trackingService.vehiclePositionStream
         .listen(
           (position) {
             _cubit.onVehiclePositionUpdate(position);
           },
           onError: (error) {
-            debugPrint('Vehicle position stream error: $error');
+            debugPrint('خطأ في stream موقع المركبة: $error');
           },
         );
 
-    // Listen to location responses
+    // الاستماع لاستجابات الموقع
     _locationResponseSubscription = widget
         .trackingService
         .locationResponseStream
@@ -153,13 +161,13 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
           _cubit.onDriverLocationUpdate(location);
         });
 
-    // Listen to driver status updates
+    // الاستماع لتحديثات حالة السائق
     _driverStatusSubscription = widget.trackingService.driverStatusStream
         .listen((statusUpdate) {
           _cubit.onDriverStatusUpdate(statusUpdate);
         });
 
-    // Listen to connection status
+    // الاستماع لحالة الاتصال
     _connectionStatusSubscription = widget
         .trackingService
         .connectionStatusStream
@@ -169,8 +177,8 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
               _isConnected = isConnected;
             });
 
-            // Haptic feedback on connection change
-            if (isConnected) {
+            // Haptic feedback عند تغيير حالة الاتصال
+            if (isConnected && PlatformUtils.supportsHapticFeedback) {
               HapticFeedback.mediumImpact();
             }
           }
@@ -199,13 +207,14 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
 
   void _toggleDrawer() {
     if (!mounted) return;
+    if (PlatformUtils.supportsHapticFeedback) {
+      HapticFeedback.selectionClick();
+    }
     setState(() {
       _isDrawerOpen = !_isDrawerOpen;
       if (_isDrawerOpen) {
-        // Drawer opens from right (value goes from 1.0 to 0.0)
         _drawerAnimationController.forward();
       } else {
-        // Drawer closes to right (value goes from 0.0 to 1.0)
         _drawerAnimationController.reverse();
       }
     });
@@ -216,7 +225,6 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
     if (_isDrawerOpen) {
       setState(() {
         _isDrawerOpen = false;
-        // Close drawer - slide to right (off screen)
         _drawerAnimationController.reverse();
       });
     }
@@ -230,15 +238,15 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
     return Stack(
       children: [
         Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          drawerEdgeDragWidth: 0, // Disable left drawer swipe
+          backgroundColor: AppColors.dispatcherBackground,
+          drawerEdgeDragWidth: 0,
           body: isLoading
               ? _buildLoadingView()
               : errorMessage != null
               ? _buildErrorView()
               : _buildResponsiveLayout(context),
         ),
-        // Custom drawer from right
+        // Custom drawer من اليمين
         if (!isLoading && errorMessage == null) _buildCustomRightDrawer(),
       ],
     );
@@ -246,66 +254,59 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
 
   Widget _buildLoadingView() {
     return Semantics(
-      label: 'Connecting to tracking service',
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(
-                Theme.of(context).primaryColor,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Connecting to tracking service...',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ],
+      label: 'جاري الاتصال بخدمة التتبع',
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.dispatcherBackground,
+              AppColors.dispatcherPrimaryLight.withValues(alpha: 0.1),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildErrorView() {
-    return Semantics(
-      label: 'Connection failed',
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Theme.of(context).colorScheme.error,
-                semanticLabel: 'Error icon',
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.dispatcherPrimary.withValues(alpha: 0.2),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppColors.dispatcherPrimary,
+                  ),
+                  strokeWidth: 3,
+                ),
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Connection Failed',
-                style: Theme.of(context).textTheme.headlineSmall,
+              const SizedBox(height: 32),
+              const Text(
+                'جاري الاتصال بخدمة التتبع...',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Cairo',
+                  color: AppColors.textPrimary,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
-                _errorMessage ?? 'Unknown error',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () {
-                  HapticFeedback.mediumImpact();
-                  _initializeTracking();
-                },
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry Connection'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
-                  ),
+                CompanyConfig.companyName,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary.withValues(alpha: 0.8),
+                  fontFamily: 'Cairo',
                 ),
               ),
             ],
@@ -315,24 +316,115 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
     );
   }
 
-  Widget _buildResponsiveLayout(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+  Widget _buildErrorView() {
+    return Semantics(
+      label: 'فشل الاتصال',
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.dispatcherBackground,
+              AppColors.errorLight.withValues(alpha: 0.1),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.errorLight.withValues(alpha: 0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.error_outline_rounded,
+                    size: 64,
+                    color: AppColors.error,
+                    semanticLabel: 'أيقونة خطأ',
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'فشل الاتصال',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Cairo',
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _errorMessage ?? 'خطأ غير معروف',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontFamily: 'Cairo',
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    if (PlatformUtils.supportsHapticFeedback) {
+                      HapticFeedback.mediumImpact();
+                    }
+                    _initializeTracking();
+                  },
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text(
+                    'إعادة المحاولة',
+                    style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w600),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.dispatcherPrimary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-    // Determine layout type based on screen size and orientation
-    if (screenWidth >= _desktopBreakpoint ||
-        (screenWidth >= _tabletBreakpoint && isLandscape)) {
-      return _buildDesktopLayout();
-    } else if (screenWidth >= _mobileBreakpoint) {
-      return _buildTabletLayout();
-    } else {
-      return _buildMobileLayout();
-    }
+  Widget _buildResponsiveLayout(BuildContext context) {
+    // استخدام LayoutBuilder للاستجابة الفورية لتغيير الحجم
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final isLandscape =
+            MediaQuery.of(context).orientation == Orientation.landscape;
+
+        // تحديد نوع التخطيط حسب حجم الشاشة والاتجاه
+        if (screenWidth >= _desktopBreakpoint ||
+            (screenWidth >= _tabletBreakpoint && isLandscape)) {
+          return _buildDesktopLayout();
+        } else if (screenWidth >= _mobileBreakpoint) {
+          return _buildTabletLayout();
+        } else {
+          return _buildMobileLayout();
+        }
+      },
+    );
   }
 
   // ---------------------------------------------------------------------------
-  // Desktop layout (wide screens, multi-panel)
+  // Desktop layout (شاشات عريضة، multi-panel)
   // ---------------------------------------------------------------------------
   Widget _buildDesktopLayout() {
     return Row(
@@ -341,10 +433,10 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
         VerticalDivider(
           width: 1,
           thickness: 1,
-          color: Theme.of(context).dividerColor,
+          color: AppColors.border,
         ),
 
-        // Main Content - Map
+        // Main Content - الخريطة
         Expanded(
           child: Column(
             children: [
@@ -354,13 +446,13 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
                   children: [
                     TrackingMapWidget(
                       cubit: _cubit,
-                      companyLocation: CompanyConfig.defaultLocation,
+                      companyLocation: _cubit.companyLocation,
                     ),
 
-                    // Floating Controls (Top Right)
+                    // Floating Controls (أعلى اليسار)
                     Positioned(
                       top: 16,
-                      right: 16,
+                      left: 16,
                       child: TrackingControls(
                         cubit: _cubit,
                         onRefresh: () => _initializeTracking(isRefresh: true),
@@ -373,12 +465,16 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
             ],
           ),
         ),
-        // right Panel - Driver List with padding to avoid system sidebar
+        
+        // اللوحة اليمنى - قائمة السائقين
         Container(
-          width: 350,
-          margin: const EdgeInsets.only(
-            left: 8,
-          ), // Add margin to avoid system sidebar
+          width: 380,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border(
+              right: BorderSide(color: AppColors.border, width: 1),
+            ),
+          ),
           child: Column(
             children: [
               _buildTopBar(showMenuButton: false),
@@ -387,7 +483,9 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
                   cubit: _cubit,
                   onDriverSelected: (driver) {
                     _cubit.selectDriver(driver);
-                    HapticFeedback.selectionClick();
+                    if (PlatformUtils.supportsHapticFeedback) {
+                      HapticFeedback.selectionClick();
+                    }
                   },
                   onRequestLocation: (driverId) async {
                     await _cubit.requestDriverLocation(driverId);
@@ -402,7 +500,7 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // Tablet layout (medium screens, adaptive)
+  // Tablet layout (شاشات متوسطة، adaptive)
   // ---------------------------------------------------------------------------
   Widget _buildTabletLayout() {
     final isLandscape =
@@ -410,12 +508,17 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
     final screenWidth = MediaQuery.of(context).size.width;
 
     if (isLandscape && screenWidth >= _tabletBreakpoint) {
-      // Landscape: Side-by-side layout
+      // Landscape: تخطيط جنب-لجنب
       return Row(
         children: [
           Container(
-            width: 300,
-            margin: const EdgeInsets.only(left: 8),
+            width: 320,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              border: Border(
+                left: BorderSide(color: AppColors.border, width: 1),
+              ),
+            ),
             child: Column(
               children: [
                 _buildTopBar(showMenuButton: false),
@@ -424,7 +527,9 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
                     cubit: _cubit,
                     onDriverSelected: (driver) {
                       _cubit.selectDriver(driver);
-                      HapticFeedback.selectionClick();
+                      if (PlatformUtils.supportsHapticFeedback) {
+                        HapticFeedback.selectionClick();
+                      }
                     },
                     onRequestLocation: (driverId) async {
                       await _cubit.requestDriverLocation(driverId);
@@ -437,13 +542,13 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
           VerticalDivider(
             width: 1,
             thickness: 1,
-            color: Theme.of(context).dividerColor,
+            color: AppColors.border,
           ),
           Expanded(child: _buildMapWithControls()),
         ],
       );
     } else {
-      // Portrait: EndDrawer layout (from right)
+      // Portrait: تخطيط Drawer
       return Column(
         children: [
           _buildTopBar(showMenuButton: true),
@@ -454,7 +559,7 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // Mobile layout (small screens, drawer-based)
+  // Mobile layout (شاشات صغيرة، drawer-based)
   // ---------------------------------------------------------------------------
   Widget _buildMobileLayout() {
     return Column(
@@ -474,13 +579,13 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
             children: [
               TrackingMapWidget(
                 cubit: _cubit,
-                companyLocation: CompanyConfig.defaultLocation,
+                companyLocation: _cubit.companyLocation,
               ),
 
               // Floating Controls
               Positioned(
                 top: 16,
-                right: 16,
+                left: 16,
                 child: TrackingControls(
                   cubit: _cubit,
                   onRefresh: () => _initializeTracking(isRefresh: true),
@@ -497,112 +602,151 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
   Widget _buildTopBar({required bool showMenuButton}) {
     final screenHeight = MediaQuery.of(context).size.height;
     final isSmallScreen = screenHeight < 700;
-    final barHeight = isSmallScreen ? 56.0 : 64.0;
+    final barHeight = isSmallScreen ? 60.0 : 70.0;
 
     return Semantics(
-      label: 'Live Tracking Monitor header',
+      label: 'شريط التتبع الحي',
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         height: barHeight,
         decoration: BoxDecoration(
-          color: Theme.of(context).primaryColor,
+          gradient: AppColors.dispatcherGradient,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 4,
+              color: AppColors.dispatcherPrimary.withValues(alpha: 0.3),
+              blurRadius: 8,
               offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: Row(
-          children: [
-            if (showMenuButton) ...[
-              // Menu button on the right side to open endDrawer (from right)
-              IconButton(
-                icon: const Icon(Icons.menu, color: Colors.white),
-                tooltip: 'Open drivers list',
-                onPressed: () {
-                  HapticFeedback.selectionClick();
-                  _toggleDrawer();
-                },
-              ),
-              const SizedBox(width: 8),
-            ] else
-              const SizedBox(width: 16),
-
-            Icon(
-              Icons.location_on,
-              color: Colors.white.withOpacity(0.9),
-              size: 28,
-              semanticLabel: 'Location icon',
-            ),
-            const SizedBox(width: 12),
-
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Live Tracking Monitor',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: [
+                if (showMenuButton) ...[
+                  // زر القائمة على اليمين لفتح drawer
+                  IconButton(
+                    icon: const Icon(Icons.menu_rounded, color: Colors.white),
+                    tooltip: 'فتح قائمة السائقين',
+                    onPressed: _toggleDrawer,
                   ),
-                  StreamBuilder<int>(
-                    stream: _cubit.activeVehiclesCountStream,
-                    initialData: 0,
-                    builder: (context, snapshot) {
-                      final count = snapshot.hasData ? snapshot.data! : 0;
-                      debugPrint('📊 Header active vehicles count: $count');
-                      return Text(
-                        '$count active ${count == 1 ? 'vehicle' : 'vehicles'}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
+                ] else
+                  const SizedBox(width: 8),
 
-            // Connection indicator with tooltip
-            Tooltip(
-              message: _isConnected ? 'Connected' : 'Disconnected',
-              child: Container(
-                width: 12,
-                height: 12,
-                margin: const EdgeInsets.only(right: 16),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _isConnected ? Colors.greenAccent : Colors.redAccent,
-                  boxShadow: [
-                    BoxShadow(
-                      color:
-                          (_isConnected ? Colors.greenAccent : Colors.redAccent)
-                              .withOpacity(0.5),
-                      blurRadius: 8,
-                      spreadRadius: 2,
-                    ),
-                  ],
+                // أيقونة الموقع
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.location_on_rounded,
+                    color: Colors.white,
+                    size: 24,
+                    semanticLabel: 'أيقونة الموقع',
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'التتبع الحي',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Cairo',
+                          color: Colors.white,
+                        ),
+                      ),
+                      StreamBuilder<int>(
+                        stream: _cubit.activeVehiclesCountStream,
+                        initialData: 0,
+                        builder: (context, snapshot) {
+                          final count = snapshot.hasData ? snapshot.data! : 0;
+                          return Text(
+                            '$count ${count == 1 ? 'مركبة نشطة' : 'مركبات نشطة'}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontFamily: 'Cairo',
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                // مؤشر الاتصال مع tooltip
+                Tooltip(
+                  message: _isConnected ? 'متصل' : 'غير متصل',
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: (_isConnected ? AppColors.success : AppColors.error)
+                          .withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: (_isConnected ? AppColors.success : AppColors.error)
+                            .withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _isConnected ? AppColors.success : AppColors.error,
+                            boxShadow: [
+                              BoxShadow(
+                                color: (_isConnected ? AppColors.success : AppColors.error)
+                                    .withValues(alpha: 0.5),
+                                blurRadius: 4,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _isConnected ? 'WS' : 'غير متصل',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontFamily: 'Cairo',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildCustomRightDrawer() {
-    // Only show drawer in mobile and tablet portrait layouts
+    // إظهار drawer فقط في mobile و tablet portrait
     final screenWidth = MediaQuery.of(context).size.width;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
-    // Hide drawer in desktop and tablet landscape (they use fixed panels)
+    // إخفاء drawer في desktop و tablet landscape (يستخدمون panels ثابتة)
     if (screenWidth >= _desktopBreakpoint ||
         (screenWidth >= _tabletBreakpoint && isLandscape)) {
       return const SizedBox.shrink();
@@ -615,7 +759,7 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
     return AnimatedBuilder(
       animation: _drawerSlideAnimation,
       builder: (context, child) {
-        // Don't render drawer when fully closed to avoid blocking interactions
+        // لا نعرض drawer عندما يكون مغلقاً تماماً
         if (!_isDrawerOpen && _drawerSlideAnimation.value == 1.0) {
           return const SizedBox.shrink();
         }
@@ -628,53 +772,74 @@ class _LiveTrackingMonitorScreenState extends State<LiveTrackingMonitorScreen>
                 child: GestureDetector(
                   onTap: _closeDrawer,
                   child: Container(
-                    color: Colors.black.withOpacity(
-                      0.5 * (1 - _drawerSlideAnimation.value),
+                    color: Colors.black.withValues(
+                      alpha: 0.5 * (1 - _drawerSlideAnimation.value),
                     ),
                   ),
                 ),
               ),
 
-            // Drawer slides in from the right.
+            // Drawer ينزلق من اليمين
             Positioned(
-              right:
-                  -drawerWidth *
-                  _drawerSlideAnimation
-                      .value, // 0 when open, -drawerWidth when closed
+              right: -drawerWidth * _drawerSlideAnimation.value,
               top: 0,
               bottom: 0,
               width: drawerWidth,
               child: Material(
                 elevation: 16,
-                shadowColor: Colors.black.withOpacity(0.3),
-                color: Theme.of(context).scaffoldBackgroundColor,
+                shadowColor: Colors.black.withValues(alpha: 0.3),
+                color: AppColors.surface,
                 child: GestureDetector(
-                  onTap:
-                      () {}, // Prevent tap from closing when clicking inside drawer
+                  onTap: () {},
                   child: Column(
                     children: [
-                      // Simple close button bar (unified with panel header)
+                      // شريط زر الإغلاق
                       Container(
-                        height: 48,
+                        height: 56,
                         padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceVariant,
+                          border: Border(
+                            bottom: BorderSide(color: AppColors.border),
+                          ),
+                        ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.people_rounded,
+                              color: AppColors.dispatcherPrimary,
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'السائقين والمركبات',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Cairo',
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
                             IconButton(
-                              icon: const Icon(Icons.close),
-                              tooltip: 'Close',
+                              icon: const Icon(Icons.close_rounded),
+                              tooltip: 'إغلاق',
+                              color: AppColors.textSecondary,
                               onPressed: _closeDrawer,
                             ),
                           ],
                         ),
                       ),
-                      // Drawer content (uses DriverListPanel's own header)
+                      // محتوى Drawer
                       Expanded(
                         child: DriverListPanel(
                           cubit: _cubit,
                           onDriverSelected: (driver) {
                             _cubit.selectDriver(driver);
-                            HapticFeedback.selectionClick();
+                            if (PlatformUtils.supportsHapticFeedback) {
+                              HapticFeedback.selectionClick();
+                            }
                             _closeDrawer();
                           },
                           onRequestLocation: (driverId) async {

@@ -1,9 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../../../../core/theme/app_colors.dart';
 import '../../../../../../../core/routing/route_paths.dart';
 import '../../../../../../../l10n/app_localizations.dart';
 import '../../../../../../../shared/widgets/common/hero_header.dart';
@@ -11,6 +12,8 @@ import '../../../../../../../shared/providers/global_providers.dart';
 import '../../../../../../auth/domain/entities/user.dart';
 import '../../../../../../trips/domain/repositories/trip_repository.dart';
 import '../../../../../../chat/presentation/providers/chat_providers.dart';
+import '../../../../providers/dispatcher_initial_load_provider.dart';
+import '../../../../widgets/initial_load_widget.dart';
 
 class DispatcherHeroHeader extends ConsumerWidget {
   final User? user;
@@ -82,6 +85,9 @@ class DispatcherHeroHeader extends ConsumerWidget {
             )
           : null,
       actions: [
+        // 🎯 زر حالة البيانات المحفوظة على Windows
+        if (Platform.isWindows)
+          _buildStorageStatusAction(context, ref),
         HeroHeaderAction(
           icon: Icons.refresh_rounded,
           tooltip: l10n.refresh,
@@ -137,5 +143,50 @@ class DispatcherHeroHeader extends ConsumerWidget {
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
+  }
+  
+  /// بناء زر حالة التخزين المحلي
+  HeroHeaderAction _buildStorageStatusAction(BuildContext context, WidgetRef ref) {
+    final loadState = ref.watch(dispatcherInitialLoadProvider);
+    
+    IconData icon;
+    String tooltip;
+    bool isLoading = false;
+    
+    if (loadState.isLoading) {
+      icon = Icons.cloud_sync;
+      tooltip = 'جاري التحميل... ${(loadState.progress * 100).toInt()}%';
+      isLoading = true;
+    } else if (loadState.hasError) {
+      icon = Icons.cloud_off;
+      tooltip = 'خطأ في التحميل - اضغط لإعادة المحاولة';
+    } else if (loadState.isComplete) {
+      icon = Icons.cloud_done;
+      tooltip = 'البيانات محفوظة محلياً';
+    } else {
+      icon = Icons.cloud_download;
+      tooltip = 'تحميل البيانات';
+    }
+    
+    return HeroHeaderAction(
+      icon: icon,
+      tooltip: tooltip,
+      isLoading: isLoading,
+      onPressed: () {
+        HapticFeedback.lightImpact();
+        if (loadState.hasError || !loadState.isComplete) {
+          // إعادة التحميل
+          ref.read(dispatcherInitialLoadProvider.notifier).startInitialLoad(
+            forceRefresh: true,
+          );
+        } else {
+          // عرض تفاصيل البيانات المحفوظة
+          showDialog(
+            context: context,
+            builder: (_) => const DispatcherDataDetailsDialog(),
+          );
+        }
+      },
+    );
   }
 }

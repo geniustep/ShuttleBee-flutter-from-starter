@@ -2,28 +2,30 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/platform_utils.dart';
 import '../bloc/tracking_monitor_cubit.dart';
 import '../models/tracked_vehicle.dart';
 
-/// Driver List Panel Widget
+/// 📋 Driver List Panel Widget - لوحة قائمة السائقين
 ///
-/// Displays a scrollable list of tracked vehicles/drivers with:
-/// - Real-time status updates
-/// - Filter options
-/// - Search functionality
-/// - On-demand location requests
-/// - Sort options
+/// تعرض قائمة قابلة للتمرير للمركبات/السائقين المتتبعين مع:
+/// - تحديثات الحالة في الوقت الحقيقي
+/// - خيارات الفلترة
+/// - وظيفة البحث
+/// - طلب الموقع عند الطلب
+/// - خيارات الترتيب
 class DriverListPanel extends StatefulWidget {
   final TrackingMonitorCubit cubit;
   final Function(TrackedVehicle) onDriverSelected;
   final Future<void> Function(int driverId) onRequestLocation;
 
   const DriverListPanel({
-    Key? key,
+    super.key,
     required this.cubit,
     required this.onDriverSelected,
     required this.onRequestLocation,
-  }) : super(key: key);
+  });
 
   @override
   State<DriverListPanel> createState() => _DriverListPanelState();
@@ -57,9 +59,9 @@ class _DriverListPanelState extends State<DriverListPanel>
 
   void _setupListeners() {
     _vehiclesSubscription = widget.cubit.vehiclesStream.distinct().listen((vehicles) {
-      debugPrint('📋 DriverListPanel: Received ${vehicles.length} vehicles');
+      debugPrint('📋 DriverListPanel: استلام ${vehicles.length} مركبة');
       if (mounted) {
-        setState(() {}); // Trigger rebuild on vehicle updates
+        setState(() {});
       }
     });
 
@@ -93,9 +95,8 @@ class _DriverListPanelState extends State<DriverListPanel>
 
   List<TrackedVehicle> _getFilteredAndSortedVehicles() {
     var vehicles = widget.cubit.getFilteredVehicles().values.toList();
-    debugPrint('🔍 Filtered vehicles before search: ${vehicles.length}');
 
-    // Apply search filter
+    // تطبيق فلتر البحث
     if (_searchQuery.isNotEmpty) {
       vehicles = vehicles.where((v) {
         final query = _searchQuery.toLowerCase();
@@ -103,10 +104,9 @@ class _DriverListPanelState extends State<DriverListPanel>
             v.driverName.toLowerCase().contains(query) ||
             v.licensePlate?.toLowerCase().contains(query) == true;
       }).toList();
-      debugPrint('🔍 Filtered vehicles after search: ${vehicles.length}');
     }
 
-    // Sort
+    // الترتيب
     switch (_sortOption) {
       case VehicleSortOption.name:
         vehicles.sort((a, b) => a.vehicleName.compareTo(b.vehicleName));
@@ -125,12 +125,13 @@ class _DriverListPanelState extends State<DriverListPanel>
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
+      color: AppColors.surface,
       child: Column(
         children: [
           _buildHeader(),
           _buildSearchBar(),
           _buildFilterChips(),
+          const SizedBox(height: 8),
           Expanded(child: _buildVehicleList()),
         ],
       ),
@@ -141,43 +142,52 @@ class _DriverListPanelState extends State<DriverListPanel>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AppColors.surface,
+        border: Border(
+          bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.5)),
+        ),
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.people,
-            color: Theme.of(context).primaryColor,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: AppColors.dispatcherGradient,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.people_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Drivers & Vehicles',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                const Text(
+                  'السائقين والمركبات',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Cairo',
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 StreamBuilder<int>(
                   stream: widget.cubit.onlineVehiclesCountStream,
                   initialData: 0,
                   builder: (context, snapshot) {
                     final count = snapshot.hasData ? snapshot.data! : 0;
-                    debugPrint('📊 DriverListPanel online count: $count');
                     return Text(
-                      '$count online',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
-                          ),
+                      '$count متصل',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'Cairo',
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w500,
+                      ),
                     );
                   },
                 ),
@@ -185,41 +195,62 @@ class _DriverListPanelState extends State<DriverListPanel>
             ),
           ),
           PopupMenuButton<VehicleSortOption>(
-            icon: const Icon(Icons.sort),
-            tooltip: 'Sort by',
+            icon: Icon(Icons.sort_rounded, color: AppColors.dispatcherPrimary),
+            tooltip: 'ترتيب حسب',
             onSelected: (option) {
               setState(() {
                 _sortOption = option;
               });
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: VehicleSortOption.name,
                 child: Row(
                   children: [
-                    Icon(Icons.sort_by_alpha),
-                    SizedBox(width: 8),
-                    Text('Name'),
+                    Icon(Icons.sort_by_alpha_rounded, 
+                        color: _sortOption == VehicleSortOption.name 
+                            ? AppColors.dispatcherPrimary : AppColors.textSecondary),
+                    const SizedBox(width: 12),
+                    Text('الاسم', 
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          fontWeight: _sortOption == VehicleSortOption.name 
+                              ? FontWeight.bold : FontWeight.normal,
+                        )),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: VehicleSortOption.status,
                 child: Row(
                   children: [
-                    Icon(Icons.traffic),
-                    SizedBox(width: 8),
-                    Text('Status'),
+                    Icon(Icons.traffic_rounded, 
+                        color: _sortOption == VehicleSortOption.status 
+                            ? AppColors.dispatcherPrimary : AppColors.textSecondary),
+                    const SizedBox(width: 12),
+                    Text('الحالة', 
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          fontWeight: _sortOption == VehicleSortOption.status 
+                              ? FontWeight.bold : FontWeight.normal,
+                        )),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: VehicleSortOption.lastUpdate,
                 child: Row(
                   children: [
-                    Icon(Icons.access_time),
-                    SizedBox(width: 8),
-                    Text('Last Update'),
+                    Icon(Icons.access_time_rounded, 
+                        color: _sortOption == VehicleSortOption.lastUpdate 
+                            ? AppColors.dispatcherPrimary : AppColors.textSecondary),
+                    const SizedBox(width: 12),
+                    Text('آخر تحديث', 
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          fontWeight: _sortOption == VehicleSortOption.lastUpdate 
+                              ? FontWeight.bold : FontWeight.normal,
+                        )),
                   ],
                 ),
               ),
@@ -232,36 +263,60 @@ class _DriverListPanelState extends State<DriverListPanel>
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Semantics(
-        label: 'Search drivers or vehicles',
+        label: 'البحث عن سائقين أو مركبات',
         child: TextField(
+          textDirection: TextDirection.rtl,
           decoration: InputDecoration(
-            hintText: 'Search drivers or vehicles...',
-            prefixIcon: const Icon(Icons.search, semanticLabel: 'Search icon'),
+            hintText: 'البحث عن سائق أو مركبة...',
+            hintStyle: const TextStyle(
+              fontFamily: 'Cairo',
+              color: AppColors.textSecondary,
+            ),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: AppColors.dispatcherPrimary.withValues(alpha: 0.7),
+              semanticLabel: 'أيقونة البحث',
+            ),
             suffixIcon: _searchQuery.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.clear, semanticLabel: 'Clear search'),
+                    icon: Icon(
+                      Icons.clear_rounded,
+                      color: AppColors.textSecondary,
+                      semanticLabel: 'مسح البحث',
+                    ),
                     onPressed: () {
                       setState(() {
                         _searchQuery = '';
                       });
-                      HapticFeedback.lightImpact();
+                      if (PlatformUtils.supportsHapticFeedback) {
+                        HapticFeedback.lightImpact();
+                      }
                     },
                   )
                 : null,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.dispatcherPrimary, width: 2),
             ),
             filled: true,
-            fillColor: Theme.of(context).cardColor,
+            fillColor: AppColors.surfaceVariant.withValues(alpha: 0.5),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 12,
             ),
           ),
+          style: const TextStyle(fontFamily: 'Cairo'),
           onChanged: (value) {
-            // Debounce search to avoid excessive rebuilds
             _debounceTimer?.cancel();
             _debounceTimer = Timer(const Duration(milliseconds: 300), () {
               if (mounted) {
@@ -279,27 +334,43 @@ class _DriverListPanelState extends State<DriverListPanel>
   Widget _buildFilterChips() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: VehicleFilter.values.map((filter) {
           final isSelected = _currentFilter == filter;
           return Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.only(left: 8),
             child: FilterChip(
-              label: Text(_getFilterLabel(filter)),
+              label: Text(
+                _getFilterLabel(filter),
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
               selected: isSelected,
               onSelected: (selected) {
                 widget.cubit.setFilter(filter);
+                if (PlatformUtils.supportsHapticFeedback) {
+                  HapticFeedback.selectionClick();
+                }
               },
               avatar: Icon(
                 _getFilterIcon(filter),
-                size: 18,
-                color: isSelected ? Colors.white : null,
+                size: 16,
+                color: isSelected ? Colors.white : AppColors.textSecondary,
               ),
-              selectedColor: Theme.of(context).primaryColor,
+              selectedColor: AppColors.dispatcherPrimary,
+              backgroundColor: AppColors.surfaceVariant,
               labelStyle: TextStyle(
-                color: isSelected ? Colors.white : null,
-                fontWeight: isSelected ? FontWeight.bold : null,
+                color: isSelected ? Colors.white : AppColors.textPrimary,
+              ),
+              side: BorderSide(
+                color: isSelected ? AppColors.dispatcherPrimary : AppColors.border,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
             ),
           );
@@ -311,30 +382,30 @@ class _DriverListPanelState extends State<DriverListPanel>
   String _getFilterLabel(VehicleFilter filter) {
     switch (filter) {
       case VehicleFilter.all:
-        return 'All';
+        return 'الكل';
       case VehicleFilter.online:
-        return 'Online';
+        return 'متصل';
       case VehicleFilter.offline:
-        return 'Offline';
+        return 'غير متصل';
       case VehicleFilter.onTrip:
-        return 'On Trip';
+        return 'في رحلة';
       case VehicleFilter.available:
-        return 'Available';
+        return 'متاح';
     }
   }
 
   IconData _getFilterIcon(VehicleFilter filter) {
     switch (filter) {
       case VehicleFilter.all:
-        return Icons.grid_view;
+        return Icons.grid_view_rounded;
       case VehicleFilter.online:
-        return Icons.wifi;
+        return Icons.wifi_rounded;
       case VehicleFilter.offline:
-        return Icons.wifi_off;
+        return Icons.wifi_off_rounded;
       case VehicleFilter.onTrip:
-        return Icons.local_shipping;
+        return Icons.local_shipping_rounded;
       case VehicleFilter.available:
-        return Icons.check_circle;
+        return Icons.check_circle_rounded;
     }
   }
 
@@ -344,30 +415,42 @@ class _DriverListPanelState extends State<DriverListPanel>
     if (vehicles.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.search_off,
-                size: 64,
-                color: Colors.grey[400],
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.search_off_rounded,
+                  size: 48,
+                  color: AppColors.textSecondary.withValues(alpha: 0.5),
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Text(
-                'No vehicles found',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                'لا توجد مركبات',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Cairo',
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 _searchQuery.isNotEmpty
-                    ? 'Try adjusting your search'
-                    : 'Waiting for vehicle updates...',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[500],
-                    ),
+                    ? 'جرب تعديل بحثك'
+                    : 'في انتظار تحديثات المركبات...',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontFamily: 'Cairo',
+                  color: AppColors.textSecondary.withValues(alpha: 0.7),
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -378,65 +461,72 @@ class _DriverListPanelState extends State<DriverListPanel>
 
     return RefreshIndicator(
       onRefresh: () async {
-        // Trigger refresh on parent
-        HapticFeedback.mediumImpact();
+        if (PlatformUtils.supportsHapticFeedback) {
+          HapticFeedback.mediumImpact();
+        }
       },
+      color: AppColors.dispatcherPrimary,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: vehicles.length,
         separatorBuilder: (context, index) => Divider(
           height: 1,
           thickness: 1,
-          color: Theme.of(context).dividerColor,
+          color: AppColors.border.withValues(alpha: 0.5),
+          indent: 76,
         ),
         itemBuilder: (context, index) {
-        final vehicle = vehicles[index];
-        final isSelected = _selectedVehicle?.vehicleId == vehicle.vehicleId;
-        final isRequesting = _isRequestingLocation && _requestingDriverId == vehicle.driverId;
+          final vehicle = vehicles[index];
+          final isSelected = _selectedVehicle?.vehicleId == vehicle.vehicleId;
+          final isRequesting = _isRequestingLocation && _requestingDriverId == vehicle.driverId;
 
-        return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(1.0, 0.0),
-            end: Offset.zero,
-          ).animate(CurvedAnimation(
-            parent: _listAnimationController,
-            curve: Interval(
-              index * 0.1,
-              0.5 + (index * 0.1),
-              curve: Curves.easeOut,
-            ),
-          )),
-          child: FadeTransition(
-            opacity: _listAnimationController,
-            child: _VehicleListItem(
-              vehicle: vehicle,
-              isSelected: isSelected,
-              isRequestingLocation: isRequesting,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                widget.onDriverSelected(vehicle);
-              },
-              onRequestLocation: () async {
-                setState(() {
-                  _isRequestingLocation = true;
-                  _requestingDriverId = vehicle.driverId;
-                });
-                HapticFeedback.mediumImpact();
-                try {
-                  await widget.onRequestLocation(vehicle.driverId);
-                } finally {
-                  if (mounted) {
-                    setState(() {
-                      _isRequestingLocation = false;
-                      _requestingDriverId = null;
-                    });
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: _listAnimationController,
+              curve: Interval(
+                (index * 0.1).clamp(0.0, 1.0),
+                (0.5 + index * 0.1).clamp(0.0, 1.0),
+                curve: Curves.easeOut,
+              ),
+            )),
+            child: FadeTransition(
+              opacity: _listAnimationController,
+              child: _VehicleListItem(
+                vehicle: vehicle,
+                isSelected: isSelected,
+                isRequestingLocation: isRequesting,
+                onTap: () {
+                  if (PlatformUtils.supportsHapticFeedback) {
+                    HapticFeedback.selectionClick();
                   }
-                }
-              },
+                  widget.onDriverSelected(vehicle);
+                },
+                onRequestLocation: () async {
+                  setState(() {
+                    _isRequestingLocation = true;
+                    _requestingDriverId = vehicle.driverId;
+                  });
+                  if (PlatformUtils.supportsHapticFeedback) {
+                    HapticFeedback.mediumImpact();
+                  }
+                  try {
+                    await widget.onRequestLocation(vehicle.driverId);
+                  } finally {
+                    if (mounted) {
+                      setState(() {
+                        _isRequestingLocation = false;
+                        _requestingDriverId = null;
+                      });
+                    }
+                  }
+                },
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
       ),
     );
   }
@@ -462,26 +552,36 @@ class _VehicleListItem extends StatelessWidget {
     final statusColor = _getStatusColor();
 
     return Semantics(
-      label: '${vehicle.vehicleName}, driver ${vehicle.driverName}, status ${vehicle.statusText}',
+      label: '${vehicle.vehicleName}، السائق ${vehicle.driverName}، الحالة ${_getArabicStatus()}',
       selected: isSelected,
       child: Material(
         color: isSelected
-            ? Theme.of(context).primaryColor.withOpacity(0.1)
+            ? AppColors.dispatcherPrimaryLight.withValues(alpha: 0.15)
             : Colors.transparent,
         child: InkWell(
           onTap: onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: isSelected
+                ? BoxDecoration(
+                    border: Border(
+                      right: BorderSide(
+                        color: AppColors.dispatcherPrimary,
+                        width: 3,
+                      ),
+                    ),
+                  )
+                : null,
             child: Row(
               children: [
-                // Status indicator
+                // مؤشر الحالة
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  width: 48,
-                  height: 48,
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.2),
+                    color: statusColor.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: statusColor,
@@ -489,104 +589,115 @@ class _VehicleListItem extends StatelessWidget {
                     ),
                   ),
                   child: Icon(
-                    vehicle.isOnTrip ? Icons.local_shipping : Icons.person,
+                    vehicle.isOnTrip ? Icons.local_shipping_rounded : Icons.person_rounded,
                     color: statusColor,
                     size: 24,
                   ),
                 ),
 
-              const SizedBox(width: 12),
+                const SizedBox(width: 14),
 
-              // Vehicle info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      vehicle.vehicleName,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      vehicle.driverName,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            vehicle.statusText,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: statusColor,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 10,
-                                ),
-                          ),
+                // معلومات المركبة
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        vehicle.vehicleName,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Cairo',
+                          color: AppColors.textPrimary,
                         ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.access_time,
-                          size: 12,
-                          color: Colors.grey[500],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        vehicle.driverName,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontFamily: 'Cairo',
+                          color: AppColors.textSecondary,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          vehicle.formattedTimeSinceUpdate,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.grey[500],
-                                    fontSize: 10,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              _getArabicStatus(),
+                              style: TextStyle(
+                                color: statusColor,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                                fontFamily: 'Cairo',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.access_time_rounded,
+                            size: 12,
+                            color: AppColors.textSecondary.withValues(alpha: 0.7),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            vehicle.formattedTimeSinceUpdate,
+                            style: TextStyle(
+                              color: AppColors.textSecondary.withValues(alpha: 0.7),
+                              fontSize: 11,
+                              fontFamily: 'Cairo',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
-              // Action button
-              if (!vehicle.isOnline || vehicle.isStale)
-                isRequestingLocation
-                    ? const SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : IconButton(
-                        icon: const Icon(Icons.refresh),
-                        iconSize: 20,
-                        tooltip: 'Request location',
-                        onPressed: onRequestLocation,
-                      )
-              else
-                Icon(
-                  Icons.chevron_right,
-                  color: Colors.grey[400],
-                  semanticLabel: 'View details',
-                ),
+                // زر الإجراء
+                if (!vehicle.isOnline || vehicle.isStale)
+                  isRequestingLocation
+                      ? SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.dispatcherPrimary,
+                              ),
+                            ),
+                          ),
+                        )
+                      : IconButton(
+                          icon: Icon(
+                            Icons.location_searching_rounded,
+                            color: AppColors.dispatcherPrimary,
+                          ),
+                          iconSize: 22,
+                          tooltip: 'طلب الموقع',
+                          onPressed: onRequestLocation,
+                        )
+                else
+                  Icon(
+                    Icons.chevron_left_rounded,
+                    color: AppColors.textSecondary.withValues(alpha: 0.5),
+                    semanticLabel: 'عرض التفاصيل',
+                  ),
               ],
             ),
           ),
@@ -595,18 +706,33 @@ class _VehicleListItem extends StatelessWidget {
     );
   }
 
+  String _getArabicStatus() {
+    switch (vehicle.statusColor) {
+      case VehicleStatusColor.onTrip:
+        return 'في رحلة';
+      case VehicleStatusColor.available:
+        return 'متاح';
+      case VehicleStatusColor.busy:
+        return 'مشغول';
+      case VehicleStatusColor.offline:
+        return 'غير متصل';
+      default:
+        return 'غير معروف';
+    }
+  }
+
   Color _getStatusColor() {
     switch (vehicle.statusColor) {
       case VehicleStatusColor.onTrip:
-        return Colors.green;
+        return AppColors.success;
       case VehicleStatusColor.available:
-        return Colors.blue;
+        return AppColors.info;
       case VehicleStatusColor.busy:
-        return Colors.orange;
+        return AppColors.secondary;
       case VehicleStatusColor.offline:
-        return Colors.grey;
+        return AppColors.textSecondary;
       default:
-        return Colors.grey;
+        return AppColors.textSecondary;
     }
   }
 }

@@ -3,23 +3,25 @@ import 'package:bridgecore_flutter_starter/core/routing/route_paths.dart';
 import 'package:bridgecore_flutter_starter/core/theme/app_colors.dart';
 import 'package:bridgecore_flutter_starter/core/utils/formatters.dart';
 import 'package:bridgecore_flutter_starter/features/trips/domain/entities/trip.dart';
+import 'package:bridgecore_flutter_starter/features/trips/presentation/providers/trip_providers.dart';
 import 'package:bridgecore_flutter_starter/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'info_chip.dart';
 import 'package:bridgecore_flutter_starter/core/utils/responsive_utils.dart';
 
-class TripCard extends StatelessWidget {
+class TripCard extends ConsumerWidget {
   final Trip trip;
   final int index;
 
   const TripCard({super.key, required this.trip, required this.index});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
 
     return Card(
@@ -33,7 +35,12 @@ class TripCard extends StatelessWidget {
           child: InkWell(
             onTap: () {
               HapticFeedback.lightImpact();
-              context.go('${RoutePaths.dispatcherHome}/trips/${trip.id}');
+              // Prefetch trip data before navigation
+              prefetchTripDetail(ref, trip.id);
+              // Navigate after a small delay to allow prefetch to start
+              Future.delayed(const Duration(milliseconds: 100), () {
+                context.go('${RoutePaths.dispatcherHome}/trips/${trip.id}');
+              });
             },
             borderRadius: BorderRadius.circular(
               context.responsive(mobile: 16.0, tablet: 18.0, desktop: 20.0),

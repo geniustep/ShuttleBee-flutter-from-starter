@@ -16,10 +16,7 @@ class BridgecoreClient {
       lineLength: 80,
       colors: true,
       printEmojis: false,
-      excludeBox: {
-        Level.debug: true,
-        Level.info: true,
-      },
+      excludeBox: {Level.debug: true, Level.info: true},
     ),
   );
   late final _bridgeCore = BridgeCore.instance.odoo;
@@ -302,10 +299,20 @@ class BridgecoreClient {
         offset: offset ?? 0,
         order: order,
       );
-      _logger.d('searchRead returned ${result.length} records');
+      _logger.d('searchRead ($model) returned ${result.length} records');
       return result;
     } catch (e, stackTrace) {
-      _logger.e('searchRead failed', error: e, stackTrace: stackTrace);
+      final fieldsInfo = fields != null && fields.length > 5
+          ? '${fields.take(5).join(', ')}... (${fields.length} total)'
+          : fields?.join(', ') ?? 'all';
+
+      _logger.e(
+        '❌ searchRead FAILED for model: $model\n'
+        '   Domain: ${domain ?? []}\n'
+        '   Fields: $fieldsInfo',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     }
   }
@@ -436,6 +443,7 @@ class BridgecoreClient {
     try {
       _ensureAuthenticated();
 
+      final stopwatch = Stopwatch()..start();
       _logger.d('callKw: $model.$method');
 
       final response = await _bridgeCore.custom.callKw(
@@ -445,7 +453,8 @@ class BridgecoreClient {
         kwargs: kwargs ?? {},
       );
 
-      _logger.d('callKw successful');
+      stopwatch.stop();
+      _logger.d('callKw successful (${stopwatch.elapsedMilliseconds}ms)');
 
       if (response.success) {
         return response.result;

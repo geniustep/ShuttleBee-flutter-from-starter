@@ -131,25 +131,55 @@ class _DispatcherCreateTripScreenState
               setState(() => _selectedGroupId = groupId);
             },
             onDriverChanged: (driverId) {
-              setState(() => _selectedDriverId = driverId);
+              if (mounted) {
+                setState(() {
+                  _selectedDriverId = driverId;
+                });
+                debugPrint('Driver updated: $driverId');
+              }
             },
             onVehicleChanged: (vehicleId) {
-              setState(() {
-                _selectedVehicleId = vehicleId;
-                // Auto-assign driver when vehicle is selected
-                if (vehicleId != null) {
-                  final vehiclesAsync = ref.read(allVehiclesProvider);
-                  vehiclesAsync.whenData((vehicles) {
-                    final vehicle = vehicles.firstWhere((v) => v.id == vehicleId);
-                    if (vehicle.driverId != null) {
-                      _selectedDriverId = vehicle.driverId;
-                    }
-                  });
-                }
-              });
+              if (mounted) {
+                setState(() {
+                  _selectedVehicleId = vehicleId;
+                  // Auto-assign driver when vehicle is selected
+                  if (vehicleId != null) {
+                    final vehiclesAsync = ref.read(allVehiclesProvider);
+                    vehiclesAsync.whenData((vehicles) {
+                      if (mounted) {
+                        try {
+                          final vehicle = vehicles.firstWhere((v) => v.id == vehicleId);
+                          if (vehicle.driverId != null) {
+                            setState(() {
+                              _selectedDriverId = vehicle.driverId;
+                            });
+                          }
+                        } catch (e) {
+                          debugPrint('Error finding vehicle: $e');
+                        }
+                      }
+                    });
+                  }
+                });
+                debugPrint('Vehicle updated: $vehicleId');
+              }
             },
             onCompanionChanged: (companionId) {
-              setState(() => _selectedCompanionId = companionId);
+              if (mounted) {
+                setState(() {
+                  _selectedCompanionId = companionId;
+                });
+                debugPrint('Companion updated: $companionId');
+              }
+            },
+            onPassengersChanged: (passengerIds) {
+              if (mounted) {
+                setState(() {
+                  _selectedPassengerIds.clear();
+                  _selectedPassengerIds.addAll(passengerIds);
+                });
+                debugPrint('Passengers updated: ${passengerIds.length} unique passengers');
+              }
             },
             onRemovePassenger: (passengerId) {
               setState(() => _selectedPassengerIds.remove(passengerId));
@@ -779,6 +809,32 @@ class _DispatcherCreateTripScreenState
             }
           },
           (createdTrip) async {
+            // إضافة الركاب المحددين للرحلة
+            int addedPassengers = 0;
+            for (final passengerId in _selectedPassengerIds) {
+              try {
+                final addResult = await repository.addPassengerToTrip(
+                  tripId: createdTrip.id,
+                  passengerId: passengerId,
+                );
+                addResult.fold(
+                  (failure) {
+                    debugPrint(
+                      'Failed to add passenger $passengerId: ${failure.message}',
+                    );
+                  },
+                  (_) {
+                    addedPassengers++;
+                  },
+                );
+              } catch (e) {
+                debugPrint('Error adding passenger $passengerId: $e');
+              }
+            }
+            debugPrint(
+              'Added $addedPassengers/${_selectedPassengerIds.length} passengers to trip ${createdTrip.id}',
+            );
+
             // Create return trip if requested and trip is pickup
             Trip? returnTrip;
             if (_createReturnTrip &&
@@ -823,7 +879,7 @@ class _DispatcherCreateTripScreenState
             // Show success message
             final message = returnTrip != null
                 ? l10n.returnTripCreatedSuccessfully
-                : l10n.createdSuccessfully;
+                : '${l10n.createdSuccessfully} ($addedPassengers ${l10n.passenger})';
 
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

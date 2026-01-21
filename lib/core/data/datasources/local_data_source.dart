@@ -129,6 +129,23 @@ class CacheDataSource extends LocalDataSource {
       errorMessage: 'Failed to check if key exists',
     );
   }
+
+  /// Get data from cache even if expired (useful for fallback on connection errors)
+  Future<T?> getEvenIfExpired<T>(String key) async {
+    return execute(
+      () async {
+        final box = await _getCacheBox();
+        
+        // Check if data exists (even if expired)
+        if (!box.containsKey(key)) {
+          return null;
+        }
+
+        return box.get(key) as T?;
+      },
+      errorMessage: 'Failed to get data from cache',
+    );
+  }
 }
 
 /// Offline queue data source

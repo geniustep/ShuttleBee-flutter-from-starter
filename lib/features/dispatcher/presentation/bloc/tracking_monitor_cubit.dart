@@ -6,6 +6,10 @@ import '../models/tracked_vehicle.dart';
 import '../models/map_bounds.dart';
 import '../../../vehicles/data/datasources/vehicle_remote_data_source.dart';
 import '../../../vehicles/domain/entities/shuttle_vehicle.dart';
+import '../../../shuttlebee/data/services/shuttlebee_api_service.dart';
+import '../../../../core/enums/enums.dart';
+import '../../../../core/config/company_config.dart';
+import '../../../../core/widgets/cross_platform_map.dart';
 
 /// Cubit for managing tracking monitor state
 ///
@@ -16,9 +20,12 @@ import '../../../vehicles/domain/entities/shuttle_vehicle.dart';
 /// - Location requests
 /// - Connection state
 /// - Loading vehicles from server
+/// - Loading active trips for accurate status
 class TrackingMonitorCubit {
   final LiveTrackingService trackingService;
   final VehicleRemoteDataSource? vehicleDataSource;
+  final ShuttleBeeApiService? shuttleBeeApiService;
+  final int? companyId;
 
   // State streams
   final _vehiclesController =
@@ -29,11 +36,19 @@ class TrackingMonitorCubit {
   final _activeVehiclesCountController = StreamController<int>.broadcast();
   final _onlineVehiclesCountController = StreamController<int>.broadcast();
   final _filterController = StreamController<VehicleFilter>.broadcast();
+  final _companyLocationController = StreamController<MapLocation>.broadcast();
 
   // Current state
   final Map<int, TrackedVehicle> _vehicles = {};
   TrackedVehicle? _selectedVehicle;
   VehicleFilter _filter = VehicleFilter.all;
+  
+  // Active trips cache (vehicleId -> tripId)
+  final Map<int, int> _activeTripsMap = {};
+  
+  // Company location from server
+  MapLocation _companyLocation = CompanyConfig.defaultLocation;
+  String _companyName = CompanyConfig.companyName;
 
   // Getters
   Stream<Map<int, TrackedVehicle>> get vehiclesStream =>
@@ -46,12 +61,73 @@ class TrackingMonitorCubit {
   Stream<int> get onlineVehiclesCountStream =>
       _onlineVehiclesCountController.stream;
   Stream<VehicleFilter> get filterStream => _filterController.stream;
+  Stream<MapLocation> get companyLocationStream => _companyLocationController.stream;
 
   Map<int, TrackedVehicle> get vehicles => Map.unmodifiable(_vehicles);
   TrackedVehicle? get selectedVehicle => _selectedVehicle;
   VehicleFilter get currentFilter => _filter;
+  MapLocation get companyLocation => _companyLocation;
+  String get companyName => _companyName;
 
-  TrackingMonitorCubit({required this.trackingService, this.vehicleDataSource});
+  TrackingMonitorCubit({
+    required this.trackingService,
+    this.vehicleDataSource,
+    this.shuttleBeeApiService,
+    this.companyId,
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Load Company Location from Server
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Load company location from server based on companyId
+  Future<void> loadCompanyLocation() async {
+    if (companyId == null) {
+      debugPrint('⚠️ No companyId provided, using default location');
+      return;
+    }
+
+    try {
+      debugPrint('🏢 Loading company location for company ID: $companyId...');
+      
+      final result = await BridgeCore.instance.odoo.searchRead(
+        model: 'res.company',
+        domain: [['id', '=', companyId]],
+        fields: ['id', 'name', 'shuttle_latitude', 'shuttle_longitude'],
+        limit: 1,
+      );
+      
+      if (result.isEmpty) {
+        debugPrint('⚠️ Company not found, using default location');
+        return;
+      }
+      
+      final company = result.first;
+      final lat = company['shuttle_latitude'];
+      final lng = company['shuttle_longitude'];
+      final name = company['name'];
+      
+      // التحقق من صلاحية الإحداثيات
+      if (lat != null && lat != false && lng != null && lng != false) {
+        final latitude = (lat is num) ? lat.toDouble() : double.tryParse(lat.toString());
+        final longitude = (lng is num) ? lng.toDouble() : double.tryParse(lng.toString());
+        
+        if (latitude != null && longitude != null) {
+          _companyLocation = MapLocation(latitude: latitude, longitude: longitude);
+          _companyName = name?.toString() ?? CompanyConfig.companyName;
+          _companyLocationController.add(_companyLocation);
+          
+          debugPrint('✅ Company location loaded: $_companyName at ($latitude, $longitude)');
+          return;
+        }
+      }
+      
+      debugPrint('⚠️ Invalid company coordinates, using default location');
+    } catch (e) {
+      debugPrint('❌ Error loading company location: $e');
+      // استمر باستخدام الموقع الافتراضي
+    }
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Load Vehicles from Server
@@ -68,6 +144,13 @@ class TrackingMonitorCubit {
 
     try {
       debugPrint('🔄 Loading vehicles from server...');
+      
+      // أولاً: تحميل موقع الشركة
+      await loadCompanyLocation();
+      
+      // ثانياً: تحميل الرحلات النشطة للحصول على الحالة الصحيحة
+      await _loadActiveTrips();
+      
       final vehicles = await vehicleDataSource!.getVehicles(activeOnly: true);
       debugPrint('✅ Received ${vehicles.length} vehicles from server');
 
@@ -77,12 +160,12 @@ class TrackingMonitorCubit {
       }
 
       for (final vehicle in vehicles) {
-        // Convert ShuttleVehicle to TrackedVehicle
+        // Convert ShuttleVehicle to TrackedVehicle with accurate trip status
         final trackedVehicle = _convertToTrackedVehicle(vehicle);
         debugPrint(
           '📦 Vehicle: ${trackedVehicle.vehicleName} (ID: ${trackedVehicle.vehicleId}), '
           'Driver: ${trackedVehicle.driverName}, Online: ${trackedVehicle.isOnline}, '
-          'Trip: ${trackedVehicle.tripId}',
+          'Trip: ${trackedVehicle.tripId}, Status: ${trackedVehicle.statusText}',
         );
 
         // Always update/add vehicle from server
@@ -103,7 +186,7 @@ class TrackingMonitorCubit {
       _activeVehiclesCountController.add(activeCount);
       _onlineVehiclesCountController.add(onlineCount);
       debugPrint(
-        '📊 Force emitted counts: Active=$activeCount, Online=$onlineCount',
+        '📊 Force emitted counts: Active (on trip)=$activeCount, Online=$onlineCount',
       );
     } catch (e, stackTrace) {
       debugPrint('❌ Error loading vehicles from server: $e');
@@ -111,26 +194,98 @@ class TrackingMonitorCubit {
     }
   }
 
-  /// Convert ShuttleVehicle to TrackedVehicle
+  /// Load active trips to determine which vehicles are actually on a trip
+  Future<void> _loadActiveTrips() async {
+    _activeTripsMap.clear();
+    
+    if (shuttleBeeApiService == null) {
+      debugPrint('⚠️ ShuttleBeeApiService not provided, skipping active trips load');
+      return;
+    }
+
+    try {
+      debugPrint('🔄 Loading active trips...');
+      final activeTrips = await shuttleBeeApiService!.getLiveOngoingTrips();
+      debugPrint('✅ Received ${activeTrips.length} active trips');
+      
+      for (final trip in activeTrips) {
+        if (trip.vehicleId != null && trip.state == TripState.ongoing) {
+          _activeTripsMap[trip.vehicleId!] = trip.id;
+          debugPrint(
+            '🚗 Vehicle ${trip.vehicleId} is on active trip ${trip.id} '
+            '(${trip.name})',
+          );
+        }
+      }
+      
+      debugPrint('📊 Active trips map: ${_activeTripsMap.length} vehicles on trip');
+    } on ShuttleBeeRestNotAvailable catch (e) {
+      debugPrint('⚠️ ShuttleBee REST API not available: $e');
+      // Fallback: سنستخدم بيانات المركبات فقط بدون حالة الرحلة
+    } catch (e) {
+      debugPrint('❌ Error loading active trips: $e');
+      // لا نرمي الخطأ، نستمر بدون بيانات الرحلات
+    }
+  }
+
+  /// Refresh active trips and update vehicle statuses
+  Future<void> refreshActiveTrips() async {
+    await _loadActiveTrips();
+    
+    // تحديث حالة المركبات بناءً على الرحلات النشطة
+    for (final entry in _vehicles.entries) {
+      final vehicleId = entry.key;
+      final vehicle = entry.value;
+      final activeTripId = _activeTripsMap[vehicleId];
+      
+      if (vehicle.tripId != activeTripId) {
+        _vehicles[vehicleId] = vehicle.copyWith(
+          tripId: activeTripId,
+          driverStatus: activeTripId != null
+              ? DriverStatus.online
+              : (vehicle.isOnline ? DriverStatus.available : null),
+        );
+      }
+    }
+    
+    _notifyVehiclesChanged();
+  }
+
+  /// Convert ShuttleVehicle to TrackedVehicle with accurate trip status
   TrackedVehicle _convertToTrackedVehicle(ShuttleVehicle vehicle) {
-    // If vehicle has trips, consider it as having an active trip
-    // Note: tripCount > 0 means there are trips, but we need to get the actual ongoing trip ID
-    // For now, we'll mark it as having a trip if tripCount > 0
-    final hasActiveTrip = vehicle.tripCount > 0;
+    // تحقق من وجود رحلة نشطة فعلية (من _activeTripsMap)
+    final activeTripId = _activeTripsMap[vehicle.id];
+    final hasActiveTrip = activeTripId != null;
 
     // Always mark active vehicles as online so they appear in the list
     // Real-time position updates will come via WebSocket
     final isOnline = vehicle.active;
+    
+    // استخدام موقع المركبة الافتراضي (home location) إذا كان متاحًا
+    VehiclePosition? initialPosition;
+    if (vehicle.homeLatitude != null && vehicle.homeLongitude != null) {
+      initialPosition = VehiclePosition(
+        id: 0, // ID مؤقت للموقع الابتدائي
+        vehicleId: vehicle.id,
+        latitude: vehicle.homeLatitude!,
+        longitude: vehicle.homeLongitude!,
+        timestamp: DateTime.now(),
+        driverId: vehicle.driverId,
+      );
+      debugPrint(
+        '📍 Using home location for vehicle ${vehicle.id}: '
+        '(${vehicle.homeLatitude}, ${vehicle.homeLongitude})',
+      );
+    }
 
     return TrackedVehicle(
       vehicleId: vehicle.id,
-      // Use tripCount as temporary tripId indicator if there are trips
-      // TODO: Get actual ongoing trip ID from trip_ids field
-      tripId: hasActiveTrip ? vehicle.tripCount : null,
+      // استخدام tripId الفعلي من الرحلات النشطة
+      tripId: activeTripId,
       driverId: vehicle.driverId ?? 0,
-      driverName: vehicle.driverName ?? 'No Driver',
+      driverName: vehicle.driverName ?? 'بدون سائق',
       vehicleName: vehicle.name,
-      lastPosition: null, // Will be updated via WebSocket
+      lastPosition: initialPosition, // استخدام موقع المنزل كموقع ابتدائي
       driverLocation: null,
       lastUpdateTime: DateTime.now(),
       // Mark as online if vehicle is active (so it appears in the list)
@@ -408,6 +563,7 @@ class TrackingMonitorCubit {
     _activeVehiclesCountController.close();
     _onlineVehiclesCountController.close();
     _filterController.close();
+    _companyLocationController.close();
   }
 }
 

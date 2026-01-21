@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../dispatcher/presentation/providers/dispatcher_initial_load_provider.dart';
 import '../../data/datasources/group_remote_data_source.dart';
 import '../../domain/entities/passenger_group.dart';
 
@@ -12,8 +14,20 @@ final groupDataSourceProvider = Provider<GroupRemoteDataSource?>((ref) {
 });
 
 /// جميع المجموعات
+/// على Windows: يستخدم البيانات المحفوظة من التحميل الأولي
 final allGroupsProvider =
     FutureProvider.autoDispose<List<PassengerGroup>>((ref) async {
+  // على Windows: استخدم البيانات المحفوظة من التحميل الأولي
+  if (Platform.isWindows) {
+    final loadState = ref.watch(dispatcherInitialLoadProvider);
+    if (loadState.isComplete && !loadState.hasError) {
+      final preloadedGroups = await ref.watch(dispatcherPreloadedGroupsProvider.future);
+      if (preloadedGroups.isNotEmpty) {
+        return preloadedGroups;
+      }
+    }
+  }
+
   final dataSource = ref.watch(groupDataSourceProvider);
   if (dataSource == null) return [];
 

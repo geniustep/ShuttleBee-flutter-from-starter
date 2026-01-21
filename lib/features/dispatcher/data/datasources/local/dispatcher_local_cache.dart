@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dartz/dartz.dart';
 
 import '../../../../../core/error/failures.dart';
@@ -17,10 +18,15 @@ class DispatcherLocalCache {
   static const String _holidaysCollection = 'dispatcher_holidays';
   static const String _passengersCollection = 'dispatcher_passengers';
 
-  // Cache TTL
-  static const Duration _tripsCacheTTL = Duration(hours: 2);
-  static const Duration _holidaysCacheTTL = Duration(days: 7);
-  static const Duration _passengersCacheTTL = Duration(hours: 12);
+  // Cache TTL - محسّن حسب المنصة
+  static Duration get _tripsCacheTTL => 
+      Platform.isWindows ? const Duration(hours: 3) : const Duration(hours: 2);
+  
+  static Duration get _holidaysCacheTTL => 
+      Platform.isWindows ? const Duration(days: 14) : const Duration(days: 7);
+  
+  static Duration get _passengersCacheTTL => 
+      Platform.isWindows ? const Duration(hours: 18) : const Duration(hours: 12);
 
   DispatcherLocalCache(this._storage);
 
@@ -30,12 +36,16 @@ class DispatcherLocalCache {
 
   /// Save trips to cache
   Future<Either<Failure, bool>> cacheTrips(List<Trip> trips) async {
-    final tripsJson = trips.map((t) => t.toJson()).toList();
-    return _storage.saveCollection(
-      collectionName: _tripsCollection,
-      items: tripsJson,
-      ttl: _tripsCacheTTL,
-    );
+    try {
+      final tripsJson = trips.map((t) => t.toJson()).toList();
+      return await _storage.saveCollection(
+        collectionName: _tripsCollection,
+        items: tripsJson,
+        ttl: _tripsCacheTTL,
+      );
+    } catch (e) {
+      return Left(CacheFailure(message: 'Failed to cache trips: $e'));
+    }
   }
 
   /// Load cached trips
@@ -129,12 +139,28 @@ class DispatcherLocalCache {
   /// Clear all dispatcher caches
   Future<Either<Failure, bool>> clearAllCaches() async {
     try {
+      // تنظيف البيانات المنتهية الصلاحية أولاً
+      await _storage.clearExpired();
+      
       await _storage.deleteCollection(_tripsCollection);
       await _storage.deleteCollection(_holidaysCollection);
       await _storage.deleteCollection(_passengersCollection);
       return const Right(true);
     } catch (e) {
       return Left(CacheFailure(message: 'Failed to clear caches: $e'));
+    }
+  }
+
+  /// تنظيف البيانات المنتهية الصلاحية فقط
+  Future<Either<Failure, int>> cleanupExpired() async {
+    try {
+      final result = await _storage.clearExpired();
+      return result.fold(
+        (failure) => Left(failure),
+        (count) => Right(count),
+      );
+    } catch (e) {
+      return Left(CacheFailure(message: 'Failed to cleanup expired: $e'));
     }
   }
 

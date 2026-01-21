@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../shared/providers/global_providers.dart';
@@ -6,6 +7,7 @@ import '../../data/datasources/dispatcher_passenger_remote_data_source.dart';
 import '../../domain/entities/passenger_group_line.dart';
 import '../../../groups/presentation/providers/group_providers.dart';
 import 'dispatcher_cached_providers.dart';
+import 'dispatcher_initial_load_provider.dart';
 
 /// Passenger data source for dispatcher.
 final dispatcherPassengerDataSourceProvider =
@@ -109,12 +111,29 @@ final dispatcherPassengersInOtherGroupsProvider = FutureProvider.autoDispose
 });
 
 /// Cache-first: All passengers (unassigned + from all groups).
+/// على Windows: يستخدم البيانات المحفوظة من التحميل الأولي
 final dispatcherAllPassengersProvider =
     FutureProvider.autoDispose<List<PassengerGroupLine>>((ref) async {
   final cache = ref.watch(dispatcherCacheDataSourceProvider);
   final isOnline = ref.watch(isOnlineStateProvider);
   final userId = _userId(ref);
   if (userId == 0) return [];
+
+  // على Windows: استخدم البيانات المحفوظة من التحميل الأولي
+  if (Platform.isWindows) {
+    final loadState = ref.watch(dispatcherInitialLoadProvider);
+    if (loadState.isComplete && !loadState.hasError) {
+      final preloadedPassengers = await ref.watch(dispatcherPreloadedPassengersProvider.future);
+      if (preloadedPassengers.isNotEmpty) {
+        // تحويل من Map إلى PassengerGroupLine
+        // نستخدم fromOdoo لأن البيانات محفوظة بصيغة Odoo الأصلية
+        return preloadedPassengers
+            .map((p) => PassengerGroupLine.fromOdoo(p))
+            .toList()
+          ..sort((a, b) => a.passengerName.compareTo(b.passengerName));
+      }
+    }
+  }
 
   final key = DispatcherCacheKeys.allPassengers(userId: userId);
 

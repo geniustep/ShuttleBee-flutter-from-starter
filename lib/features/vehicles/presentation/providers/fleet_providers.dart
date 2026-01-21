@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../dispatcher/presentation/providers/dispatcher_initial_load_provider.dart';
 import '../../data/datasources/fleet_remote_data_source.dart';
 import '../../domain/entities/fleet_brand.dart';
 import '../../domain/entities/fleet_vehicle.dart';
@@ -117,8 +119,25 @@ final fleetVehicleSearchProvider = FutureProvider.autoDispose
 // ==================== Drivers (السائقين) ====================
 
 /// جميع السائقين المتاحين
+/// على Windows: يستخدم البيانات المحفوظة من التحميل الأولي
 final availableDriversProvider =
     FutureProvider.autoDispose<List<DriverOption>>((ref) async {
+  // على Windows: استخدم البيانات المحفوظة من التحميل الأولي
+  if (Platform.isWindows) {
+    final loadState = ref.watch(dispatcherInitialLoadProvider);
+    if (loadState.isComplete && !loadState.hasError) {
+      final preloadedDrivers = await ref.watch(dispatcherPreloadedDriversProvider.future);
+      if (preloadedDrivers.isNotEmpty) {
+        return preloadedDrivers
+            .map((d) => DriverOption(
+                  id: d['id'] as int? ?? 0,
+                  name: d['name']?.toString() ?? '',
+                ))
+            .toList();
+      }
+    }
+  }
+
   final dataSource = ref.watch(fleetDataSourceProvider);
   if (dataSource == null) return [];
 

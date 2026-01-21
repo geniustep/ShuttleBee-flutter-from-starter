@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../dispatcher/presentation/providers/dispatcher_initial_load_provider.dart';
 import '../../data/datasources/vehicle_remote_data_source.dart';
 import '../../domain/entities/shuttle_vehicle.dart';
 
@@ -15,8 +17,20 @@ final vehicleDataSourceProvider = Provider<VehicleRemoteDataSource?>((ref) {
 });
 
 /// جميع المركبات
+/// على Windows: يستخدم البيانات المحفوظة من التحميل الأولي
 final allVehiclesProvider =
     FutureProvider.autoDispose<List<ShuttleVehicle>>((ref) async {
+  // على Windows: استخدم البيانات المحفوظة من التحميل الأولي
+  if (Platform.isWindows) {
+    final loadState = ref.watch(dispatcherInitialLoadProvider);
+    if (loadState.isComplete && !loadState.hasError) {
+      final preloadedVehicles = await ref.watch(dispatcherPreloadedVehiclesProvider.future);
+      if (preloadedVehicles.isNotEmpty) {
+        return preloadedVehicles;
+      }
+    }
+  }
+
   final dataSource = ref.watch(vehicleDataSourceProvider);
   if (dataSource == null) return [];
 

@@ -215,14 +215,40 @@ final filteredPassengersProvider = Provider.family<List<TripLine>, int>((
   ref,
   tripId,
 ) {
-  final trip = ref.watch(tripDetailProvider(tripId)).value;
-  if (trip == null) return [];
+  final tripAsync = ref.watch(tripDetailProvider(tripId));
+  
+  return tripAsync.when(
+    data: (trip) {
+      if (trip == null) {
+        print('⚠️ [filteredPassengersProvider] Trip $tripId is null');
+        return [];
+      }
+      
+      // التحقق من وجود الـ lines
+      if (trip.lines.isEmpty) {
+        print('⚠️ [filteredPassengersProvider] Trip $tripId has no lines');
+        // لا نعيد التحميل تلقائياً لتجنب الحلقة اللا نهائية
+        // المستخدم يمكنه الضغط على زر Refresh يدوياً
+        return [];
+      }
+      
+      print('✅ [filteredPassengersProvider] Trip $tripId has ${trip.lines.length} lines');
+      
+      // استماع للتغييرات في حالة الفلتر
+      ref.watch(tripFilterProvider); // Listen to filter changes
+      final filterNotifier = ref.read(tripFilterProvider.notifier);
 
-  // استماع للتغييرات في حالة الفلتر
-  ref.watch(tripFilterProvider); // Listen to filter changes
-  final filterNotifier = ref.read(tripFilterProvider.notifier);
-
-  return filterNotifier.applyFilters(trip.lines);
+      return filterNotifier.applyFilters(trip.lines);
+    },
+    loading: () {
+      print('⏳ [filteredPassengersProvider] Loading trip $tripId...');
+      return [];
+    },
+    error: (error, stack) {
+      print('❌ [filteredPassengersProvider] Error loading trip $tripId: $error');
+      return [];
+    },
+  );
 });
 
 /// Provider لعدد نتائج الفلتر

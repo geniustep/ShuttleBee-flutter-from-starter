@@ -43,7 +43,10 @@ class TripCacheService {
 
   /// Initialize cache service
   Future<void> init() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      // Already initialized, skip silently
+      return;
+    }
 
     try {
       _tripsBox = await Hive.openBox<String>(_tripsBoxName);
@@ -52,16 +55,28 @@ class TripCacheService {
       _pendingActionsBox = await Hive.openBox<Map>(_pendingActionsBoxName);
 
       _isInitialized = true;
-      _logger.d('✅ TripCacheService initialized');
-    } catch (e) {
-      _logger.e('❌ Failed to initialize TripCacheService', error: e);
-      rethrow;
+      // Silent initialization - only log errors
+    } catch (e, stackTrace) {
+      _logger.e(
+        '❌ Failed to initialize TripCacheService',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      // Don't rethrow - allow graceful degradation
+      // The service will try to initialize again on next call
+      _isInitialized = false;
     }
   }
 
   /// Ensure initialized
   Future<void> _ensureInitialized() async {
-    if (!_isInitialized) await init();
+    if (!_isInitialized) {
+      await init();
+      // Check again after init - if still not initialized, throw error
+      if (!_isInitialized) {
+        throw Exception('Failed to initialize TripCacheService');
+      }
+    }
   }
 
   // ============================================================
@@ -70,8 +85,14 @@ class TripCacheService {
 
   /// Cache a single trip
   Future<void> cacheTrip(Trip trip) async {
-    await _ensureInitialized();
     try {
+      await _ensureInitialized();
+      
+      if (_tripsBox == null || _metadataBox == null) {
+        _logger.w('⚠️ TripCacheService boxes not initialized, skipping cache');
+        return;
+      }
+
       final tripJson = jsonEncode(trip.toJson());
       await _tripsBox!.put('trip_${trip.id}', tripJson);
 
@@ -81,16 +102,27 @@ class TripCacheService {
         DateTime.now().millisecondsSinceEpoch,
       );
 
-      _logger.d('📦 Cached trip ${trip.id}: ${trip.name}');
-    } catch (e) {
-      _logger.e('❌ Failed to cache trip ${trip.id}', error: e);
+      // Silent caching - only log errors
+    } catch (e, stackTrace) {
+      _logger.e(
+        '❌ Failed to cache trip ${trip.id}',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      // Don't rethrow - allow graceful degradation
     }
   }
 
   /// Cache multiple trips
   Future<void> cacheTrips(List<Trip> trips, {String? cacheKey}) async {
-    await _ensureInitialized();
     try {
+      await _ensureInitialized();
+      
+      if (_metadataBox == null) {
+        _logger.w('⚠️ TripCacheService metadata box not initialized, skipping cache');
+        return;
+      }
+
       // Cache individual trips
       for (final trip in trips) {
         await cacheTrip(trip);
@@ -108,22 +140,29 @@ class TripCacheService {
 
       _logger.d(
           '📦 Cached ${trips.length} trips${cacheKey != null ? ' with key: $cacheKey' : ''}');
-    } catch (e) {
-      _logger.e('❌ Failed to cache trips', error: e);
+    } catch (e, stackTrace) {
+      _logger.e('❌ Failed to cache trips', error: e, stackTrace: stackTrace);
+      // Don't rethrow - allow graceful degradation
     }
   }
 
   /// Get cached trip by ID
   Future<Trip?> getCachedTrip(int tripId) async {
-    await _ensureInitialized();
     try {
+      await _ensureInitialized();
+      
+      if (_tripsBox == null) {
+        _logger.w('⚠️ TripCacheService trips box not initialized');
+        return null;
+      }
+
       final tripJson = _tripsBox!.get('trip_$tripId');
       if (tripJson == null) return null;
 
       final tripMap = jsonDecode(tripJson) as Map<String, dynamic>;
       return Trip.fromJson(tripMap);
-    } catch (e) {
-      _logger.e('❌ Failed to get cached trip $tripId', error: e);
+    } catch (e, stackTrace) {
+      _logger.e('❌ Failed to get cached trip $tripId', error: e, stackTrace: stackTrace);
       return null;
     }
   }
@@ -171,6 +210,21 @@ class TripCacheService {
     await _ensureInitialized();
     try {
       final cachedAt = _metadataBox!.get('${cacheKey}_cached_at') as int?;
+      if (cachedAt == null) return null;
+
+      return Duration(
+        milliseconds: DateTime.now().millisecondsSinceEpoch - cachedAt,
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Get cache age for a specific trip
+  Future<Duration?> getTripCacheAge(int tripId) async {
+    await _ensureInitialized();
+    try {
+      final cachedAt = _metadataBox!.get('trip_${tripId}_cached_at') as int?;
       if (cachedAt == null) return null;
 
       return Duration(
@@ -364,7 +418,7 @@ class TripCacheService {
     try {
       await _tripsBox!.delete('trip_$tripId');
       await _metadataBox!.delete('trip_${tripId}_cached_at');
-      _logger.d('🧹 Cleared cache for trip $tripId');
+      // Silent cache clearing - only log errors
     } catch (e) {
       _logger.e('❌ Failed to clear trip cache', error: e);
     }
@@ -377,7 +431,7 @@ class TripCacheService {
       await _tripsBox!.clear();
       await _tripLinesBox!.clear();
       await _metadataBox!.clear();
-      _logger.d('🧹 Cleared all trip caches');
+      // Silent cache clearing - only log errors
     } catch (e) {
       _logger.e('❌ Failed to clear all caches', error: e);
     }
@@ -388,7 +442,7 @@ class TripCacheService {
     await _ensureInitialized();
     try {
       await _pendingActionsBox!.clear();
-      _logger.d('🧹 Cleared all pending actions');
+      // Silent cache clearing - only log errors
     } catch (e) {
       _logger.e('❌ Failed to clear pending actions', error: e);
     }

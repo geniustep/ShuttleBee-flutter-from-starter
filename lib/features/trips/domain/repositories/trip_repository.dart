@@ -124,6 +124,7 @@ class TripDashboardStats {
   final int completedTrips;
   final int cancelledTrips;
   final int plannedTrips;
+  final int delayedTrips;
   final int totalPassengers;
   final int boardedPassengers;
   final int absentPassengers;
@@ -138,6 +139,7 @@ class TripDashboardStats {
     this.completedTrips = 0,
     this.cancelledTrips = 0,
     this.plannedTrips = 0,
+    this.delayedTrips = 0,
     this.totalPassengers = 0,
     this.boardedPassengers = 0,
     this.absentPassengers = 0,
@@ -147,6 +149,20 @@ class TripDashboardStats {
     this.activeDrivers = 0,
   });
 
+  /// حساب معدل الإنجاز
+  double get completionRate =>
+      totalTripsToday > 0 ? (completedTrips / totalTripsToday) * 100 : 0;
+
+  /// حساب معدل الالتزام بالوقت
+  double get onTimeRate => totalTripsToday > 0
+      ? ((totalTripsToday - delayedTrips) / totalTripsToday) * 100
+      : 100;
+
+  /// حساب معدل الحضور
+  double get attendanceRate => totalPassengers > 0
+      ? ((totalPassengers - absentPassengers) / totalPassengers) * 100
+      : 100;
+
   factory TripDashboardStats.fromJson(Map<String, dynamic> json) {
     return TripDashboardStats(
       totalTripsToday: json['total_trips_today'] as int? ?? 0,
@@ -154,6 +170,7 @@ class TripDashboardStats {
       completedTrips: json['completed_trips'] as int? ?? 0,
       cancelledTrips: json['cancelled_trips'] as int? ?? 0,
       plannedTrips: json['planned_trips'] as int? ?? 0,
+      delayedTrips: json['delayed_trips'] as int? ?? 0,
       totalPassengers: json['total_passengers'] as int? ?? 0,
       boardedPassengers: json['boarded_passengers'] as int? ?? 0,
       absentPassengers: json['absent_passengers'] as int? ?? 0,
@@ -170,6 +187,7 @@ class TripDashboardStats {
         'completed_trips': completedTrips,
         'cancelled_trips': cancelledTrips,
         'planned_trips': plannedTrips,
+        'delayed_trips': delayedTrips,
         'total_passengers': totalPassengers,
         'boarded_passengers': boardedPassengers,
         'absent_passengers': absentPassengers,
@@ -178,6 +196,39 @@ class TripDashboardStats {
         'total_drivers': totalDrivers,
         'active_drivers': activeDrivers,
       };
+
+  /// نسخة محدثة من الإحصائيات
+  TripDashboardStats copyWith({
+    int? totalTripsToday,
+    int? ongoingTrips,
+    int? completedTrips,
+    int? cancelledTrips,
+    int? plannedTrips,
+    int? delayedTrips,
+    int? totalPassengers,
+    int? boardedPassengers,
+    int? absentPassengers,
+    int? totalVehicles,
+    int? activeVehicles,
+    int? totalDrivers,
+    int? activeDrivers,
+  }) {
+    return TripDashboardStats(
+      totalTripsToday: totalTripsToday ?? this.totalTripsToday,
+      ongoingTrips: ongoingTrips ?? this.ongoingTrips,
+      completedTrips: completedTrips ?? this.completedTrips,
+      cancelledTrips: cancelledTrips ?? this.cancelledTrips,
+      plannedTrips: plannedTrips ?? this.plannedTrips,
+      delayedTrips: delayedTrips ?? this.delayedTrips,
+      totalPassengers: totalPassengers ?? this.totalPassengers,
+      boardedPassengers: boardedPassengers ?? this.boardedPassengers,
+      absentPassengers: absentPassengers ?? this.absentPassengers,
+      totalVehicles: totalVehicles ?? this.totalVehicles,
+      activeVehicles: activeVehicles ?? this.activeVehicles,
+      totalDrivers: totalDrivers ?? this.totalDrivers,
+      activeDrivers: activeDrivers ?? this.activeDrivers,
+    );
+  }
 }
 
 /// Manager Analytics Data

@@ -6,37 +6,33 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 
 import '../../../../core/widgets/cross_platform_map.dart';
 import '../../../../core/config/company_config.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../bloc/tracking_monitor_cubit.dart' hide LatLng;
 import '../models/tracked_vehicle.dart';
 import '../models/map_bounds.dart';
+import '../utils/map_performance_monitor.dart';
 
-/// Tracking Map Widget
+/// 🗺️ Tracking Map Widget - ويدجت خريطة التتبع
 ///
-/// Professional Google Maps integration with:
-/// - Real-time vehicle markers
-/// - Custom marker icons
-/// - Smooth camera animations
-/// - Clustering for many vehicles
-/// - Route polylines
-/// - Driver info windows
-///
-/// Note: This is a placeholder that uses a Container.
-/// To use actual Google Maps, add these dependencies:
-/// - google_maps_flutter: ^2.5.0 (for mobile)
-/// - google_maps_flutter_web: ^0.5.0 (for web)
-/// - google_maps_flutter_platform_interface: ^2.4.0
+/// تكامل احترافي مع Google Maps مع:
+/// - علامات المركبات في الوقت الحقيقي
+/// - أيقونات علامات مخصصة
+/// - انيميشن كاميرا سلسة
+/// - تجميع للمركبات الكثيرة
+/// - خطوط المسارات
+/// - نوافذ معلومات السائقين
 class TrackingMapWidget extends StatefulWidget {
   final TrackingMonitorCubit cubit;
   final MapLocation companyLocation;
 
   const TrackingMapWidget({
-    Key? key,
+    super.key,
     required this.cubit,
     this.companyLocation = const MapLocation(
-      latitude: 35.7595, // Default Tangier
+      latitude: 35.7595, // طنجة - الافتراضي
       longitude: -5.8340,
     ),
-  }) : super(key: key);
+  });
 
   @override
   State<TrackingMapWidget> createState() => _TrackingMapWidgetState();
@@ -64,11 +60,37 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
   Set<gmaps.Polyline> _googlePolylines = {};
   List<MapPolylineData> _crossPlatformPolylines = [];
 
-  // Check if platform supports Google Maps
+  // Performance optimizations
+  Timer? _markerUpdateTimer;
+  Timer? _polylineUpdateTimer;
+  final MapPerformanceMonitor _performanceMonitor = MapPerformanceMonitor();
+  
+  // Viewport culling
+  gmaps.LatLngBounds? _currentViewport;
+  double _currentZoom = CompanyConfig.defaultZoom;
+  
+  // Icon caching
+  final Map<String, gmaps.BitmapDescriptor> _iconCache = {};
+  
+  // Camera update optimization
+  bool _isCameraAnimating = false;
+  DateTime? _lastCameraUpdate;
+  
+  // Marker clustering threshold
+  static const int _clusteringThreshold = 50;
+
+  // Debounce delays
+  static const Duration _markerUpdateDelay = Duration(milliseconds: 300);
+  static const Duration _polylineUpdateDelay = Duration(milliseconds: 500);
+
+  // التحقق من دعم المنصة لـ Google Maps
   bool get _useGoogleMaps {
     if (kIsWeb) return true;
     return Platform.isAndroid || Platform.isIOS;
   }
+  
+  // هل يجب استخدام Clustering؟
+  bool get _shouldUseClustering => _vehicles.length > _clusteringThreshold;
 
   @override
   void initState() {
@@ -80,19 +102,30 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
   double get _mapCenterLng => widget.companyLocation.longitude;
 
   void _setupListeners() {
-    // Listen to vehicle updates with distinct to avoid unnecessary rebuilds
+    // الاستماع لتحديثات المركبات مع distinct و debounce
     _vehiclesSubscription = widget.cubit.vehiclesStream.distinct().listen((vehicles) {
       if (!mounted) return;
-      if (_vehicles.length != vehicles.length ||
-          !_vehicles.values.every((v) => vehicles[v.vehicleId]?.lastUpdateTime == v.lastUpdateTime)) {
-        setState(() {
-          _vehicles = vehicles;
-          _updateMarkers();
+      
+      // التحقق من التغييرات الفعلية
+      final hasChanges = _vehicles.length != vehicles.length ||
+          !_vehicles.values.every((v) => vehicles[v.vehicleId]?.lastUpdateTime == v.lastUpdateTime);
+      
+      if (hasChanges) {
+        // إلغاء التحديث السابق
+        _markerUpdateTimer?.cancel();
+        
+        // تأخير التحديث لتجميع التحديثات المتعددة
+        _markerUpdateTimer = Timer(_markerUpdateDelay, () {
+          if (!mounted) return;
+          setState(() {
+            _vehicles = vehicles;
+            _updateMarkers();
+          });
         });
       }
     });
 
-    // Listen to selected vehicle
+    // الاستماع للمركبة المحددة
     _selectedVehicleSubscription =
         widget.cubit.selectedVehicleStream.distinct().listen((vehicle) {
       if (!mounted) return;
@@ -104,7 +137,7 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
       }
     });
 
-    // Listen to map bounds changes
+    // الاستماع لتغييرات حدود الخريطة
     _mapBoundsSubscription = widget.cubit.mapBoundsStream.distinct().listen((bounds) {
       if (bounds != null) {
         _animateToRegion(bounds);
@@ -112,11 +145,33 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
     });
   }
 
+  /// الحصول على المركبات المرئية فقط (Viewport Culling)
+  List<TrackedVehicle> _getVisibleVehicles() {
+    // إذا لم يكن هناك viewport محدد، إرجاع جميع المركبات
+    if (_currentViewport == null || !_useGoogleMaps) {
+      return _vehicles.values.toList();
+    }
+    
+    // تصفية المركبات المرئية فقط
+    return _vehicles.values.where((vehicle) {
+      if (vehicle.currentLocation == null) return false;
+      
+      final lat = vehicle.currentLocation!.latitude;
+      final lng = vehicle.currentLocation!.longitude;
+      
+      return _currentViewport!.contains(gmaps.LatLng(lat, lng));
+    }).toList();
+  }
+  
+
   void _updateMarkers() {
     if (!mounted) return;
     
+    final stopwatch = Stopwatch()..start();
+    
     setState(() {
-      // Add company marker
+      // إضافة علامة الشركة
+      final companyName = widget.cubit.companyName;
       final companyMarker = _useGoogleMaps
           ? gmaps.Marker(
               markerId: const gmaps.MarkerId('company'),
@@ -124,26 +179,28 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
               icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
                 gmaps.BitmapDescriptor.hueViolet,
               ),
-              infoWindow: const gmaps.InfoWindow(
-                title: 'Company Location',
-                snippet: 'Main office',
+              infoWindow: gmaps.InfoWindow(
+                title: companyName,
+                snippet: 'المقر الرئيسي',
               ),
             )
           : null;
 
-      // Get vehicles - include those without location if they're on a trip
-      final vehiclesWithLocation = _vehicles.values
+      // الحصول على المركبات المرئية فقط (Viewport Culling)
+      final visibleVehicles = _getVisibleVehicles();
+      final vehiclesWithLocation = visibleVehicles
           .where((v) => v.currentLocation != null)
           .toList();
       
-      // For vehicles on trip without location, use company location as fallback
-      final vehiclesOnTripWithoutLocation = _vehicles.values
+      // المركبات في رحلة بدون موقع (استخدام موقع الشركة كاحتياطي)
+      final vehiclesOnTripWithoutLocation = visibleVehicles
           .where((v) => v.tripId != null && v.currentLocation == null)
           .toList();
 
-      debugPrint('🗺️ Updating markers: ${vehiclesWithLocation.length} with location, '
-          '${vehiclesOnTripWithoutLocation.length} on trip without location, '
-          'Total vehicles: ${_vehicles.length}');
+      if (kDebugMode) {
+        debugPrint('🗺️ تحديث العلامات: ${vehiclesWithLocation.length} مع موقع (من ${_vehicles.length} إجمالي)، '
+            '${vehiclesOnTripWithoutLocation.length} في رحلة بدون موقع');
+      }
 
       if (_useGoogleMaps) {
         final vehicleMarkers = vehiclesWithLocation.map((vehicle) {
@@ -157,14 +214,18 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
             icon: _getMarkerIcon(vehicle, isSelected),
             infoWindow: gmaps.InfoWindow(
               title: vehicle.vehicleName,
-              snippet: '${vehicle.driverName} - ${vehicle.statusText}',
+              snippet: '${vehicle.driverName} - ${_getArabicStatus(vehicle)}',
             ),
             rotation: vehicle.currentLocation?.heading ?? 0,
             onTap: () => widget.cubit.selectDriver(vehicle),
+            // إضافة clusterManagerId عند الحاجة
+            clusterManagerId: _shouldUseClustering 
+                ? const gmaps.ClusterManagerId('vehicles')
+                : null,
           );
         }).toSet();
         
-        // Add markers for vehicles on trip without location (use company location)
+        // إضافة علامات للمركبات في رحلة بدون موقع
         final tripMarkers = vehiclesOnTripWithoutLocation.map((vehicle) {
           final isSelected = _selectedVehicle?.vehicleId == vehicle.vehicleId;
           return gmaps.Marker(
@@ -173,16 +234,18 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
             icon: _getMarkerIcon(vehicle, isSelected),
             infoWindow: gmaps.InfoWindow(
               title: vehicle.vehicleName,
-              snippet: '${vehicle.driverName} - ${vehicle.statusText} (Waiting for location)',
+              snippet: '${vehicle.driverName} - ${_getArabicStatus(vehicle)} (في انتظار الموقع)',
             ),
             onTap: () => widget.cubit.selectDriver(vehicle),
+            clusterManagerId: _shouldUseClustering 
+                ? const gmaps.ClusterManagerId('vehicles')
+                : null,
           );
         }).toSet();
         
         _googleMarkers = {if (companyMarker != null) companyMarker, ...vehicleMarkers, ...tripMarkers};
-        debugPrint('🗺️ Total Google markers: ${_googleMarkers.length}');
         
-        // Update polylines for active trips
+        // تحديث خطوط المسارات
         _updatePolylines();
       } else {
         final vehicleMarkers = vehiclesWithLocation.map((vehicle) {
@@ -193,26 +256,26 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
               longitude: vehicle.currentLocation!.longitude,
             ),
             title: vehicle.vehicleName,
-            snippet: '${vehicle.driverName} - ${vehicle.statusText}',
+            snippet: '${vehicle.driverName} - ${_getArabicStatus(vehicle)}',
             color: _getMarkerColor(vehicle.statusColor),
             rotation: vehicle.currentLocation?.heading ?? 0,
             onTap: () => widget.cubit.selectDriver(vehicle),
           );
         }).toList();
         
-        // Add company marker
-        final companyMarker = MapMarkerData(
+        // إضافة علامة الشركة
+        final companyMarkerData = MapMarkerData(
           id: 'company',
           location: MapLocation(
             latitude: _mapCenterLat,
             longitude: _mapCenterLng,
           ),
-          title: 'Company Location',
-          snippet: 'Main office',
+          title: companyName,
+          snippet: 'المقر الرئيسي',
           color: MarkerColor.violet,
         );
         
-        // Add markers for vehicles on trip without location
+        // إضافة علامات للمركبات في رحلة بدون موقع
         final tripMarkers = vehiclesOnTripWithoutLocation.map((vehicle) {
           return MapMarkerData(
             id: 'vehicle_${vehicle.vehicleId}',
@@ -221,70 +284,121 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
               longitude: _mapCenterLng,
             ),
             title: vehicle.vehicleName,
-            snippet: '${vehicle.driverName} - ${vehicle.statusText} (Waiting for location)',
+            snippet: '${vehicle.driverName} - ${_getArabicStatus(vehicle)} (في انتظار الموقع)',
             color: _getMarkerColor(vehicle.statusColor),
             onTap: () => widget.cubit.selectDriver(vehicle),
           );
         }).toList();
         
-        _crossPlatformMarkers = [companyMarker, ...vehicleMarkers, ...tripMarkers];
-        debugPrint('🗺️ Total CrossPlatform markers: ${_crossPlatformMarkers.length}');
+        _crossPlatformMarkers = [companyMarkerData, ...vehicleMarkers, ...tripMarkers];
         
-        // Update polylines for active trips
+        // تحديث خطوط المسارات
         _updatePolylines();
       }
     });
+    
+    stopwatch.stop();
+    _performanceMonitor.recordMarkerUpdate(duration: stopwatch.elapsed);
+    
+    // طباعة الإحصائيات في debug mode كل 10 تحديثات
+    if (kDebugMode && _performanceMonitor.getStats()['marker_updates'] % 10 == 0) {
+      debugPrint('📊 Map Performance: ${_performanceMonitor.getStats()}');
+    }
+  }
+  
+  String _getArabicStatus(TrackedVehicle vehicle) {
+    switch (vehicle.statusColor) {
+      case VehicleStatusColor.onTrip:
+        return 'في رحلة';
+      case VehicleStatusColor.available:
+        return 'متاح';
+      case VehicleStatusColor.busy:
+        return 'مشغول';
+      case VehicleStatusColor.offline:
+        return 'غير متصل';
+      default:
+        return vehicle.statusText;
+    }
   }
   
   void _updatePolylines() {
-    // Get vehicles on active trips
-    final vehiclesOnTrip = _vehicles.values
-        .where((v) => v.tripId != null && v.currentLocation != null)
-        .toList();
+    // إلغاء التحديث السابق
+    _polylineUpdateTimer?.cancel();
     
-    if (_useGoogleMaps) {
-      _googlePolylines = vehiclesOnTrip.map((vehicle) {
-        // For now, create a simple polyline from company location to vehicle
-        // TODO: Get actual trip route from trip data
-        final points = [
-          gmaps.LatLng(_mapCenterLat, _mapCenterLng),
-          gmaps.LatLng(
-            vehicle.currentLocation!.latitude,
-            vehicle.currentLocation!.longitude,
-          ),
-        ];
-        
-        return gmaps.Polyline(
-          polylineId: gmaps.PolylineId('trip_${vehicle.tripId}'),
-          points: points,
-          color: Colors.blue,
-          width: 3,
-          patterns: [gmaps.PatternItem.dash(20), gmaps.PatternItem.gap(10)],
-        );
-      }).toSet();
-    } else {
-      _crossPlatformPolylines = vehiclesOnTrip.map((vehicle) {
-        return MapPolylineData(
-          id: 'trip_${vehicle.tripId}',
-          points: [
-            MapLocation(latitude: _mapCenterLat, longitude: _mapCenterLng),
-            MapLocation(
-              latitude: vehicle.currentLocation!.latitude,
-              longitude: vehicle.currentLocation!.longitude,
-            ),
-          ],
-          color: Colors.blue,
-          width: 3,
-        );
-      }).toList();
-    }
+    // تأخير التحديث لتجميع التحديثات المتعددة
+    _polylineUpdateTimer = Timer(_polylineUpdateDelay, () {
+      if (!mounted) return;
+      
+      // الحصول على المركبات في رحلات نشطة (المرئية فقط)
+      final visibleVehicles = _getVisibleVehicles();
+      final vehiclesOnTrip = visibleVehicles
+          .where((v) => v.tripId != null && v.currentLocation != null)
+          .toList();
+      
+      setState(() {
+        if (_useGoogleMaps) {
+          _googlePolylines = vehiclesOnTrip.map((vehicle) {
+            final points = [
+              gmaps.LatLng(_mapCenterLat, _mapCenterLng),
+              gmaps.LatLng(
+                vehicle.currentLocation!.latitude,
+                vehicle.currentLocation!.longitude,
+              ),
+            ];
+            
+            return gmaps.Polyline(
+              polylineId: gmaps.PolylineId('trip_${vehicle.tripId}'),
+              points: points,
+              color: AppColors.dispatcherPrimary,
+              width: 3,
+              patterns: [gmaps.PatternItem.dash(20), gmaps.PatternItem.gap(10)],
+            );
+          }).toSet();
+        } else {
+          _crossPlatformPolylines = vehiclesOnTrip.map((vehicle) {
+            return MapPolylineData(
+              id: 'trip_${vehicle.tripId}',
+              points: [
+                MapLocation(latitude: _mapCenterLat, longitude: _mapCenterLng),
+                MapLocation(
+                  latitude: vehicle.currentLocation!.latitude,
+                  longitude: vehicle.currentLocation!.longitude,
+                ),
+              ],
+              color: AppColors.dispatcherPrimary,
+              width: 3,
+            );
+          }).toList();
+        }
+      });
+      
+      _performanceMonitor.recordPolylineUpdate();
+    });
   }
 
+  /// الحصول على أيقونة العلامة مع Caching
   gmaps.BitmapDescriptor _getMarkerIcon(TrackedVehicle vehicle, bool isSelected) {
-    // Use default marker for now - can be customized later with custom icons
-    return gmaps.BitmapDescriptor.defaultMarkerWithHue(
+    final cacheKey = '${vehicle.statusColor}_${isSelected ? "selected" : "normal"}';
+    
+    // التحقق من الـ cache
+    if (_iconCache.containsKey(cacheKey)) {
+      return _iconCache[cacheKey]!;
+    }
+    
+    // إنشاء أيقونة جديدة
+    final icon = gmaps.BitmapDescriptor.defaultMarkerWithHue(
       _getMarkerHue(vehicle.statusColor),
     );
+    
+    // حفظ في الـ cache
+    _iconCache[cacheKey] = icon;
+    
+    return icon;
+  }
+  
+  /// تنظيف الـ cache عند الحاجة
+  void _clearIconCache() {
+    _iconCache.clear();
   }
 
   double _getMarkerHue(VehicleStatusColor statusColor) {
@@ -317,24 +431,49 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
     }
   }
 
-  void _animateToRegion(MapBounds bounds) {
+  void _animateToRegion(MapBounds bounds, {bool animate = true}) {
     if (_useGoogleMaps) {
       if (_googleMapController == null) return;
-      _googleMapController!.animateCamera(
-        gmaps.CameraUpdate.newLatLngBounds(
-          gmaps.LatLngBounds(
-            southwest: gmaps.LatLng(
-              bounds.southwest.latitude,
-              bounds.southwest.longitude,
-            ),
-            northeast: gmaps.LatLng(
-              bounds.northeast.latitude,
-              bounds.northeast.longitude,
-            ),
+      
+      // تجنب التحديثات المتكررة جداً
+      final now = DateTime.now();
+      if (_lastCameraUpdate != null) {
+        final timeSinceLastUpdate = now.difference(_lastCameraUpdate!);
+        if (timeSinceLastUpdate.inMilliseconds < 100) {
+          return; // تجاهل التحديثات المتكررة جداً
+        }
+      }
+      
+      _lastCameraUpdate = now;
+      
+      final stopwatch = Stopwatch()..start();
+      final update = gmaps.CameraUpdate.newLatLngBounds(
+        gmaps.LatLngBounds(
+          southwest: gmaps.LatLng(
+            bounds.southwest.latitude,
+            bounds.southwest.longitude,
           ),
-          bounds.padding,
+          northeast: gmaps.LatLng(
+            bounds.northeast.latitude,
+            bounds.northeast.longitude,
+          ),
         ),
+        bounds.padding,
       );
+      
+      // استخدام moveCamera للتحديثات السريعة
+      if (animate && !_isCameraAnimating) {
+        _isCameraAnimating = true;
+        _googleMapController!.animateCamera(update).then((_) {
+          _isCameraAnimating = false;
+          stopwatch.stop();
+          _performanceMonitor.recordCameraUpdate(duration: stopwatch.elapsed);
+        });
+      } else {
+        _googleMapController!.moveCamera(update);
+        stopwatch.stop();
+        _performanceMonitor.recordCameraUpdate(duration: stopwatch.elapsed);
+      }
     } else {
       if (_crossPlatformMapController == null) return;
       _crossPlatformMapController!.fitBounds(
@@ -352,61 +491,164 @@ class _TrackingMapWidgetState extends State<TrackingMapWidget> {
       );
     }
   }
+  
+  /// تحديث viewport عند تحريك الكاميرا
+  Future<void> _updateViewport() async {
+    if (_googleMapController == null || !_useGoogleMaps) return;
+    
+    try {
+      final bounds = await _googleMapController!.getVisibleRegion();
+      if (mounted) {
+        setState(() {
+          _currentViewport = bounds;
+          // تحديث العلامات المرئية فقط
+          _updateMarkers();
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('خطأ في تحديث viewport: $e');
+      }
+    }
+  }
 
   @override
   void dispose() {
+    _markerUpdateTimer?.cancel();
+    _polylineUpdateTimer?.cancel();
     _vehiclesSubscription?.cancel();
     _selectedVehicleSubscription?.cancel();
     _mapBoundsSubscription?.cancel();
     _googleMapController?.dispose();
+    _clearIconCache();
+    
+    // طباعة الإحصائيات النهائية في debug mode
+    if (kDebugMode) {
+      debugPrint('📊 Final Map Performance Stats: ${_performanceMonitor.getStats()}');
+    }
+    
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Tracking map with vehicles',
-      child: _useGoogleMaps
-          ? gmaps.GoogleMap(
-              key: const ValueKey('google_map'),
-              initialCameraPosition: gmaps.CameraPosition(
-                target: gmaps.LatLng(_mapCenterLat, _mapCenterLng),
-                zoom: CompanyConfig.defaultZoom,
+      label: 'خريطة التتبع مع المركبات',
+      child: Stack(
+        children: [
+          _useGoogleMaps
+              ? gmaps.GoogleMap(
+                  key: const ValueKey('google_map'),
+                  initialCameraPosition: gmaps.CameraPosition(
+                    target: gmaps.LatLng(_mapCenterLat, _mapCenterLng),
+                    zoom: CompanyConfig.defaultZoom,
+                  ),
+                  markers: _googleMarkers,
+                  polylines: _googlePolylines,
+                  // إضافة clusterManagers عند الحاجة
+                  clusterManagers: _shouldUseClustering 
+                      ? {
+                          gmaps.ClusterManager(
+                            clusterManagerId: const gmaps.ClusterManagerId('vehicles'),
+                            onClusterTap: (cluster) {
+                              // Zoom in عند النقر على cluster
+                              if (_googleMapController != null) {
+                                _googleMapController!.animateCamera(
+                                  gmaps.CameraUpdate.newLatLngZoom(
+                                    cluster.position,
+                                    (_currentZoom + 2).clamp(3.0, 20.0),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        }
+                      : {},
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
+                  compassEnabled: true,
+                  trafficEnabled: true,
+                  onMapCreated: (controller) {
+                    _googleMapController = controller;
+                    _currentZoom = CompanyConfig.defaultZoom;
+                    _updateMarkers();
+                  },
+                  // إضافة onCameraMove لتحديث viewport و zoom
+                  onCameraMove: (position) {
+                    _currentZoom = position.zoom;
+                    // تحديث viewport بشكل debounced
+                    _markerUpdateTimer?.cancel();
+                    _markerUpdateTimer = Timer(const Duration(milliseconds: 500), () {
+                      _updateViewport();
+                    });
+                  },
+                  onCameraIdle: () {
+                    _updateViewport();
+                  },
+                  onTap: (_) => widget.cubit.deselectVehicle(),
+                )
+              : CrossPlatformMap(
+                  key: const ValueKey('cross_platform_map'),
+                  initialLocation: MapLocation(
+                    latitude: _mapCenterLat,
+                    longitude: _mapCenterLng,
+                  ),
+                  initialZoom: CompanyConfig.defaultZoom,
+                  markers: _crossPlatformMarkers,
+                  polylines: _crossPlatformPolylines,
+                  showMyLocation: true,
+                  showMyLocationButton: false,
+                  showZoomControls: false,
+                  onMapCreated: (controller) {
+                    _crossPlatformMapController = controller;
+                    _updateMarkers();
+                  },
+                  onTap: (_) => widget.cubit.deselectVehicle(),
+                ),
+          
+          // شارة موقع الشركة
+          Positioned(
+            bottom: 16,
+            left: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              markers: _googleMarkers,
-              polylines: _googlePolylines,
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false, // We have custom controls
-              zoomControlsEnabled: false, // Custom controls
-              mapToolbarEnabled: false,
-              compassEnabled: true,
-              trafficEnabled: true,
-              onMapCreated: (controller) {
-                _googleMapController = controller;
-                // Update markers after map is created
-                _updateMarkers();
-              },
-              onTap: (_) => widget.cubit.deselectVehicle(),
-            )
-          : CrossPlatformMap(
-              key: const ValueKey('cross_platform_map'),
-              initialLocation: MapLocation(
-                latitude: _mapCenterLat,
-                longitude: _mapCenterLng,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.business_rounded,
+                    size: 16,
+                    color: AppColors.dispatcherPrimary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    widget.cubit.companyName,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontFamily: 'Cairo',
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
               ),
-              initialZoom: CompanyConfig.defaultZoom,
-              markers: _crossPlatformMarkers,
-              polylines: _crossPlatformPolylines,
-              showMyLocation: true,
-              showMyLocationButton: false,
-              showZoomControls: false,
-              onMapCreated: (controller) {
-                _crossPlatformMapController = controller;
-                // Update markers after map is created
-                _updateMarkers();
-              },
-              onTap: (_) => widget.cubit.deselectVehicle(),
             ),
+          ),
+        ],
+      ),
     );
   }
 }

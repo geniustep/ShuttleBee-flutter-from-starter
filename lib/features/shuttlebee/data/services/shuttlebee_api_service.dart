@@ -45,10 +45,29 @@ class ShuttleBeeApiService {
       if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
     };
 
-    await _dio.post(
+    // Treat 404 as a normal response so we can fallback without noisy Dio errors.
+    final res = await _dio.post(
       '/api/v1/shuttle/trips/$tripId/confirm',
       data: body.isEmpty ? {} : body,
+      options: Options(validateStatus: (_) => true),
     );
+
+    if (res.statusCode == 404) {
+      throw ShuttleBeeRestNotAvailable(
+        path: '/api/v1/shuttle/trips/$tripId/confirm',
+        statusCode: res.statusCode,
+        body: res.data,
+      );
+    }
+
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw DioException(
+        requestOptions: res.requestOptions,
+        response: res,
+        type: DioExceptionType.badResponse,
+        message: 'Unexpected status code: ${res.statusCode}',
+      );
+    }
   }
 
   Future<List<Trip>> getLiveOngoingTrips() async {

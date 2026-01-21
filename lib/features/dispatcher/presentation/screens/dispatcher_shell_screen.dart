@@ -27,20 +27,19 @@ class DispatcherShellScreen extends StatelessWidget {
   static const double _selectedLift = 22;
 
   // We want "Home" to be the middle tab visually on mobile.
-  // Mobile tabs order: Monitor, Trips, Home, Groups, Vehicles
-  // Branch indices (from router): Home=0, Monitor=1, Trips=2, Groups=3, Passengers=4, Vehicles=5
-  static const List<int> _branchByTab = <int>[1, 2, 0, 3, 5];
+  // Mobile tabs order: Monitor, Trips, Home, Groups
+  // Branch indices (from router): Home=0, Monitor=1, Trips=2, Groups=3, Passengers=4, Vehicles=5, Attendants=6, Drivers=7, Settings=8
+  static const List<int> _branchByTab = <int>[1, 2, 0, 3];
 
   // For desktop/tablet, Home should be first
-  // Desktop tabs order: Home, Monitor, Trips, Groups, Passengers, Vehicles
-  static const List<int> _branchByTabDesktop = <int>[0, 1, 2, 3, 4, 5];
+  // Desktop tabs order: Home, Monitor, Trips, Groups, Passengers, Settings
+  static const List<int> _branchByTabDesktop = <int>[0, 1, 2, 3, 4, 8];
 
   static const _icons = <IconData>[
     Icons.map,
     Icons.route,
     Icons.home,
     Icons.groups,
-    Icons.directions_bus,
   ];
 
   // Desktop icons order (Home first)
@@ -50,7 +49,7 @@ class DispatcherShellScreen extends StatelessWidget {
     Icons.route,
     Icons.groups,
     Icons.people,
-    Icons.directions_bus,
+    Icons.settings,
   ];
 
   static const _selectedIcons = <IconData>[
@@ -58,7 +57,6 @@ class DispatcherShellScreen extends StatelessWidget {
     Icons.route_rounded,
     Icons.home_rounded,
     Icons.groups_rounded,
-    Icons.directions_bus_rounded,
   ];
 
   // Desktop selected icons order (Home first)
@@ -68,7 +66,7 @@ class DispatcherShellScreen extends StatelessWidget {
     Icons.route_rounded,
     Icons.groups_rounded,
     Icons.people_rounded,
-    Icons.directions_bus_rounded,
+    Icons.settings_rounded,
   ];
 
   int _tabIndexForBranch(int branchIndex, bool isMobile) {
@@ -134,14 +132,14 @@ class DispatcherShellScreen extends StatelessWidget {
 
   // Navigation labels for desktop/tablet
   List<String> _getLabels(AppLocalizations l10n, bool isMobile) => isMobile
-      ? [l10n.monitor, l10n.trips, l10n.home, l10n.groups, l10n.vehicles]
+      ? [l10n.monitor, l10n.trips, l10n.home, l10n.groups]
       : [
           l10n.home,
           l10n.monitor,
           l10n.trips,
           l10n.groups,
           l10n.passengers,
-          l10n.vehicles,
+          l10n.settings,
         ];
 
   @override

@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/routing/route_paths.dart';
 import '../../domain/entities/shuttle_stop.dart';
 import '../providers/stop_providers.dart';
+import '../widgets/stops_map_view.dart';
 
 /// شاشة نقاط التوقف - ShuttleBee
 class StopsScreen extends ConsumerStatefulWidget {
@@ -20,6 +23,7 @@ class _StopsScreenState extends ConsumerState<StopsScreen>
   late TabController _tabController;
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _showMapView = false;
 
   @override
   void initState() {
@@ -39,48 +43,92 @@ class _StopsScreenState extends ConsumerState<StopsScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          _buildSearchBar(),
-          _buildTabBar(),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
+      body: _showMapView
+          ? _buildMapView()
+          : Column(
               children: [
-                _buildStopsList(null), // الكل
-                _buildStopsList(StopType.pickup), // صعود
-                _buildStopsList(StopType.dropoff), // نزول
+                _buildSearchBar(),
+                _buildTabBar(),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildStopsList(null), // الكل
+                      _buildStopsList(StopType.pickup), // صعود
+                      _buildStopsList(StopType.dropoff), // نزول
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddStopDialog(),
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add_location_alt_rounded),
-        label: const Text(
-          'إضافة نقطة',
-          style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+      floatingActionButton: _showMapView
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _showAddStopDialog(),
+              backgroundColor: AppColors.primary,
+              icon: const Icon(Icons.add_location_alt_rounded),
+              label: const Text(
+                'إضافة نقطة',
+                style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
+              ),
+            ),
+    );
+  }
+  
+  Widget _buildMapView() {
+    return Stack(
+      children: [
+        StopsMapView(
+          onStopSelected: (stop) {
+            _showStopDetails(stop);
+            setState(() {
+              _showMapView = false;
+            });
+          },
         ),
-      ),
+        // زر العودة للقائمة
+        Positioned(
+          top: 16,
+          left: 16,
+          child: SafeArea(
+            child: FloatingActionButton(
+              mini: true,
+              onPressed: () {
+                setState(() {
+                  _showMapView = false;
+                });
+              },
+              backgroundColor: Colors.white,
+              child: const Icon(Icons.list_rounded, color: AppColors.primary),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: const Text(
-        'نقاط التوقف',
+        'المحطات',
         style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
       ),
       backgroundColor: AppColors.primary,
       foregroundColor: Colors.white,
       elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_rounded),
+        onPressed: () => context.go(RoutePaths.dispatcherSettings),
+      ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.map_rounded),
-          onPressed: () => _showMapView(),
-          tooltip: 'عرض الخريطة',
+          icon: Icon(_showMapView ? Icons.list_rounded : Icons.map_rounded),
+          onPressed: () {
+            setState(() {
+              _showMapView = !_showMapView;
+            });
+          },
+          tooltip: _showMapView ? 'عرض القائمة' : 'عرض الخريطة',
         ),
         IconButton(
           icon: const Icon(Icons.refresh_rounded),
@@ -473,7 +521,14 @@ class _StopsScreenState extends ConsumerState<StopsScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _StopDetailsSheet(stop: stop),
+      builder: (context) => _StopDetailsSheet(
+        stop: stop,
+        onShowOnMap: () {
+          setState(() {
+            _showMapView = true;
+          });
+        },
+      ),
     );
   }
 
@@ -501,7 +556,13 @@ class _StopsScreenState extends ConsumerState<StopsScreen>
               ),
               onTap: () {
                 Navigator.pop(context);
-                _showOnMap(stop);
+                setState(() {
+                  _showMapView = true;
+                });
+                // الانتظار قليلاً ثم التمرير إلى المحطة المحددة
+                Future.delayed(const Duration(milliseconds: 300), () {
+                  // يمكن إضافة منطق للتمرير إلى المحطة المحددة
+                });
               },
             ),
             ListTile(
@@ -536,26 +597,6 @@ class _StopsScreenState extends ConsumerState<StopsScreen>
     );
   }
 
-  void _showMapView() {
-    // TODO: Implement map view
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('سيتم إضافة عرض الخريطة قريباً'),
-      ),
-    );
-  }
-
-  void _showOnMap(ShuttleStop stop) {
-    if (!stop.hasCoordinates) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('نقطة التوقف لا تحتوي على إحداثيات GPS'),
-        ),
-      );
-      return;
-    }
-    // TODO: Navigate to map with stop location
-  }
 
   void _confirmDelete(ShuttleStop stop) {
     showDialog(
@@ -601,8 +642,12 @@ class _StopsScreenState extends ConsumerState<StopsScreen>
 /// تفاصيل نقطة التوقف
 class _StopDetailsSheet extends StatelessWidget {
   final ShuttleStop stop;
+  final VoidCallback? onShowOnMap;
 
-  const _StopDetailsSheet({required this.stop});
+  const _StopDetailsSheet({
+    required this.stop,
+    this.onShowOnMap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -743,11 +788,12 @@ class _StopDetailsSheet extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        // TODO: Open in maps
+                        Navigator.pop(context);
+                        onShowOnMap?.call();
                       },
                       icon: const Icon(Icons.map_rounded),
                       label: const Text(
-                        'فتح في الخرائط',
+                        'عرض على الخريطة',
                         style: TextStyle(fontFamily: 'Cairo'),
                       ),
                       style: ElevatedButton.styleFrom(

@@ -7,11 +7,13 @@ import '../../../../../../core/theme/app_colors.dart';
 import '../../../../../../l10n/app_localizations.dart';
 import '../../../../../vehicles/domain/entities/shuttle_vehicle.dart';
 import '../../../../../vehicles/presentation/providers/vehicle_providers.dart';
+import '../../../../../vehicles/presentation/providers/fleet_providers.dart';
 import '../../../providers/dispatcher_passenger_providers.dart';
 
 class PassengersSelectionCard extends ConsumerWidget {
   final Set<int> selectedPassengerIds;
   final int? selectedVehicleId;
+  final int? selectedDriverId;
   final VoidCallback onShowPassengerSheet;
   final ValueChanged<int> onRemovePassenger;
 
@@ -19,6 +21,7 @@ class PassengersSelectionCard extends ConsumerWidget {
     super.key,
     required this.selectedPassengerIds,
     required this.selectedVehicleId,
+    this.selectedDriverId,
     required this.onShowPassengerSheet,
     required this.onRemovePassenger,
   });
@@ -27,6 +30,7 @@ class PassengersSelectionCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final allPassengersAsync = ref.watch(dispatcherAllPassengersProvider);
     final vehiclesAsync = ref.watch(allVehiclesProvider);
+    final driversAsync = ref.watch(availableDriversProvider);
     final l10n = AppLocalizations.of(context);
     final hasPassengers = selectedPassengerIds.isNotEmpty;
 
@@ -187,87 +191,44 @@ class PassengersSelectionCard extends ConsumerWidget {
               ),
             // Selected passengers list
             if (hasVehicle)
-              allPassengersAsync.when(
-                data: (allPassengers) {
-                  final selectedPassengers = allPassengers
-                      .where(
-                        (p) => selectedPassengerIds.contains(p.passengerId),
-                      )
-                      .toList();
+              Consumer(
+                builder: (context, ref, child) {
+                  return allPassengersAsync.when(
+                    data: (allPassengers) {
+                      // إزالة التكرارات بناءً على passengerId
+                      final uniquePassengerIds = selectedPassengerIds.toList();
+                      final selectedPassengers = allPassengers
+                          .where(
+                            (p) => uniquePassengerIds.contains(p.passengerId),
+                          )
+                          .toList();
 
-                  if (selectedPassengers.isEmpty) {
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.orange.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.info_outline_rounded,
-                            color: Colors.orange,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  l10n.pleaseSelectAtLeastOnePassenger,
-                                  style: const TextStyle(
-                                    fontFamily: 'Cairo',
-                                    fontSize: 13,
-                                    color: Colors.orange,
-                                  ),
-                                ),
-                                if (availableSeats > 0)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text(
-                                      '${l10n.availableSeats}: $availableSeats',
-                                      style: const TextStyle(
-                                        fontFamily: 'Cairo',
-                                        fontSize: 11,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
+                      // إزالة التكرارات من القائمة المعروضة
+                      final seenIds = <int>{};
+                      final uniqueSelectedPassengers = <dynamic>[];
+                      for (final passenger in selectedPassengers) {
+                        if (!seenIds.contains(passenger.passengerId)) {
+                          seenIds.add(passenger.passengerId);
+                          uniqueSelectedPassengers.add(passenger);
+                        }
+                      }
 
-                  return Column(
-                    children: selectedPassengers.map((passenger) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
+                      if (uniqueSelectedPassengers.isEmpty) {
+                        return Container(
+                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.grey.withValues(alpha: 0.05),
+                            color: Colors.orange.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.grey.withValues(alpha: 0.2),
+                              color: Colors.orange.withValues(alpha: 0.2),
                             ),
                           ),
                           child: Row(
                             children: [
-                              const CircleAvatar(
-                                radius: 20,
-                                backgroundColor: AppColors.dispatcherPrimary,
-                                child: Icon(
-                                  Icons.person_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
+                              const Icon(
+                                Icons.info_outline_rounded,
+                                color: Colors.orange,
+                                size: 20,
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -275,63 +236,177 @@ class PassengersSelectionCard extends ConsumerWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      passenger.passengerName,
+                                      l10n.pleaseSelectAtLeastOnePassenger,
                                       style: const TextStyle(
                                         fontFamily: 'Cairo',
-                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: Colors.orange,
                                       ),
                                     ),
-                                    if (passenger.groupName != null)
-                                      Text(
-                                        passenger.groupName!,
-                                        style: const TextStyle(
-                                          fontFamily: 'Cairo',
-                                          fontSize: 12,
-                                          color: AppColors.textSecondary,
+                                    if (availableSeats > 0)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Text(
+                                          '${l10n.availableSeats}: $availableSeats',
+                                          style: const TextStyle(
+                                            fontFamily: 'Cairo',
+                                            fontSize: 11,
+                                            color: AppColors.textSecondary,
+                                          ),
                                         ),
                                       ),
                                   ],
                                 ),
                               ),
-                              IconButton(
-                                onPressed: () {
-                                  HapticFeedback.selectionClick();
-                                  onRemovePassenger(passenger.passengerId);
-                                },
-                                icon: const Icon(
-                                  Icons.close_rounded,
-                                  size: 18,
-                                  color: AppColors.error,
-                                ),
-                                tooltip: l10n.removePassenger,
-                              ),
                             ],
                           ),
-                        ),
+                        );
+                      }
+
+                      // الحصول على معلومات المركبة والسائق
+                      String vehicleName = '';
+                      String licensePlate = '';
+                      String driverName = '';
+                      
+                      if (selectedVehicleId != null) {
+                        final vehicles = vehiclesAsync.value;
+                        if (vehicles != null) {
+                          try {
+                            final vehicle = vehicles.firstWhere(
+                              (v) => v.id == selectedVehicleId,
+                            );
+                            vehicleName = vehicle.name;
+                            licensePlate = vehicle.licensePlate ?? '';
+                          } catch (e) {
+                            // Vehicle not found
+                          }
+                        }
+                      }
+                      
+                      if (selectedDriverId != null) {
+                        final drivers = driversAsync.value;
+                        if (drivers != null) {
+                          try {
+                            final driver = drivers.firstWhere(
+                              (d) => d.id == selectedDriverId,
+                            );
+                            driverName = driver.name;
+                          } catch (e) {
+                            // Driver not found
+                          }
+                        }
+                      }
+
+                      // بناء نص TRAJET
+                      String trajetText = '';
+                      if (vehicleName.isNotEmpty) {
+                        trajetText = vehicleName;
+                        if (licensePlate.isNotEmpty) {
+                          trajetText = '$trajetText $licensePlate';
+                        }
+                        if (driverName.isNotEmpty) {
+                          trajetText = '$trajetText $driverName';
+                        }
+                      }
+
+                      return Column(
+                        children: uniqueSelectedPassengers.map((passenger) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.grey.withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: AppColors.dispatcherPrimary,
+                                    child: Icon(
+                                      Icons.person_rounded,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          passenger.passengerName,
+                                          style: const TextStyle(
+                                            fontFamily: 'Cairo',
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        if (trajetText.isNotEmpty)
+                                          Text(
+                                            'TRAJET: $trajetText',
+                                            style: const TextStyle(
+                                              fontFamily: 'Cairo',
+                                              fontSize: 12,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          )
+                                        else if (passenger.groupName != null)
+                                          Text(
+                                            passenger.groupName!,
+                                            style: const TextStyle(
+                                              fontFamily: 'Cairo',
+                                              fontSize: 12,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    onPressed: () {
+                                      HapticFeedback.selectionClick();
+                                      onRemovePassenger(passenger.passengerId);
+                                    },
+                                    icon: const Icon(
+                                      Icons.close_rounded,
+                                      size: 18,
+                                      color: AppColors.error,
+                                    ),
+                                    tooltip: l10n.removePassenger,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       );
-                    }).toList(),
+                    },
+                    loading: () => const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                    error: (_, __) => Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        l10n.failedToLoadPassengers,
+                        style: const TextStyle(
+                          fontFamily: 'Cairo',
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ),
                   );
                 },
-                loading: () => const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-                error: (_, __) => Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    l10n.failedToLoadPassengers,
-                    style: const TextStyle(
-                      fontFamily: 'Cairo',
-                      color: AppColors.error,
-                    ),
-                  ),
-                ),
               ),
           ],
         ),

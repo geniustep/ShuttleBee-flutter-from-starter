@@ -180,7 +180,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     final homeRoute = getHomeRouteForRole(role);
 
     print(
-        '🚀 [SplashScreen] Navigating to: $homeRoute (role: ${role?.value ?? "null"})');
+      '🚀 [SplashScreen] Navigating to: $homeRoute (role: ${role?.value ?? "null"})',
+    );
     context.go(homeRoute);
   }
 
@@ -211,10 +212,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppColors.primary,
-              AppColors.primaryDark,
-            ],
+            colors: [AppColors.primary, AppColors.primaryDark],
           ),
         ),
         child: SafeArea(
@@ -224,10 +222,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               builder: (context, child) {
                 return FadeTransition(
                   opacity: _fadeAnimation,
-                  child: ScaleTransition(
-                    scale: _scaleAnimation,
-                    child: child,
-                  ),
+                  child: ScaleTransition(scale: _scaleAnimation, child: child),
                 );
               },
               child: Column(
@@ -242,9 +237,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   Text(
                     'ShuttleBee',
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
 
                   const SizedBox(height: 8),
@@ -253,8 +248,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   Text(
                     'خدمة النقل الذكية',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.8),
-                        ),
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
                   ),
 
                   const SizedBox(height: 48),
@@ -278,8 +273,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       _statusMessage,
                       key: ValueKey(_statusMessage),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.7),
-                          ),
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
                     ),
                   ),
                 ],

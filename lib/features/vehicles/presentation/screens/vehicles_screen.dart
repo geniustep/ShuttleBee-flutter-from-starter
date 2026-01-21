@@ -2,10 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive_utils.dart';
 import '../../domain/entities/shuttle_vehicle.dart';
 import '../providers/vehicle_providers.dart';
+import '../widgets/vehicle_form_dialog.dart';
+
+/// نوع الترتيب
+enum VehicleSortOption {
+  nameAsc,
+  nameDesc,
+  capacityAsc,
+  capacityDesc,
+  tripsAsc,
+  tripsDesc,
+}
 
 /// شاشة إدارة المركبات - ShuttleBee
 class VehiclesScreen extends ConsumerStatefulWidget {
@@ -17,12 +30,32 @@ class VehiclesScreen extends ConsumerStatefulWidget {
 
 class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
   String _searchQuery = '';
+  bool _showActiveOnly = false;
+  bool _onlyWithDriver = false;
+  bool _onlyWithParking = false;
+  VehicleSortOption _sortOption = VehicleSortOption.nameAsc;
+  bool _isLoadingMore = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent * 0.8) {
+      // يمكن إضافة pagination هنا في المستقبل
+    }
   }
 
   @override
@@ -59,6 +92,19 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
       foregroundColor: Colors.white,
       elevation: 0,
       actions: [
+        IconButton(
+          icon: Icon(
+            Icons.tune_rounded,
+            color: _hasActiveFilters ? Colors.amber : Colors.white,
+          ),
+          onPressed: _showFiltersDialog,
+          tooltip: 'فلترة',
+        ),
+        IconButton(
+          icon: const Icon(Icons.sort_rounded),
+          onPressed: _showSortDialog,
+          tooltip: 'ترتيب',
+        ),
         IconButton(
           icon: const Icon(Icons.refresh_rounded),
           onPressed: () {
@@ -170,105 +216,150 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
   }
 
   Widget _buildSearchBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: _searchController,
+            onChanged: (value) {
+              setState(() => _searchQuery = value);
+            },
+            decoration: InputDecoration(
+              hintText: 'البحث عن مركبة...',
+              hintStyle: TextStyle(
+                fontFamily: 'Cairo',
+                color: Colors.grey[400],
+              ),
+              prefixIcon:
+                  const Icon(Icons.search_rounded, color: AppColors.primary),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              border: InputBorder.none,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+            style: const TextStyle(fontFamily: 'Cairo'),
+          ),
+        ),
+        // Filter chips
+        if (_hasActiveFilters) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                if (_showActiveOnly)
+                  _buildFilterChip(
+                    'نشطة فقط',
+                    Icons.check_circle_rounded,
+                    () => setState(() => _showActiveOnly = false),
+                  ),
+                if (_onlyWithDriver)
+                  _buildFilterChip(
+                    'مع سائق',
+                    Icons.person_rounded,
+                    () => setState(() => _onlyWithDriver = false),
+                  ),
+                if (_onlyWithParking)
+                  _buildFilterChip(
+                    'مع موقف',
+                    Icons.local_parking_rounded,
+                    () => setState(() => _onlyWithParking = false),
+                  ),
+              ],
+            ),
           ),
         ],
-      ),
-      child: TextField(
-        controller: _searchController,
-        onChanged: (value) {
-          setState(() => _searchQuery = value);
-        },
-        decoration: InputDecoration(
-          hintText: 'البحث عن مركبة...',
-          hintStyle: TextStyle(
-            fontFamily: 'Cairo',
-            color: Colors.grey[400],
-          ),
-          prefixIcon:
-              const Icon(Icons.search_rounded, color: AppColors.primary),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear_rounded),
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() => _searchQuery = '');
-                  },
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ],
+    );
+  }
+
+  Widget _buildFilterChip(String label, IconData icon, VoidCallback onRemove) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Chip(
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16),
+            const SizedBox(width: 4),
+            Text(label, style: const TextStyle(fontFamily: 'Cairo', fontSize: 12)),
+          ],
         ),
-        style: const TextStyle(fontFamily: 'Cairo'),
+        onDeleted: onRemove,
+        deleteIcon: const Icon(Icons.close, size: 16),
+        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+        labelStyle: TextStyle(color: AppColors.primary),
       ),
     );
   }
+
+  bool get _hasActiveFilters =>
+      _showActiveOnly || _onlyWithDriver || _onlyWithParking;
 
   Widget _buildVehiclesList() {
     final vehiclesAsync = ref.watch(allVehiclesProvider);
 
     return vehiclesAsync.when(
       data: (vehicles) {
-        var filteredVehicles = vehicles;
-
-        // تصفية حسب البحث
-        if (_searchQuery.isNotEmpty) {
-          final query = _searchQuery.toLowerCase();
-          filteredVehicles = vehicles
-              .where(
-                (v) =>
-                    v.name.toLowerCase().contains(query) ||
-                    (v.licensePlate?.toLowerCase().contains(query) ?? false) ||
-                    (v.driverName?.toLowerCase().contains(query) ?? false),
-              )
-              .toList();
-        }
+        var filteredVehicles = _getFilteredAndSortedVehicles(vehicles);
 
         if (filteredVehicles.isEmpty) {
           return _buildEmptyState();
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: filteredVehicles.length,
-          itemBuilder: (context, index) {
-            return _buildVehicleCard(filteredVehicles[index], index);
+        return RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(allVehiclesProvider);
+            ref.invalidate(vehicleStatsProvider);
           },
+          color: AppColors.primary,
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              context.isMobile ? 96 : 16,
+            ),
+            itemCount: filteredVehicles.length + (_isLoadingMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == filteredVehicles.length) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+              return _buildVehicleCard(filteredVehicles[index], index);
+            },
+          ),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: AppColors.error),
-            const SizedBox(height: 16),
-            Text(
-              'حدث خطأ في تحميل البيانات',
-              style: TextStyle(
-                fontFamily: 'Cairo',
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => ref.invalidate(allVehiclesProvider),
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('إعادة المحاولة'),
-            ),
-          ],
-        ),
-      ),
+      error: (error, stackTrace) => _buildErrorState(error, stackTrace),
     );
   }
 
@@ -280,7 +371,10 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 2,
       child: InkWell(
-        onTap: () => _showVehicleDetails(vehicle),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          context.push('/dispatcher/vehicles/${vehicle.id}');
+        },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -473,6 +567,96 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
         );
   }
 
+  Widget _buildErrorState(Object error, StackTrace stackTrace) {
+    final errorMessage = _getErrorMessage(error);
+    final isNetworkError = _isNetworkError(error);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isNetworkError ? Icons.wifi_off_rounded : Icons.error_outline,
+              size: 64,
+              color: AppColors.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isNetworkError ? 'لا يوجد اتصال بالإنترنت' : 'حدث خطأ في تحميل البيانات',
+              style: const TextStyle(
+                fontFamily: 'Cairo',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.error,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            if (errorMessage.isNotEmpty)
+              Text(
+                errorMessage,
+                style: TextStyle(
+                  fontFamily: 'Cairo',
+                  color: Colors.grey[600],
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  label: const Text('رجوع', style: TextStyle(fontFamily: 'Cairo')),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    ref.invalidate(allVehiclesProvider);
+                    ref.invalidate(vehicleStatsProvider);
+                  },
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('إعادة المحاولة', style: TextStyle(fontFamily: 'Cairo')),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getErrorMessage(Object error) {
+    final errorStr = error.toString().toLowerCase();
+    if (errorStr.contains('network') || errorStr.contains('connection')) {
+      return 'يرجى التحقق من اتصال الإنترنت';
+    }
+    if (errorStr.contains('timeout')) {
+      return 'انتهت مهلة الاتصال، يرجى المحاولة مرة أخرى';
+    }
+    if (errorStr.contains('unauthorized') || errorStr.contains('401')) {
+      return 'انتهت صلاحية الجلسة، يرجى تسجيل الدخول مرة أخرى';
+    }
+    return error.toString().replaceAll('Exception: ', '');
+  }
+
+  bool _isNetworkError(Object error) {
+    final errorStr = error.toString().toLowerCase();
+    return errorStr.contains('network') ||
+        errorStr.contains('connection') ||
+        errorStr.contains('socket') ||
+        errorStr.contains('timeout');
+  }
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -513,14 +697,6 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
     );
   }
 
-  void _showVehicleDetails(ShuttleVehicle vehicle) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _VehicleDetailsSheet(vehicle: vehicle),
-    );
-  }
 
   void _showVehicleActions(ShuttleVehicle vehicle) {
     HapticFeedback.lightImpact();
@@ -569,21 +745,30 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
   }
 
   void _showAddVehicleDialog() {
-    // TODO: Implement add vehicle dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('سيتم إضافة نموذج إنشاء مركبة قريباً'),
-      ),
-    );
+    HapticFeedback.mediumImpact();
+    showDialog(
+      context: context,
+      builder: (context) => const VehicleFormDialog(),
+    ).then((success) {
+      if (success == true) {
+        ref.invalidate(allVehiclesProvider);
+        ref.invalidate(vehicleStatsProvider);
+      }
+    });
   }
 
   void _showEditVehicleDialog(ShuttleVehicle vehicle) {
-    // TODO: Implement edit vehicle dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('سيتم إضافة نموذج تعديل مركبة قريباً'),
-      ),
-    );
+    HapticFeedback.mediumImpact();
+    showDialog(
+      context: context,
+      builder: (context) => VehicleFormDialog(vehicle: vehicle),
+    ).then((success) {
+      if (success == true) {
+        ref.invalidate(allVehiclesProvider);
+        ref.invalidate(vehicleStatsProvider);
+        ref.invalidate(vehicleByIdProvider(vehicle.id));
+      }
+    });
   }
 
   void _toggleVehicleActive(ShuttleVehicle vehicle) async {
@@ -591,6 +776,206 @@ class _VehiclesScreenState extends ConsumerState<VehiclesScreen> {
     await ref
         .read(vehicleActionsProvider.notifier)
         .updateVehicle(updatedVehicle);
+  }
+
+  List<ShuttleVehicle> _getFilteredAndSortedVehicles(List<ShuttleVehicle> vehicles) {
+    var filtered = vehicles;
+
+    // تصفية حسب البحث
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered
+          .where(
+            (v) =>
+                v.name.toLowerCase().contains(query) ||
+                (v.licensePlate?.toLowerCase().contains(query) ?? false) ||
+                (v.driverName?.toLowerCase().contains(query) ?? false),
+          )
+          .toList();
+    }
+
+    // تصفية حسب الفلاتر
+    if (_showActiveOnly) {
+      filtered = filtered.where((v) => v.active).toList();
+    }
+
+    if (_onlyWithDriver) {
+      filtered = filtered.where((v) => v.hasDriver).toList();
+    }
+
+    if (_onlyWithParking) {
+      filtered = filtered.where((v) => v.hasParkingLocation).toList();
+    }
+
+    // الترتيب
+    filtered.sort((a, b) {
+      switch (_sortOption) {
+        case VehicleSortOption.nameAsc:
+          return a.name.compareTo(b.name);
+        case VehicleSortOption.nameDesc:
+          return b.name.compareTo(a.name);
+        case VehicleSortOption.capacityAsc:
+          return a.seatCapacity.compareTo(b.seatCapacity);
+        case VehicleSortOption.capacityDesc:
+          return b.seatCapacity.compareTo(a.seatCapacity);
+        case VehicleSortOption.tripsAsc:
+          return a.tripCount.compareTo(b.tripCount);
+        case VehicleSortOption.tripsDesc:
+          return b.tripCount.compareTo(a.tripCount);
+      }
+    });
+
+    return filtered;
+  }
+
+  void _showFiltersDialog() {
+    HapticFeedback.lightImpact();
+    showDialog(
+      context: context,
+      builder: (context) {
+        bool localActiveOnly = _showActiveOnly;
+        bool localWithDriver = _onlyWithDriver;
+        bool localWithParking = _onlyWithParking;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text(
+                'فلترة المركبات',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SwitchListTile(
+                    value: localActiveOnly,
+                    onChanged: (v) => setDialogState(() => localActiveOnly = v),
+                    title: const Text('نشطة فقط', style: TextStyle(fontFamily: 'Cairo')),
+                    activeColor: AppColors.primary,
+                  ),
+                  SwitchListTile(
+                    value: localWithDriver,
+                    onChanged: (v) => setDialogState(() => localWithDriver = v),
+                    title: const Text('مع سائق', style: TextStyle(fontFamily: 'Cairo')),
+                    activeColor: AppColors.primary,
+                  ),
+                  SwitchListTile(
+                    value: localWithParking,
+                    onChanged: (v) => setDialogState(() => localWithParking = v),
+                    title: const Text('مع موقف', style: TextStyle(fontFamily: 'Cairo')),
+                    activeColor: AppColors.primary,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    setDialogState(() {
+                      localActiveOnly = false;
+                      localWithDriver = false;
+                      localWithParking = false;
+                    });
+                  },
+                  child: const Text('إعادة ضبط', style: TextStyle(fontFamily: 'Cairo')),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _showActiveOnly = localActiveOnly;
+                      _onlyWithDriver = localWithDriver;
+                      _onlyWithParking = localWithParking;
+                    });
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  child: const Text('تطبيق', style: TextStyle(fontFamily: 'Cairo')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showSortDialog() {
+    HapticFeedback.lightImpact();
+    showDialog(
+      context: context,
+      builder: (context) {
+        VehicleSortOption localSort = _sortOption;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text(
+                'ترتيب المركبات',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<VehicleSortOption>(
+                    value: VehicleSortOption.nameAsc,
+                    groupValue: localSort,
+                    onChanged: (v) => setDialogState(() => localSort = v!),
+                    title: const Text('الاسم (أ-ي)', style: TextStyle(fontFamily: 'Cairo')),
+                  ),
+                  RadioListTile<VehicleSortOption>(
+                    value: VehicleSortOption.nameDesc,
+                    groupValue: localSort,
+                    onChanged: (v) => setDialogState(() => localSort = v!),
+                    title: const Text('الاسم (ي-أ)', style: TextStyle(fontFamily: 'Cairo')),
+                  ),
+                  RadioListTile<VehicleSortOption>(
+                    value: VehicleSortOption.capacityAsc,
+                    groupValue: localSort,
+                    onChanged: (v) => setDialogState(() => localSort = v!),
+                    title: const Text('السعة (صغير-كبير)', style: TextStyle(fontFamily: 'Cairo')),
+                  ),
+                  RadioListTile<VehicleSortOption>(
+                    value: VehicleSortOption.capacityDesc,
+                    groupValue: localSort,
+                    onChanged: (v) => setDialogState(() => localSort = v!),
+                    title: const Text('السعة (كبير-صغير)', style: TextStyle(fontFamily: 'Cairo')),
+                  ),
+                  RadioListTile<VehicleSortOption>(
+                    value: VehicleSortOption.tripsAsc,
+                    groupValue: localSort,
+                    onChanged: (v) => setDialogState(() => localSort = v!),
+                    title: const Text('الرحلات (قليل-كثير)', style: TextStyle(fontFamily: 'Cairo')),
+                  ),
+                  RadioListTile<VehicleSortOption>(
+                    value: VehicleSortOption.tripsDesc,
+                    groupValue: localSort,
+                    onChanged: (v) => setDialogState(() => localSort = v!),
+                    title: const Text('الرحلات (كثير-قليل)', style: TextStyle(fontFamily: 'Cairo')),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إلغاء', style: TextStyle(fontFamily: 'Cairo')),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() => _sortOption = localSort);
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  child: const Text('تطبيق', style: TextStyle(fontFamily: 'Cairo')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   void _confirmDelete(ShuttleVehicle vehicle) {

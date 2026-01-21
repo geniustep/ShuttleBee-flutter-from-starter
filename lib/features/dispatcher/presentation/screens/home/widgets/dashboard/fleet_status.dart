@@ -40,8 +40,9 @@ class FleetStatus extends StatelessWidget {
               Expanded(
                 child: StatCard(
                   title: l10n.activeVehicles,
-                  value:
-                      '${Formatters.formatSimple(stats.activeVehicles)}/${Formatters.formatSimple(stats.totalVehicles)}',
+                  value: stats.totalVehicles > 0
+                      ? '${Formatters.formatSimple(stats.activeVehicles)}/${Formatters.formatSimple(stats.totalVehicles)}'
+                      : Formatters.formatSimple(stats.activeVehicles),
                   icon: Icons.directions_bus_rounded,
                   color: AppColors.primary,
                   animationDelay: 200,
@@ -51,8 +52,9 @@ class FleetStatus extends StatelessWidget {
               Expanded(
                 child: StatCard(
                   title: l10n.activeDrivers,
-                  value:
-                      '${Formatters.formatSimple(stats.activeDrivers)}/${Formatters.formatSimple(stats.totalDrivers)}',
+                  value: stats.totalDrivers > 0
+                      ? '${Formatters.formatSimple(stats.activeDrivers)}/${Formatters.formatSimple(stats.totalDrivers)}'
+                      : Formatters.formatSimple(stats.activeDrivers),
                   icon: Icons.person_rounded,
                   color: AppColors.success,
                   animationDelay: 250,

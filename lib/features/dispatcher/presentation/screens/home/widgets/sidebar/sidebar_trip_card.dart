@@ -8,8 +8,10 @@ import '../../../../../../../core/routing/route_paths.dart';
 import '../../../../../../../core/utils/formatters.dart';
 import '../../../../../../../core/enums/enums.dart';
 import '../../../../../../trips/domain/entities/trip.dart';
+import '../../../../../../trips/presentation/providers/trip_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class SidebarTripCard extends StatelessWidget {
+class SidebarTripCard extends ConsumerWidget {
   final Trip trip;
   final int index;
 
@@ -20,7 +22,7 @@ class SidebarTripCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Material(
       color: Colors.white,
       elevation: 0,
@@ -28,7 +30,12 @@ class SidebarTripCard extends StatelessWidget {
       child: InkWell(
         onTap: () {
           HapticFeedback.lightImpact();
-          context.go('${RoutePaths.dispatcherHome}/trips/${trip.id}');
+          // Prefetch trip data before navigation
+          prefetchTripDetail(ref, trip.id);
+          // Navigate after a small delay to allow prefetch to start
+          Future.delayed(const Duration(milliseconds: 100), () {
+            context.go('${RoutePaths.dispatcherHome}/trips/${trip.id}');
+          });
         },
         borderRadius: BorderRadius.circular(14),
         child: Container(

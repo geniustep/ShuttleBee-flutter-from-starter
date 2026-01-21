@@ -106,8 +106,9 @@ class QuickStatsSummary extends StatelessWidget {
                         child: _buildQuickStatItem(
                           context,
                           icon: Icons.directions_bus_rounded,
-                          value:
-                              '${Formatters.formatSimple(stats.activeVehicles)}/${Formatters.formatSimple(stats.totalVehicles)}',
+                          value: stats.totalVehicles > 0
+                              ? '${Formatters.formatSimple(stats.activeVehicles)}/${Formatters.formatSimple(stats.totalVehicles)}'
+                              : Formatters.formatSimple(stats.activeVehicles),
                           label: l10n.vehicles,
                           color: AppColors.success,
                         ),

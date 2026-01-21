@@ -113,8 +113,14 @@ class Trip {
           _extractString(json['display_name']) ??
           '',
       reference: _extractString(json['reference']),
-      state: TripState.tryFromString(_extractString(json['state'])) ??
-          TripState.draft,
+      state: () {
+        final stateValue = _extractString(json['state']);
+        final parsedState = TripState.tryFromString(stateValue);
+        if (parsedState == null && stateValue != null) {
+          print('⚠️ [Trip.fromOdoo] Unknown state value: "$stateValue" for trip ${json['id']}, defaulting to draft');
+        }
+        return parsedState ?? TripState.draft;
+      }(),
       tripType: TripType.tryFromString(_extractString(json['trip_type'])) ??
           TripType.pickup,
       date: parseDate(json['date'] ?? json['scheduled_date']),

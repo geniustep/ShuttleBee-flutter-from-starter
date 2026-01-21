@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -21,6 +23,12 @@ import '../widgets/headers/dispatcher_secondary_header.dart';
 import '../widgets/common/dispatcher_footer.dart';
 import '../widgets/passengers/passenger_quick_actions_sheet.dart';
 import '../widgets/trips/select_trip_for_absence_sheet.dart';
+import '../widgets/passengers/bulk_operations_sheet.dart';
+import '../widgets/passengers/passenger_export_import.dart';
+import '../widgets/passengers/advanced_passenger_filters.dart';
+import '../widgets/passengers/passenger_analytics.dart';
+import '../widgets/passengers/bulk_notifications_sheet.dart';
+import '../widgets/passengers/passengers_map_view.dart';
 
 /// Dispatcher Passengers Board
 ///
@@ -41,6 +49,16 @@ class _DispatcherPassengersBoardScreenState
   String _searchUnassigned = '';
   String _searchGroups = '';
   String _searchKanban = '';
+  
+  // Selection mode
+  bool _isSelectionMode = false;
+  final Set<int> _selectedPassengerIds = {};
+  
+  // Analytics view
+  bool _showAnalytics = false;
+  
+  // Map view toggle
+  bool _showMapView = false;
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +86,81 @@ class _DispatcherPassengersBoardScreenState
             orElse: () => null,
           ),
           actions: [
+            // Map view toggle
+            IconButton(
+              tooltip: _showMapView ? 'عرض القائمة' : 'عرض الخريطة',
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                setState(() {
+                  _showMapView = !_showMapView;
+                  _showAnalytics = false;
+                  _isSelectionMode = false;
+                  _selectedPassengerIds.clear();
+                });
+              },
+              icon: Icon(_showMapView ? Icons.list_rounded : Icons.map_rounded),
+            ),
+            // Analytics toggle
+            IconButton(
+              tooltip: _showAnalytics ? 'إخفاء الإحصائيات' : 'عرض الإحصائيات',
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                setState(() {
+                  _showAnalytics = !_showAnalytics;
+                  _showMapView = false;
+                  _isSelectionMode = false;
+                  _selectedPassengerIds.clear();
+                });
+              },
+              icon: Icon(_showAnalytics ? Icons.bar_chart_rounded : Icons.analytics_rounded),
+            ),
+            // Export/Import
+            IconButton(
+              tooltip: 'تصدير / استيراد',
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                allPassengersAsync.maybeWhen(
+                  data: (items) {
+                    PassengerExportImportSheet.show(
+                      context,
+                      passengers: items,
+                      onImport: (data) {
+                        // TODO: Handle import
+                      },
+                    );
+                  },
+                  orElse: () {},
+                );
+              },
+              icon: const Icon(Icons.import_export_rounded),
+            ),
+            // Selection mode toggle
+            IconButton(
+              tooltip: _isSelectionMode ? 'إلغاء التحديد' : 'تحديد متعدد',
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                setState(() {
+                  _isSelectionMode = !_isSelectionMode;
+                  if (!_isSelectionMode) {
+                    _selectedPassengerIds.clear();
+                  }
+                  _showAnalytics = false;
+                });
+              },
+              icon: Icon(_isSelectionMode ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded),
+            ),
+            IconButton(
+              tooltip: l10n.addNewPassenger,
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                context.go(RoutePaths.dispatcherCreatePassenger);
+              },
+              icon: const Icon(Icons.person_add_alt_1_rounded),
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.dispatcherPrimary,
+                foregroundColor: Colors.white,
+              ),
+            ),
             IconButton(
               tooltip: l10n.refresh,
               onPressed: () {
@@ -80,13 +173,26 @@ class _DispatcherPassengersBoardScreenState
             ),
           ],
           bottom: TabBar(
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white.withValues(alpha: 0.7),
+            indicatorColor: Colors.white,
+            indicatorWeight: 3,
             labelStyle: const TextStyle(
               fontFamily: 'Cairo',
               fontWeight: FontWeight.w700,
+              fontSize: 14,
+              shadows: [
+                Shadow(
+                  color: Colors.black26,
+                  offset: Offset(0, 1),
+                  blurRadius: 2,
+                ),
+              ],
             ),
             unselectedLabelStyle: const TextStyle(
               fontFamily: 'Cairo',
               fontWeight: FontWeight.w600,
+              fontSize: 13,
             ),
             tabs: [
               Tab(text: l10n.allPassengers),
@@ -96,85 +202,172 @@ class _DispatcherPassengersBoardScreenState
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
+        body: _showMapView
+            ? _buildMapView()
+            : TabBarView(
+                children: [
             // All Passengers Tab
             Column(
               children: [
                 allPassengersAsync.maybeWhen(
-                  data: (items) => DispatcherSecondaryHeader(
-                    searchHint: l10n.searchAllPassengers,
-                    searchValue: _searchAll,
-                    onSearchChanged: (v) => setState(() => _searchAll = v),
-                    onSearchClear: () => setState(() => _searchAll = ''),
-                    stats: [
-                      DispatcherStatChip(
-                        icon: Icons.people_rounded,
-                        label: l10n.total,
-                        value: Formatters.formatSimple(items.length),
-                        color: AppColors.dispatcherPrimary,
-                      ),
-                      DispatcherStatChip(
-                        icon: Icons.groups_rounded,
-                        label: l10n.groups,
-                        value: Formatters.formatSimple(
-                          items.where((e) => e.groupId != null).length,
+                  data: (items) {
+                    final filters = ref.watch(passengerFiltersProvider);
+                    final filteredItems = filters.applyFilters(items);
+                    
+                    return DispatcherSecondaryHeader(
+                      searchHint: l10n.searchAllPassengers,
+                      searchValue: _searchAll,
+                      onSearchChanged: (v) {
+                        setState(() => _searchAll = v);
+                        ref.read(passengerFiltersProvider.notifier).setSearchQuery(v.isEmpty ? null : v);
+                      },
+                      onSearchClear: () {
+                        setState(() => _searchAll = '');
+                        ref.read(passengerFiltersProvider.notifier).setSearchQuery(null);
+                      },
+                      stats: [
+                        DispatcherStatChip(
+                          icon: Icons.people_rounded,
+                          label: l10n.total,
+                          value: Formatters.formatSimple(filteredItems.length),
+                          color: AppColors.dispatcherPrimary,
                         ),
-                        color: AppColors.success,
-                      ),
-                      DispatcherStatChip(
-                        icon: Icons.person_off_rounded,
-                        label: l10n.unassigned,
-                        value: Formatters.formatSimple(
-                          items.where((e) => e.groupId == null).length,
+                        DispatcherStatChip(
+                          icon: Icons.groups_rounded,
+                          label: l10n.groups,
+                          value: Formatters.formatSimple(
+                            filteredItems.where((e) => e.groupId != null).length,
+                          ),
+                          color: AppColors.success,
                         ),
-                        color: AppColors.warning,
-                      ),
-                    ],
-                  ),
+                        DispatcherStatChip(
+                          icon: Icons.person_off_rounded,
+                          label: l10n.unassigned,
+                          value: Formatters.formatSimple(
+                            filteredItems.where((e) => e.groupId == null).length,
+                          ),
+                          color: AppColors.warning,
+                        ),
+                      ],
+                      actions: [
+                        IconButton(
+                          tooltip: 'فلاتر متقدمة',
+                          onPressed: () {
+                            HapticFeedback.lightImpact();
+                            AdvancedPassengerFiltersSheet.show(
+                              context,
+                              currentFilters: filters,
+                            );
+                          },
+                          icon: Stack(
+                            children: [
+                              const Icon(Icons.filter_list_rounded),
+                              if (filters.hasActiveFilters)
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.error,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                   orElse: () => const SizedBox.shrink(),
                 ),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      allPassengersAsync.when(
+                // Analytics view
+                if (_showAnalytics)
+                  allPassengersAsync.maybeWhen(
+                    data: (items) => Flexible(
+                      child: Container(
+                        constraints: const BoxConstraints(maxHeight: 500),
+                        margin: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: PassengerAnalyticsDashboard(
+                          analytics: PassengerAnalytics(items),
+                        ),
+                      ),
+                    ),
+                    orElse: () => const SizedBox.shrink(),
+                  ),
+                // Selection mode actions
+                if (_isSelectionMode && _selectedPassengerIds.isNotEmpty)
+                  allPassengersAsync.maybeWhen(
+                    data: (items) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      color: AppColors.dispatcherPrimary.withValues(alpha: 0.1),
+                      child: Row(
+                        children: [
+                          Text(
+                            '${_selectedPassengerIds.length} محدد',
+                            style: const TextStyle(
+                              fontFamily: 'Cairo',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(Icons.notifications_rounded),
+                            tooltip: 'إشعارات جماعية',
+                            onPressed: () {
+                              final selected = items.where((p) => _selectedPassengerIds.contains(p.id)).toList();
+                              BulkNotificationsSheet.show(context, passengers: selected);
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.select_all_rounded),
+                            tooltip: 'عمليات مجمعة',
+                            onPressed: () {
+                              final selected = items.where((p) => _selectedPassengerIds.contains(p.id)).toList();
+                              BulkOperationsSheet.show(
+                                context,
+                                selectedPassengers: selected,
+                                onClearSelection: () {
+                                  setState(() {
+                                    _selectedPassengerIds.clear();
+                                    _isSelectionMode = false;
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  orElse: () => const SizedBox.shrink(),
+                ),
+                // Show passengers list only when analytics is hidden
+                if (!_showAnalytics)
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        allPassengersAsync.when(
                         data: (items) {
-                          var filtered = items;
-                          if (_searchAll.trim().isNotEmpty) {
-                            final q = _searchAll.trim().toLowerCase();
-                            filtered = items
-                                .where(
-                                  (e) =>
-                                      e.passengerName
-                                          .toLowerCase()
-                                          .contains(q) ||
-                                      (e.passengerPhone ?? '')
-                                          .toLowerCase()
-                                          .contains(q) ||
-                                      (e.passengerMobile ?? '')
-                                          .toLowerCase()
-                                          .contains(q) ||
-                                      (e.fatherPhone ?? '')
-                                          .toLowerCase()
-                                          .contains(q) ||
-                                      (e.motherPhone ?? '')
-                                          .toLowerCase()
-                                          .contains(q) ||
-                                      (e.guardianPhone ?? '')
-                                          .toLowerCase()
-                                          .contains(q) ||
-                                      (e.groupName ?? '')
-                                          .toLowerCase()
-                                          .contains(q),
-                                )
-                                .toList();
-                          }
+                          final filters = ref.watch(passengerFiltersProvider);
+                          final filtered = filters.applyFilters(items);
 
                           if (filtered.isEmpty) {
                             return EmptyState(
                               icon: Icons.person_off_rounded,
                               title: l10n.noPassengers,
-                              message: _searchAll.isNotEmpty
+                              message: filters.hasActiveFilters || _searchAll.isNotEmpty
                                   ? l10n.noMatchingResults
                                   : l10n.noPassengersInSystem,
                               buttonText: l10n.addNewPassenger,
@@ -188,6 +381,7 @@ class _DispatcherPassengersBoardScreenState
                             itemCount: filtered.length,
                             itemBuilder: (context, index) {
                               final line = filtered[index];
+                              final isSelected = _selectedPassengerIds.contains(line.id);
                               return _AllPassengerCard(
                                 key: ValueKey('all_${line.id}'),
                                 lineId: line.id,
@@ -199,6 +393,17 @@ class _DispatcherPassengersBoardScreenState
                                 motherPhone: line.motherPhone,
                                 guardianPhone: line.guardianPhone,
                                 groupName: line.groupName,
+                                isSelectionMode: _isSelectionMode,
+                                isSelected: isSelected,
+                                onSelectionChanged: (selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      _selectedPassengerIds.add(line.id);
+                                    } else {
+                                      _selectedPassengerIds.remove(line.id);
+                                    }
+                                  });
+                                },
                                 onOpenDetails: () => context.push(
                                   '${RoutePaths.dispatcherPassengers}/p/${line.passengerId}',
                                 ),
@@ -661,9 +866,121 @@ class _DispatcherPassengersBoardScreenState
       },
     );
   }
+  
+  Widget _buildMapView() {
+    return Stack(
+      children: [
+        PassengersMapView(
+          showUnassignedOnly: false,
+          onPassengerSelected: (passenger) {
+            // يمكن إضافة منطق لعرض تفاصيل الراكب
+            _showPassengerDetails(context, passenger);
+          },
+        ),
+        // زر العودة للقائمة
+        Positioned(
+          top: 16,
+          left: 16,
+          child: SafeArea(
+            child: FloatingActionButton(
+              mini: true,
+              onPressed: () {
+                setState(() {
+                  _showMapView = false;
+                });
+              },
+              backgroundColor: Colors.white,
+              child: const Icon(Icons.list_rounded, color: AppColors.dispatcherPrimary),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  void _showPassengerDetails(BuildContext context, PassengerGroupLine passenger) {
+    // إغلاق عرض الخريطة والعودة للقائمة لعرض تفاصيل الراكب
+    setState(() {
+      _showMapView = false;
+    });
+    
+    // عرض شاشة الإجراءات السريعة للراكب
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        PassengerQuickActionsSheet.show(
+          context,
+          passengerId: passenger.passengerId,
+          passengerName: passenger.passengerName,
+          onEditProfile: () {
+            context.push(
+              '${RoutePaths.dispatcherPassengers}/p/${passenger.passengerId}',
+            );
+          },
+          onChangeLocation: () {
+            ChangeLocationSheet.show(
+              context,
+              passengerId: passenger.passengerId,
+              passengerName: passenger.passengerName,
+            ).then((_) {
+              // تحديث البيانات بعد تغيير الموقع
+              ref.invalidate(dispatcherAllPassengersProvider);
+              ref.invalidate(dispatcherUnassignedPassengersProvider);
+            });
+          },
+          onMarkAbsent: () async {
+            final result = await SelectTripForAbsenceSheet.show(
+              context,
+              passengerId: passenger.passengerId,
+              passengerName: passenger.passengerName,
+            );
+
+            if (result != null && context.mounted) {
+              // Mark as absent using trip repository
+              final repository = ref.read(tripRepositoryProvider);
+              if (repository == null) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('حدث خطأ')),
+                  );
+                }
+                return;
+              }
+
+              try {
+                final apiResult = await repository.markPassengerAbsent(result.tripLineId);
+                final success = apiResult.isRight();
+
+                if (context.mounted) {
+                  final l = AppLocalizations.of(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        success
+                            ? '${l.absenceRecorded} ${passenger.passengerName} ${l.inText} ${result.tripName}'
+                            : l.absenceFailed,
+                      ),
+                    ),
+                  );
+                  // تحديث البيانات بعد تحديد الغياب
+                  ref.invalidate(dispatcherAllPassengersProvider);
+                  ref.invalidate(dispatcherUnassignedPassengersProvider);
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('خطأ: $e')),
+                  );
+                }
+              }
+            }
+          },
+        );
+      }
+    });
+  }
 }
 
-class _KanbanDistributionBoard extends ConsumerWidget {
+class _KanbanDistributionBoard extends ConsumerStatefulWidget {
   final String searchQuery;
   final AsyncValue<List<PassengerGroup>> groupsAsync;
   final AsyncValue<List<PassengerGroupLine>> unassignedAsync;
@@ -675,8 +992,141 @@ class _KanbanDistributionBoard extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return groupsAsync.when(
+  ConsumerState<_KanbanDistributionBoard> createState() =>
+      _KanbanDistributionBoardState();
+}
+
+class _KanbanDistributionBoardState
+    extends ConsumerState<_KanbanDistributionBoard> {
+  late ScrollController _scrollController;
+  Timer? _autoScrollTimer;
+  bool _isDragging = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    // تحميل البيانات من التخزين المحلي عند فتح اللوحة
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadFromLocalStorage();
+    });
+  }
+
+  void _loadFromLocalStorage() {
+    // الـ providers تستخدم cache-first approach، لذا ستجلب البيانات من التخزين المحلي تلقائياً
+    // لكننا نريد التأكد من أنها تحاول الجلب عند فتح اللوحة
+    if (mounted) {
+      // قراءة الـ providers لضمان جلب البيانات من التخزين المحلي
+      // هذا سيجعل الـ providers تحاول جلب البيانات من الـ cache أولاً
+      ref.read(dispatcherGroupsProvider.future);
+      ref.read(dispatcherUnassignedPassengersProvider.future);
+      
+      // تحميل البيانات لكل مجموعة أيضاً عند توفرها
+      final groupsAsync = widget.groupsAsync;
+      if (groupsAsync.hasValue) {
+        final groups = groupsAsync.value ?? [];
+        for (final group in groups) {
+          ref.read(dispatcherGroupPassengersProvider(group.id).future);
+        }
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _autoScrollTimer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _handleDragUpdate(DragUpdateDetails details) {
+    if (!_isDragging) return;
+
+    // استخدام الموضع العالمي للتحقق من الحواف
+    _checkAndStartAutoScroll(details.globalPosition.dx);
+  }
+
+  void _handleDragStart() {
+    _isDragging = true;
+  }
+
+  void _handleDragEnd() {
+    _isDragging = false;
+    // إيقاف التمرير التلقائي عند انتهاء السحب
+    _autoScrollTimer?.cancel();
+  }
+
+  void _handlePointerMove(PointerEvent event) {
+    if (!_isDragging) return;
+
+    // تحويل الموضع المحلي إلى عالمي
+    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox != null) {
+      final globalPosition = renderBox.localToGlobal(event.position);
+      _checkAndStartAutoScroll(globalPosition.dx);
+    } else {
+      // استخدام الموضع المحلي كبديل
+      _checkAndStartAutoScroll(event.position.dx);
+    }
+  }
+
+  void _checkAndStartAutoScroll(double xPosition) {
+    if (!_isDragging) return;
+
+    final screenWidth = MediaQuery.of(context).size.width;
+    final scrollPosition = _scrollController.offset;
+    final scrollMax = _scrollController.position.maxScrollExtent;
+    final edgeThreshold = 80.0;
+    final scrollSpeed = 15.0;
+
+    // إلغاء التمرير التلقائي السابق
+    _autoScrollTimer?.cancel();
+
+    if (xPosition < edgeThreshold && scrollPosition > 0) {
+      // السحب بالقرب من الحافة اليسرى - التمرير لليسار
+      _autoScrollTimer = Timer.periodic(
+        const Duration(milliseconds: 16),
+        (_) {
+          if (_scrollController.hasClients &&
+              _scrollController.offset > 0 &&
+              _isDragging) {
+            final newPosition = (_scrollController.offset - scrollSpeed)
+                .clamp(0.0, scrollMax);
+            _scrollController.jumpTo(newPosition);
+            if (newPosition <= 0) {
+              _autoScrollTimer?.cancel();
+            }
+          } else {
+            _autoScrollTimer?.cancel();
+          }
+        },
+      );
+    } else if (xPosition > screenWidth - edgeThreshold &&
+        scrollPosition < scrollMax) {
+      // السحب بالقرب من الحافة اليمنى - التمرير لليمين
+      _autoScrollTimer = Timer.periodic(
+        const Duration(milliseconds: 16),
+        (_) {
+          if (_scrollController.hasClients &&
+              _scrollController.offset < scrollMax &&
+              _isDragging) {
+            final newPosition = (_scrollController.offset + scrollSpeed)
+                .clamp(0.0, scrollMax);
+            _scrollController.jumpTo(newPosition);
+            if (newPosition >= scrollMax) {
+              _autoScrollTimer?.cancel();
+            }
+          } else {
+            _autoScrollTimer?.cancel();
+          }
+        },
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.groupsAsync.when(
       data: (groups) {
         // Always show the "unassigned" column first.
         final sortedGroups = List<PassengerGroup>.from(groups)
@@ -685,45 +1135,61 @@ class _KanbanDistributionBoard extends ConsumerWidget {
         return LayoutBuilder(
           builder: (context, constraints) {
             final height = constraints.maxHeight;
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 330,
-                    height: height,
-                    child: _KanbanColumn(
-                      title: AppLocalizations.of(context).unassigned,
-                      color: AppColors.warning,
-                      groupId: null,
-                      linesAsync: unassignedAsync,
-                      searchQuery: searchQuery,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ...sortedGroups.map((g) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: SizedBox(
-                        width: 330,
-                        height: height,
+            return Listener(
+              onPointerMove: _handlePointerMove,
+              child: Scrollbar(
+                controller: _scrollController,
+                thumbVisibility: true,
+                thickness: 8,
+                radius: const Radius.circular(4),
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                  child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 330,
+                      height: height,
                         child: _KanbanColumn(
-                          title: g.name,
-                          subtitle: '${g.memberCount} راكب',
-                          color: AppColors.dispatcherPrimary,
-                          groupId: g.id,
-                          linesAsync: ref
-                              .watch(dispatcherGroupPassengersProvider(g.id)),
-                          searchQuery: searchQuery,
+                          title: AppLocalizations.of(context).unassigned,
+                          color: AppColors.warning,
+                          groupId: null,
+                          linesAsync: widget.unassignedAsync,
+                          searchQuery: widget.searchQuery,
+                          onDragUpdate: _handleDragUpdate,
+                          onDragStart: _handleDragStart,
+                          onDragEnd: _handleDragEnd,
                         ),
-                      ),
-                    );
-                  }),
-                ],
+                    ),
+                    const SizedBox(width: 12),
+                    ...sortedGroups.map((g) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: SizedBox(
+                          width: 330,
+                          height: height,
+                            child: _KanbanColumn(
+                              title: g.name,
+                              subtitle: '${g.memberCount} راكب',
+                              color: AppColors.dispatcherPrimary,
+                              groupId: g.id,
+                              linesAsync: ref
+                                  .watch(dispatcherGroupPassengersProvider(g.id)),
+                              searchQuery: widget.searchQuery,
+                              onDragUpdate: _handleDragUpdate,
+                              onDragStart: _handleDragStart,
+                              onDragEnd: _handleDragEnd,
+                            ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
               ),
-            );
+            ),
+          );
           },
         );
       },
@@ -753,6 +1219,9 @@ class _KanbanColumn extends ConsumerWidget {
   final int? groupId;
   final AsyncValue<List<PassengerGroupLine>> linesAsync;
   final String searchQuery;
+  final void Function(DragUpdateDetails)? onDragUpdate;
+  final VoidCallback? onDragStart;
+  final VoidCallback? onDragEnd;
 
   const _KanbanColumn({
     required this.title,
@@ -761,6 +1230,9 @@ class _KanbanColumn extends ConsumerWidget {
     required this.groupId,
     required this.linesAsync,
     required this.searchQuery,
+    this.onDragUpdate,
+    this.onDragStart,
+    this.onDragEnd,
   });
 
   @override
@@ -769,7 +1241,32 @@ class _KanbanColumn extends ConsumerWidget {
       onWillAcceptWithDetails: (details) {
         return details.data.groupId != groupId;
       },
+      onMove: (details) {
+        // استدعاء callback بدء السحب عند أول حركة
+        onDragStart?.call();
+        // حساب الموضع العالمي بناءً على RenderBox
+        final RenderBox? renderBox =
+            context.findRenderObject() as RenderBox?;
+        if (renderBox != null && onDragUpdate != null) {
+          final globalPosition = renderBox.localToGlobal(
+            details.offset,
+          );
+          // إنشاء DragUpdateDetails مع الموضع العالمي
+          onDragUpdate?.call(
+            DragUpdateDetails(
+              globalPosition: globalPosition,
+              localPosition: details.offset,
+            ),
+          );
+        }
+      },
+      onLeave: (_) {
+        // إيقاف التمرير عند مغادرة المنطقة
+        onDragEnd?.call();
+      },
       onAcceptWithDetails: (details) async {
+        // إيقاف التمرير عند قبول السحب
+        onDragEnd?.call();
         final line = details.data;
         final rootContext = context;
         HapticFeedback.lightImpact();
@@ -943,6 +1440,8 @@ class _KanbanColumn extends ConsumerWidget {
                             key: ValueKey('kanban_line_${line.id}'),
                             line: line,
                             accentColor: color,
+                            onDragStart: onDragStart,
+                            onDragEnd: onDragEnd,
                           );
                         },
                       );
@@ -976,11 +1475,15 @@ class _KanbanColumn extends ConsumerWidget {
 class _KanbanPassengerCard extends ConsumerWidget {
   final PassengerGroupLine line;
   final Color accentColor;
+  final VoidCallback? onDragStart;
+  final VoidCallback? onDragEnd;
 
   const _KanbanPassengerCard({
     super.key,
     required this.line,
     required this.accentColor,
+    this.onDragStart,
+    this.onDragEnd,
   });
 
   @override
@@ -990,6 +1493,115 @@ class _KanbanPassengerCard extends ConsumerWidget {
         ? line.guardianContactDisplay
         : (line.passengerPhone ?? line.passengerMobile ?? '');
 
+    // إنشاء محتوى البطاقة بدون Drag handle
+    final cardContent = Padding(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.person_rounded,
+              color: accentColor,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  line.passengerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Cairo',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                if (phone.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    phone,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontFamily: 'Cairo',
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _pill(
+                      icon: Icons.event_seat_rounded,
+                      text: '${line.seatCount}',
+                      color: AppColors.primary,
+                    ),
+                    if ((line.pickupInfoDisplay ?? '').trim().isNotEmpty)
+                      _pill(
+                        icon: Icons.arrow_upward_rounded,
+                        text: AppLocalizations.of(context).pickup,
+                        color: Colors.blue,
+                      ),
+                    if ((line.dropoffInfoDisplay ?? '').trim().isNotEmpty)
+                      _pill(
+                        icon: Icons.arrow_downward_rounded,
+                        text: AppLocalizations.of(context).dropoff,
+                        color: Colors.green,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+          // Quick actions button
+          IconButton(
+            icon: const Icon(
+              Icons.flash_on_rounded,
+              color: AppColors.warning,
+              size: 20,
+            ),
+            tooltip: AppLocalizations.of(context).quickActions,
+            onPressed: () => _showQuickActions(context, ref),
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(
+              minWidth: 32,
+              minHeight: 32,
+            ),
+          ),
+          // Drag handle - منطقة السحب المخصصة
+          MouseRegion(
+            cursor: SystemMouseCursors.grab,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
+              child: const Icon(
+                Icons.drag_indicator_rounded,
+                color: AppColors.textSecondary,
+                size: 20,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // إنشاء البطاقة الكاملة
     final card = Card(
       margin: const EdgeInsets.only(bottom: 10),
       elevation: 1,
@@ -1000,105 +1612,12 @@ class _KanbanPassengerCard extends ConsumerWidget {
           HapticFeedback.lightImpact();
           _showQuickActions(context, ref);
         },
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.person_rounded,
-                  color: accentColor,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      line.passengerName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'Cairo',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                    if (phone.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        phone,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: 'Cairo',
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        _pill(
-                          icon: Icons.event_seat_rounded,
-                          text: '${line.seatCount}',
-                          color: AppColors.primary,
-                        ),
-                        if ((line.pickupInfoDisplay ?? '').trim().isNotEmpty)
-                          _pill(
-                            icon: Icons.arrow_upward_rounded,
-                            text: AppLocalizations.of(context).pickup,
-                            color: Colors.blue,
-                          ),
-                        if ((line.dropoffInfoDisplay ?? '').trim().isNotEmpty)
-                          _pill(
-                            icon: Icons.arrow_downward_rounded,
-                            text: AppLocalizations.of(context).dropoff,
-                            color: Colors.green,
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 4),
-              // Quick actions button
-              IconButton(
-                icon: const Icon(
-                  Icons.flash_on_rounded,
-                  color: AppColors.warning,
-                  size: 20,
-                ),
-                tooltip: AppLocalizations.of(context).quickActions,
-                onPressed: () => _showQuickActions(context, ref),
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
-              ),
-              const Icon(
-                Icons.drag_indicator_rounded,
-                color: AppColors.textSecondary,
-              ),
-            ],
-          ),
-        ),
+        child: cardContent,
       ),
     );
 
-    return LongPressDraggable<PassengerGroupLine>(
+    // استخدام Draggable مع منطقة السحب المخصصة
+    return Draggable<PassengerGroupLine>(
       data: line,
       feedback: Material(
         color: Colors.transparent,
@@ -1111,6 +1630,15 @@ class _KanbanPassengerCard extends ConsumerWidget {
         ),
       ),
       childWhenDragging: Opacity(opacity: 0.35, child: card),
+      onDragStarted: () {
+        HapticFeedback.mediumImpact();
+        onDragStart?.call();
+      },
+      onDragEnd: (_) {
+        HapticFeedback.lightImpact();
+        onDragEnd?.call();
+      },
+      // جعل البطاقة بأكملها قابلة للسحب، لكن مع إشارة بصرية على منطقة السحب
       child: card,
     );
   }
@@ -1414,6 +1942,9 @@ class _AllPassengerCard extends ConsumerWidget {
   final String? motherPhone;
   final String? guardianPhone;
   final String? groupName;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final ValueChanged<bool>? onSelectionChanged;
   final VoidCallback onOpenDetails;
 
   const _AllPassengerCard({
@@ -1427,6 +1958,9 @@ class _AllPassengerCard extends ConsumerWidget {
     this.motherPhone,
     this.guardianPhone,
     this.groupName,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onSelectionChanged,
     required this.onOpenDetails,
   });
 
@@ -1449,24 +1983,48 @@ class _AllPassengerCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: () {
           HapticFeedback.lightImpact();
-          onOpenDetails();
+          if (isSelectionMode && onSelectionChanged != null) {
+            onSelectionChanged!(!isSelected);
+          } else {
+            onOpenDetails();
+          }
         },
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: isSelected
+                ? Border.all(
+                    color: AppColors.dispatcherPrimary,
+                    width: 2,
+                  )
+                : null,
+            color: isSelected
+                ? AppColors.dispatcherPrimary.withValues(alpha: 0.05)
+                : null,
+          ),
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.dispatcherPrimary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+              if (isSelectionMode)
+                Checkbox(
+                  value: isSelected,
+                  onChanged: (value) {
+                    onSelectionChanged?.call(value ?? false);
+                  },
+                )
+              else
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.dispatcherPrimary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.person_rounded,
+                    color: AppColors.dispatcherPrimary,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  color: AppColors.dispatcherPrimary,
-                ),
-              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -1529,22 +2087,24 @@ class _AllPassengerCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              // Quick actions button
-              IconButton(
-                icon: const Icon(
-                  Icons.flash_on_rounded,
-                  color: AppColors.warning,
-                  size: 20,
+              if (!isSelectionMode) ...[
+                // Quick actions button
+                IconButton(
+                  icon: const Icon(
+                    Icons.flash_on_rounded,
+                    color: AppColors.warning,
+                    size: 20,
+                  ),
+                  tooltip: AppLocalizations.of(context).quickActions,
+                  onPressed: () => _showQuickActions(context, ref),
+                  visualDensity: VisualDensity.compact,
                 ),
-                tooltip: AppLocalizations.of(context).quickActions,
-                onPressed: () => _showQuickActions(context, ref),
-                visualDensity: VisualDensity.compact,
-              ),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 18,
-                color: AppColors.textSecondary,
-              ),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
+              ],
             ],
           ),
         ),

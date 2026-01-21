@@ -92,6 +92,10 @@ class AppLocalizations {
       'show_more': 'Show more',
       'show_less': 'Show less',
       'details': 'Details',
+      'view_details': 'View Details',
+      'information': 'Information',
+      'role': 'Role',
+      'id': 'ID',
       'info': 'Info',
       'warning': 'Warning',
       'required': 'Required',
@@ -394,6 +398,27 @@ class AppLocalizations {
       'companion_optional': 'Companion (Optional)',
       'select_companion': 'Select Companion',
       'select_driver': 'Select Driver',
+      // Drivers Management
+      'drivers_management': 'Drivers Management',
+      'add_driver': 'Add Driver',
+      'edit_driver': 'Edit Driver',
+      'driver_details': 'Driver Details',
+      'no_drivers': 'No Drivers',
+      'no_drivers_found': 'No drivers found',
+      'no_drivers_added': 'No drivers have been added yet',
+      'search_driver': 'Search for a driver...',
+      'drivers': 'Drivers',
+      'driver': 'Driver',
+      // Attendants Management
+      'attendants_management': 'Attendants Management',
+      'add_attendant': 'Add Attendant',
+      'edit_attendant': 'Edit Attendant',
+      'attendant_details': 'Attendant Details',
+      'no_attendants': 'No Attendants',
+      'no_attendants_found': 'No attendants found',
+      'no_attendants_added': 'No attendants have been added yet',
+      'search_attendant': 'Search for an attendant...',
+      'attendants': 'Attendants',
       'select_group': 'Select Group',
       'select_vehicle': 'Select Vehicle',
       'no_group': 'No Group',
@@ -780,6 +805,10 @@ class AppLocalizations {
       'show_more': 'عرض المزيد',
       'show_less': 'عرض أقل',
       'details': 'التفاصيل',
+      'view_details': 'عرض التفاصيل',
+      'information': 'المعلومات',
+      'role': 'الدور',
+      'id': 'المعرف',
       'info': 'معلومات',
       'warning': 'تحذير',
       'required': 'مطلوب',
@@ -1079,6 +1108,27 @@ class AppLocalizations {
       'companion_optional': 'المرافق (اختياري)',
       'select_companion': 'اختر المرافق',
       'select_driver': 'اختر السائق',
+      // Drivers Management
+      'drivers_management': 'إدارة السائقين',
+      'add_driver': 'إضافة سائق',
+      'edit_driver': 'تعديل السائق',
+      'driver_details': 'تفاصيل السائق',
+      'no_drivers': 'لا يوجد سائقون',
+      'no_drivers_found': 'لا توجد نتائج للبحث',
+      'no_drivers_added': 'لم يتم إضافة أي سائقين بعد',
+      'search_driver': 'ابحث عن سائق...',
+      'drivers': 'السائقين',
+      'driver': 'السائق',
+      // Attendants Management
+      'attendants_management': 'إدارة المرافقين',
+      'add_attendant': 'إضافة مرافق',
+      'edit_attendant': 'تعديل المرافق',
+      'attendant_details': 'تفاصيل المرافق',
+      'no_attendants': 'لا يوجد مرافقون',
+      'no_attendants_found': 'لا توجد نتائج للبحث',
+      'no_attendants_added': 'لم يتم إضافة أي مرافقين بعد',
+      'search_attendant': 'ابحث عن مرافق...',
+      'attendants': 'المرافقين',
       'select_group': 'اختر المجموعة',
       'select_vehicle': 'اختر المركبة',
       'no_group': 'بدون مجموعة',
@@ -1462,6 +1512,10 @@ class AppLocalizations {
       'show_more': 'Afficher plus',
       'show_less': 'Afficher moins',
       'details': 'Détails',
+      'view_details': 'Voir les Détails',
+      'information': 'Information',
+      'role': 'Rôle',
+      'id': 'ID',
       'info': 'Info',
       'warning': 'Avertissement',
       'required': 'Obligatoire',
@@ -1743,6 +1797,27 @@ class AppLocalizations {
       'companion_optional': 'Accompagnateur (Optionnel)',
       'select_companion': 'Sélectionner un accompagnateur',
       'select_driver': 'Sélectionner le chauffeur',
+      // Drivers Management
+      'drivers_management': 'Gestion des Chauffeurs',
+      'add_driver': 'Ajouter un Chauffeur',
+      'edit_driver': 'Modifier le Chauffeur',
+      'driver_details': 'Détails du Chauffeur',
+      'no_drivers': 'Aucun Chauffeur',
+      'no_drivers_found': 'Aucun résultat de recherche',
+      'no_drivers_added': 'Aucun chauffeur n\'a encore été ajouté',
+      'search_driver': 'Rechercher un chauffeur...',
+      'drivers': 'Chauffeurs',
+      'driver': 'Chauffeur',
+      // Attendants Management
+      'attendants_management': 'Gestion des Accompagnateurs',
+      'add_attendant': 'Ajouter un Accompagnateur',
+      'edit_attendant': 'Modifier l\'Accompagnateur',
+      'attendant_details': 'Détails de l\'Accompagnateur',
+      'no_attendants': 'Aucun Accompagnateur',
+      'no_attendants_found': 'Aucun résultat de recherche',
+      'no_attendants_added': 'Aucun accompagnateur n\'a encore été ajouté',
+      'search_attendant': 'Rechercher un accompagnateur...',
+      'attendants': 'Accompagnateurs',
       'select_group': 'Sélectionner le groupe',
       'select_vehicle': 'Sélectionner le véhicule',
       'no_group': 'Aucun groupe',
@@ -2120,6 +2195,10 @@ class AppLocalizations {
   String get showMore => translate('show_more');
   String get showLess => translate('show_less');
   String get details => translate('details');
+  String get viewDetails => translate('view_details');
+  String get information => translate('information');
+  String get role => translate('role');
+  String get id => translate('id');
   String get info => translate('info');
   String get warning => translate('warning');
   String get required => translate('required');
@@ -2627,6 +2706,25 @@ class AppLocalizations {
   String get selectDate => translate('select_date');
   String get companion => translate('companion');
   String get noCompanion => translate('no_companion');
+  // Drivers Management
+  String get driversManagement => translate('drivers_management');
+  String get addDriver => translate('add_driver');
+  String get editDriver => translate('edit_driver');
+  // driverDetails and drivers are already defined above
+  String get noDrivers => translate('no_drivers');
+  String get noDriversFound => translate('no_drivers_found');
+  String get noDriversAdded => translate('no_drivers_added');
+  String get searchDriver => translate('search_driver');
+  // Attendants Management
+  String get attendantsManagement => translate('attendants_management');
+  String get addAttendant => translate('add_attendant');
+  String get editAttendant => translate('edit_attendant');
+  String get attendantDetails => translate('attendant_details');
+  String get noAttendants => translate('no_attendants');
+  String get noAttendantsFound => translate('no_attendants_found');
+  String get noAttendantsAdded => translate('no_attendants_added');
+  String get searchAttendant => translate('search_attendant');
+  String get attendants => translate('attendants');
   String get statusAndTime => translate('status_and_time');
   String get driverAndVehicle => translate('driver_and_vehicle');
   String get notAssigned => translate('not_assigned');

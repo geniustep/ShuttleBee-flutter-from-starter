@@ -5,9 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../../core/enums/enums.dart';
 import '../../../../../../core/theme/app_colors.dart';
 import '../../../../../../l10n/app_localizations.dart';
-import '../../../../../groups/domain/entities/passenger_group.dart';
 import '../../../../../groups/presentation/providers/group_providers.dart';
-import '../../../../../vehicles/domain/entities/shuttle_vehicle.dart';
 import '../../../../../vehicles/presentation/providers/vehicle_providers.dart';
 import 'date_time_card.dart';
 import 'group_driver_vehicle_card.dart';
@@ -19,7 +17,7 @@ import 'section_header.dart';
 import 'trip_basic_info_card.dart';
 import 'trip_type_card.dart';
 
-class ManualTripTab extends ConsumerWidget {
+class ManualTripTab extends ConsumerStatefulWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController nameController;
   final TextEditingController notesController;
@@ -44,6 +42,7 @@ class ManualTripTab extends ConsumerWidget {
   final ValueChanged<int?> onCompanionChanged;
   final VoidCallback onShowPassengerSheet;
   final ValueChanged<int> onRemovePassenger;
+  final ValueChanged<Set<int>>? onPassengersChanged;
   final ValueChanged<bool> onCreateReturnTripChanged;
   final VoidCallback onReturnTripStartTimeSelect;
   final VoidCallback onReturnTripArrivalTimeSelect;
@@ -80,6 +79,7 @@ class ManualTripTab extends ConsumerWidget {
     required this.onCompanionChanged,
     required this.onShowPassengerSheet,
     required this.onRemovePassenger,
+    this.onPassengersChanged,
     required this.onCreateReturnTripChanged,
     required this.onReturnTripStartTimeSelect,
     required this.onReturnTripArrivalTimeSelect,
@@ -88,13 +88,38 @@ class ManualTripTab extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ManualTripTab> createState() => _ManualTripTabState();
+}
+
+class _ManualTripTabState extends ConsumerState<ManualTripTab> {
+  @override
+  void initState() {
+    super.initState();
+    // الاستماع لتغييرات nameController لإعادة بناء الـ widget
+    widget.nameController.addListener(_onNameChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.nameController.removeListener(_onNameChanged);
+    super.dispose();
+  }
+
+  void _onNameChanged() {
+    // إعادة بناء الـ widget عند تغيير اسم الرحلة
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final vehiclesAsync = ref.watch(allVehiclesProvider);
     final groupsAsync = ref.watch(allGroupsProvider);
     final l10n = AppLocalizations.of(context);
 
     return Form(
-      key: formKey,
+      key: widget.formKey,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -110,8 +135,8 @@ class ManualTripTab extends ConsumerWidget {
           SectionHeader(title: l10n.basicInfo, icon: Icons.info_outline_rounded),
           const SizedBox(height: 12),
           TripBasicInfoCard(
-            nameController: nameController,
-            buildInputDecoration: buildInputDecoration,
+            nameController: widget.nameController,
+            buildInputDecoration: widget.buildInputDecoration,
           ),
 
           const SizedBox(height: 24),
@@ -120,8 +145,8 @@ class ManualTripTab extends ConsumerWidget {
           SectionHeader(title: l10n.tripType, icon: Icons.route_rounded),
           const SizedBox(height: 12),
           TripTypeCard(
-            tripType: tripType,
-            onTripTypeChanged: onTripTypeChanged,
+            tripType: widget.tripType,
+            onTripTypeChanged: widget.onTripTypeChanged,
           ),
 
           const SizedBox(height: 24),
@@ -133,10 +158,10 @@ class ManualTripTab extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           DateTimeCard(
-            selectedDate: selectedDate,
-            selectedTime: selectedTime,
-            onDateTimeSelect: onDateTimeSelect,
-            onQuickTimeSelect: onQuickTimeSelect,
+            selectedDate: widget.selectedDate,
+            selectedTime: widget.selectedTime,
+            onDateTimeSelect: widget.onDateTimeSelect,
+            onQuickTimeSelect: widget.onQuickTimeSelect,
           ),
 
           const SizedBox(height: 24),
@@ -148,8 +173,8 @@ class ManualTripTab extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           NotesCard(
-            notesController: notesController,
-            buildInputDecoration: buildInputDecoration,
+            notesController: widget.notesController,
+            buildInputDecoration: widget.buildInputDecoration,
           ),
 
           const SizedBox(height: 24),
@@ -163,15 +188,16 @@ class ManualTripTab extends ConsumerWidget {
           GroupDriverVehicleCard(
             groupsAsync: groupsAsync,
             vehiclesAsync: vehiclesAsync,
-            selectedDriverId: selectedDriverId,
-            selectedGroupId: selectedGroupId,
-            selectedVehicleId: selectedVehicleId,
-            selectedCompanionId: selectedCompanionId,
-            onDriverChanged: onDriverChanged,
-            onGroupChanged: onGroupChanged,
-            onVehicleChanged: onVehicleChanged,
-            onCompanionChanged: onCompanionChanged,
-            buildInputDecoration: buildInputDecoration,
+            selectedDriverId: widget.selectedDriverId,
+            selectedGroupId: widget.selectedGroupId,
+            selectedVehicleId: widget.selectedVehicleId,
+            selectedCompanionId: widget.selectedCompanionId,
+            onDriverChanged: widget.onDriverChanged,
+            onGroupChanged: widget.onGroupChanged,
+            onVehicleChanged: widget.onVehicleChanged,
+            onCompanionChanged: widget.onCompanionChanged,
+            onPassengersChanged: widget.onPassengersChanged,
+            buildInputDecoration: widget.buildInputDecoration,
           ),
 
           const SizedBox(height: 24),
@@ -180,29 +206,30 @@ class ManualTripTab extends ConsumerWidget {
           SectionHeader(title: '${l10n.passengers} *', icon: Icons.people_rounded),
           const SizedBox(height: 12),
           PassengersSelectionCard(
-            selectedPassengerIds: selectedPassengerIds,
-            selectedVehicleId: selectedVehicleId,
-            onShowPassengerSheet: onShowPassengerSheet,
-            onRemovePassenger: onRemovePassenger,
+            selectedPassengerIds: widget.selectedPassengerIds,
+            selectedVehicleId: widget.selectedVehicleId,
+            selectedDriverId: widget.selectedDriverId,
+            onShowPassengerSheet: widget.onShowPassengerSheet,
+            onRemovePassenger: widget.onRemovePassenger,
           ),
 
           const SizedBox(height: 24),
 
           // Return Trip Options (only for pickup trips)
-          if (tripType == TripType.pickup) ...[
+          if (widget.tripType == TripType.pickup) ...[
             SectionHeader(
               title: l10n.returnTripRoundTrip,
               icon: Icons.swap_horiz_rounded,
             ),
             const SizedBox(height: 12),
             ReturnTripOptionsCard(
-              createReturnTrip: createReturnTrip,
-              returnTripStartTime: returnTripStartTime,
-              returnTripArrivalTime: returnTripArrivalTime,
-              hasPassengers: selectedPassengerIds.isNotEmpty,
-              onCreateReturnTripChanged: onCreateReturnTripChanged,
-              onReturnTripStartTimeSelect: onReturnTripStartTimeSelect,
-              onReturnTripArrivalTimeSelect: onReturnTripArrivalTimeSelect,
+              createReturnTrip: widget.createReturnTrip,
+              returnTripStartTime: widget.returnTripStartTime,
+              returnTripArrivalTime: widget.returnTripArrivalTime,
+              hasPassengers: widget.selectedPassengerIds.isNotEmpty,
+              onCreateReturnTripChanged: widget.onCreateReturnTripChanged,
+              onReturnTripStartTimeSelect: widget.onReturnTripStartTimeSelect,
+              onReturnTripArrivalTimeSelect: widget.onReturnTripArrivalTimeSelect,
             ),
           ],
 
@@ -219,13 +246,13 @@ class ManualTripTab extends ConsumerWidget {
 
   Widget _buildCreateManualButton(BuildContext context, AppLocalizations l10n) {
     final isValid =
-        nameController.text.trim().isNotEmpty && selectedDriverId != null;
+        widget.nameController.text.trim().isNotEmpty && widget.selectedDriverId != null;
 
     return SizedBox(
       width: double.infinity,
       height: 56,
       child: ElevatedButton.icon(
-        onPressed: (isLoading || !isValid) ? null : onCreateManualTrip,
+        onPressed: (widget.isLoading || !isValid) ? null : widget.onCreateManualTrip,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.dispatcherPrimary,
           foregroundColor: Colors.white,
@@ -235,7 +262,7 @@ class ManualTripTab extends ConsumerWidget {
           ),
           elevation: isValid ? 4 : 0,
         ),
-        icon: isLoading
+        icon: widget.isLoading
             ? const SizedBox(
                 width: 20,
                 height: 20,
@@ -246,7 +273,7 @@ class ManualTripTab extends ConsumerWidget {
               )
             : const Icon(Icons.add_rounded),
         label: Text(
-          isLoading ? l10n.creating : l10n.createTrip,
+          widget.isLoading ? l10n.creating : l10n.createTrip,
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,

@@ -48,6 +48,10 @@ class DispatcherHolidaysScreen extends ConsumerWidget {
         backgroundColor: Colors.white,
         foregroundColor: AppColors.textPrimary,
         elevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => context.go(RoutePaths.dispatcherSettings),
+        ),
         actions: [
           IconButton(
             tooltip: 'تحديث',

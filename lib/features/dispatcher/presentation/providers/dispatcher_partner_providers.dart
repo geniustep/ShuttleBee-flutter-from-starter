@@ -54,6 +54,134 @@ final dispatcherPassengerProfileProvider = FutureProvider.autoDispose
   return profile;
 });
 
+/// Provider to fetch multiple passenger profiles at once (batch fetch)
+/// This avoids the dispose issue when fetching profiles in a loop
+final dispatcherPassengerProfilesBatchProvider = FutureProvider.autoDispose
+    .family<Map<int, DispatcherPassengerProfile>, List<int>>((
+  ref,
+  passengerIds,
+) async {
+  if (passengerIds.isEmpty) return {};
+
+  final cache = ref.watch(dispatcherCacheDataSourceProvider);
+  final isOnline = ref.watch(isOnlineStateProvider);
+  final userId = ref.read(authStateProvider).asData?.value.user?.id ?? 0;
+  final ds = ref.watch(dispatcherPartnerDataSourceProvider);
+
+  if (userId == 0) return {};
+
+  final profiles = <int, DispatcherPassengerProfile>{};
+  final missingIds = <int>[];
+
+  // 1) Check cache for each passenger
+  for (final passengerId in passengerIds) {
+    final key = DispatcherCacheKeys.passengerProfile(
+      userId: userId,
+      passengerId: passengerId,
+    );
+    final cached = await cache.get<Map<String, dynamic>>(key);
+    if (cached != null) {
+      profiles[passengerId] = DispatcherPassengerProfile.fromJson(
+        Map<String, dynamic>.from(cached),
+      );
+    } else {
+      missingIds.add(passengerId);
+    }
+  }
+
+  // 2) Fetch missing profiles from server in batch
+  if (missingIds.isNotEmpty && isOnline && ds != null) {
+    try {
+      final fetchedProfiles = await ds.getPassengersByIds(missingIds);
+
+      // Cache the fetched profiles
+      for (final entry in fetchedProfiles.entries) {
+        final key = DispatcherCacheKeys.passengerProfile(
+          userId: userId,
+          passengerId: entry.key,
+        );
+        await cache.save(
+          key: key,
+          data: entry.value.toJson(),
+          ttl: const Duration(minutes: 5),
+        );
+        profiles[entry.key] = entry.value;
+      }
+    } catch (e) {
+      // Ignore errors and return what we have from cache
+    }
+  }
+
+  return profiles;
+});
+
+/// Provider to pre-load ALL passenger profiles for offline map usage
+/// This fetches all passengers and caches them locally for future use
+final dispatcherAllPassengerProfilesProvider = FutureProvider.autoDispose<
+    Map<int, DispatcherPassengerProfile>>((ref) async {
+  final cache = ref.watch(dispatcherCacheDataSourceProvider);
+  final isOnline = ref.watch(isOnlineStateProvider);
+  final userId = ref.read(authStateProvider).asData?.value.user?.id ?? 0;
+  final ds = ref.watch(dispatcherPartnerDataSourceProvider);
+
+  if (userId == 0) return {};
+
+  final cacheKey = DispatcherCacheKeys.allPassengerProfiles(userId: userId);
+
+  // 1) Check cache first
+  final cached = await cache.get<List<dynamic>>(cacheKey);
+  if (cached != null) {
+    final profiles = <int, DispatcherPassengerProfile>{};
+    for (final item in cached) {
+      final profile = DispatcherPassengerProfile.fromJson(
+        Map<String, dynamic>.from(item as Map),
+      );
+      profiles[profile.id] = profile;
+    }
+    // If offline, return cached data
+    if (!isOnline) return profiles;
+    // If online, return cached but also refresh in background
+    return profiles;
+  }
+
+  // 2) No cache and offline: return empty
+  if (!isOnline || ds == null) return {};
+
+  // 3) Fetch all passengers from server
+  try {
+    final allProfiles = await ds.getAllPassengersWithCoordinates();
+
+    // Save to cache
+    final profilesList = allProfiles.map((p) => p.toJson()).toList();
+    await cache.save(
+      key: cacheKey,
+      data: profilesList,
+      ttl: const Duration(hours: 24), // Cache for 24 hours
+    );
+
+    // Also cache individual profiles
+    for (final profile in allProfiles) {
+      final key = DispatcherCacheKeys.passengerProfile(
+        userId: userId,
+        passengerId: profile.id,
+      );
+      await cache.save(
+        key: key,
+        data: profile.toJson(),
+        ttl: const Duration(hours: 24),
+      );
+    }
+
+    final profiles = <int, DispatcherPassengerProfile>{};
+    for (final profile in allProfiles) {
+      profiles[profile.id] = profile;
+    }
+    return profiles;
+  } catch (e) {
+    return {};
+  }
+});
+
 class DispatcherPartnerActionsNotifier extends Notifier<AsyncValue<void>> {
   @override
   AsyncValue<void> build() => const AsyncValue.data(null);

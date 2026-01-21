@@ -35,6 +35,8 @@ import '../../features/dispatcher/presentation/screens/dispatcher_shell_screen.d
 import '../../features/dispatcher/presentation/screens/dispatcher_create_vehicle_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_group_passengers_screen.dart';
 import '../../features/vehicles/presentation/providers/vehicle_providers.dart';
+import '../../features/shuttlebee/presentation/providers/shuttlebee_api_providers.dart';
+import '../../features/vehicles/presentation/screens/vehicle_details_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_group_detail_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_passengers_board_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_create_passenger_screen.dart';
@@ -45,6 +47,14 @@ import '../../features/dispatcher/presentation/screens/dispatcher_holiday_detail
 import '../../features/dispatcher/presentation/screens/dispatcher_trip_detail_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_edit_trip_screen.dart';
 import '../../features/dispatcher/presentation/screens/dispatcher_trip_passengers_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_attendants_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_attendant_detail_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_create_attendant_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_drivers_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_driver_detail_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_create_driver_screen.dart';
+import '../../features/dispatcher/presentation/screens/dispatcher_settings_screen.dart';
+import '../../features/stops/presentation/screens/stops_screen.dart';
 import '../../features/groups/presentation/screens/group_schedules_screen.dart';
 import '../../features/passenger/presentation/screens/passenger_home_screen.dart';
 import '../../features/manager/presentation/screens/manager_home_screen.dart';
@@ -223,31 +233,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: RoutePaths.dispatcherHome,
                 name: RouteNames.dispatcherHome,
                 builder: (context, state) => const DispatcherHomeScreen(),
-                routes: [
-                  GoRoute(
-                    path: 'holidays',
-                    name: RouteNames.dispatcherHolidays,
-                    parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) =>
-                        const DispatcherHolidaysScreen(),
-                    routes: [
-                      GoRoute(
-                        path: ':holidayId',
-                        name: RouteNames.dispatcherHolidayDetail,
-                        parentNavigatorKey: rootNavigatorKey,
-                        builder: (context, state) {
-                          final holidayId = int.parse(
-                            state.pathParameters['holidayId']!,
-                          );
-                          return DispatcherHolidayDetailScreen(
-                            key: ValueKey('dispatcher_holiday_$holidayId'),
-                            holidayId: holidayId,
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ],
+                routes: [],
               ),
             ],
           ),
@@ -258,18 +244,25 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: RoutePaths.dispatcherMonitor,
                 name: RouteNames.dispatcherMonitor,
                 builder: (context, state) {
-                  // Get user ID from auth state
+                  // Get user ID and company ID from auth state
                   final container = ProviderScope.containerOf(context);
                   final authState = container.read(authStateProvider);
-                  final userId = authState.asData?.value.user?.id ?? 0;
+                  final user = authState.asData?.value.user;
+                  final userId = user?.id ?? 0;
+                  final companyId = user?.companyId ?? user?.currentCompanyId;
                   
                   // Get vehicle data source for loading vehicles from server
                   final vehicleDataSource = container.read(vehicleDataSourceProvider);
                   
+                  // Get ShuttleBee API service for active trips
+                  final shuttleBeeApiService = container.read(shuttleBeeApiServiceProvider);
+                  
                   return LiveTrackingMonitorScreen(
                     dispatcherId: userId,
+                    companyId: companyId,
                     trackingService: BridgeCore.instance.liveTracking,
                     vehicleDataSource: vehicleDataSource,
+                    shuttleBeeApiService: shuttleBeeApiService,
                   );
                 },
               ),
@@ -510,6 +503,173 @@ final routerProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) {
                       return const DispatcherCreateVehicleScreen();
                     },
+                  ),
+                  GoRoute(
+                    path: ':vehicleId',
+                    name: RouteNames.dispatcherVehicleDetail,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (context, state) {
+                      final vehicleId = int.parse(state.pathParameters['vehicleId']!);
+                      return VehicleDetailsScreen(vehicleId: vehicleId);
+                    },
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        name: RouteNames.dispatcherEditVehicle,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (context, state) {
+                          // يمكن استخدام نفس VehicleFormDialog هنا
+                          final vehicleId = int.parse(state.pathParameters['vehicleId']!);
+                          return VehicleDetailsScreen(vehicleId: vehicleId);
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Attendants
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.dispatcherAttendants,
+                name: RouteNames.dispatcherAttendants,
+                builder: (context, state) => const DispatcherAttendantsScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'create',
+                    name: RouteNames.dispatcherCreateAttendant,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (context, state) {
+                      return const DispatcherCreateAttendantScreen();
+                    },
+                  ),
+                  GoRoute(
+                    path: ':attendantId',
+                    name: RouteNames.dispatcherAttendantDetail,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (context, state) {
+                      final attendantId = int.parse(
+                        state.pathParameters['attendantId']!,
+                      );
+                      return DispatcherAttendantDetailScreen(
+                        key: ValueKey(
+                          'dispatcher_attendant_detail_$attendantId',
+                        ),
+                        attendantId: attendantId,
+                      );
+                    },
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        name: RouteNames.dispatcherEditAttendant,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (context, state) {
+                          final attendantId = int.parse(
+                            state.pathParameters['attendantId']!,
+                          );
+                          return DispatcherCreateAttendantScreen(
+                            key: ValueKey(
+                              'dispatcher_edit_attendant_$attendantId',
+                            ),
+                            attendantId: attendantId,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Drivers
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.dispatcherDrivers,
+                name: RouteNames.dispatcherDrivers,
+                builder: (context, state) => const DispatcherDriversScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'create',
+                    name: RouteNames.dispatcherCreateDriver,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (context, state) {
+                      return const DispatcherCreateDriverScreen();
+                    },
+                  ),
+                  GoRoute(
+                    path: ':driverId',
+                    name: RouteNames.dispatcherDriverDetail,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (context, state) {
+                      final driverId = int.parse(
+                        state.pathParameters['driverId']!,
+                      );
+                      return DispatcherDriverDetailScreen(
+                        key: ValueKey(
+                          'dispatcher_driver_detail_$driverId',
+                        ),
+                        driverId: driverId,
+                      );
+                    },
+                    routes: [
+                      GoRoute(
+                        path: 'edit',
+                        name: RouteNames.dispatcherEditDriver,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (context, state) {
+                          final driverId = int.parse(
+                            state.pathParameters['driverId']!,
+                          );
+                          return DispatcherCreateDriverScreen(
+                            key: ValueKey(
+                              'dispatcher_edit_driver_$driverId',
+                            ),
+                            driverId: driverId,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Settings
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.dispatcherSettings,
+                name: RouteNames.dispatcherSettings,
+                builder: (context, state) => const DispatcherSettingsScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'stops',
+                    name: RouteNames.dispatcherStops,
+                    builder: (context, state) => const StopsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'holidays',
+                    name: RouteNames.dispatcherHolidays,
+                    builder: (context, state) => const DispatcherHolidaysScreen(),
+                    routes: [
+                      GoRoute(
+                        path: ':holidayId',
+                        name: RouteNames.dispatcherHolidayDetail,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (context, state) {
+                          final holidayId = int.parse(
+                            state.pathParameters['holidayId']!,
+                          );
+                          return DispatcherHolidayDetailScreen(
+                            key: ValueKey('dispatcher_holiday_$holidayId'),
+                            holidayId: holidayId,
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),

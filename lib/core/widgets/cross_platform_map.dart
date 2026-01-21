@@ -6,6 +6,9 @@ import 'package:flutter_map/flutter_map.dart' as fmap;
 import 'package:latlong2/latlong.dart' as latlng2;
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 
+import '../services/map_tile_cache_service.dart';
+import 'map_marker_types.dart';
+
 /// Cross-Platform Map Widget - ويدجت خريطة يعمل على جميع المنصات
 ///
 /// يستخدم:
@@ -143,12 +146,21 @@ class _CrossPlatformMapState extends State<CrossPlatformMap> {
       children: [
         // طبقة الخريطة - استخدام CartoDB (بديل مجاني لـ OpenStreetMap)
         // يمكن تغييرها إلى Mapbox أو أي خدمة خرائط أخرى
+        // مع دعم التخزين المحلي (FMTC) للعمل offline
         fmap.TileLayer(
-          urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+          urlTemplate:
+              'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
           subdomains: const ['a', 'b', 'c', 'd'],
           userAgentPackageName: 'com.shuttlebee.app',
-          // بديل: استخدام OpenStreetMap (يتطلب مراجعة سياسة الاستخدام)
-          // urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          // استخدام TileProvider من FMTC للتخزين المحلي
+          tileProvider: MapTileCacheService.getTileProvider(),
+          // تحسين إعدادات التحميل
+          maxZoom: 18,
+          minZoom: 3,
+          // تحسين جودة الصور - استخدام البديل الجديد في flutter_map v8
+          tileDisplay: const fmap.TileDisplay.fadeIn(
+            duration: Duration(milliseconds: 200),
+          ),
         ),
         // طبقة الخطوط (Polylines)
         if (widget.polylines.isNotEmpty)
@@ -313,6 +325,8 @@ class MapMarkerData {
   final MarkerColor color;
   final double rotation;
   final VoidCallback? onTap;
+  final MapMarkerType? markerType;
+  final Map<String, dynamic>? customData;
 
   const MapMarkerData({
     required this.id,
@@ -322,7 +336,12 @@ class MapMarkerData {
     this.color = MarkerColor.red,
     this.rotation = 0,
     this.onTap,
+    this.markerType,
+    this.customData,
   });
+
+  /// الحصول على عدد الركاب إذا كانت علامة محطة مع عدد
+  int? get passengerCount => customData?['count'] as int?;
 
   gmaps.Marker toGoogleMarker() {
     return gmaps.Marker(
@@ -336,6 +355,27 @@ class MapMarkerData {
   }
 
   fmap.Marker toFlutterMapMarker() {
+    // إذا كانت محطة مع عدد ركاب، نستخدم شكل مخصص
+    final count = passengerCount;
+    if (count != null && count > 0) {
+      return fmap.Marker(
+        key: ValueKey(id),
+        point: location.toFlutterMapLatLng(),
+        width: 56,
+        height: 56,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Tooltip(
+            message: '$title\n$count راكب',
+            child: _StationWithCountMarker(
+              count: count,
+              color: color.flutterColor,
+            ),
+          ),
+        ),
+      );
+    }
+
     return fmap.Marker(
       key: ValueKey(id),
       point: location.toFlutterMapLatLng(),
@@ -362,6 +402,75 @@ class MapMarkerData {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// علامة محطة مع عدد الركاب
+class _StationWithCountMarker extends StatelessWidget {
+  final int count;
+  final Color color;
+
+  const _StationWithCountMarker({
+    required this.count,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // الأيقونة الرئيسية
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.people_rounded,
+            color: Colors.white,
+            size: 22,
+          ),
+        ),
+        // شارة العدد
+        Positioned(
+          top: 0,
+          right: 0,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.red,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 4,
+                ),
+              ],
+            ),
+            child: Text(
+              count.toString(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

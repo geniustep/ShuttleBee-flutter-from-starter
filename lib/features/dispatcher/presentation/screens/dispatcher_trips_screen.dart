@@ -103,7 +103,12 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen> {
 
             // === Trips Content ===
             Expanded(
-              child: _buildTripsContent(tripsAsync, filteredTrips, filterState, l10n),
+              child: _buildTripsContent(
+                tripsAsync,
+                filteredTrips,
+                filterState,
+                l10n,
+              ),
             ),
           ],
         ),
@@ -111,10 +116,12 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen> {
         // === Footer (Tablet/Desktop only) ===
         bottomNavigationBar: tripsAsync.maybeWhen(
           data: (trips) {
-            final ongoing =
-                trips.where((t) => t.state == TripState.ongoing).length;
-            final planned =
-                trips.where((t) => t.state == TripState.planned).length;
+            final ongoing = trips
+                .where((t) => t.state == TripState.ongoing)
+                .length;
+            final planned = trips
+                .where((t) => t.state == TripState.planned)
+                .length;
             final done = trips.where((t) => t.state == TripState.done).length;
 
             return DispatcherFooter(
@@ -189,8 +196,9 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen> {
       title: l10n.tripsManagement,
       subtitle: tripsAsync.maybeWhen(
         data: (trips) {
-          final ongoing =
-              trips.where((t) => t.state == TripState.ongoing).length;
+          final ongoing = trips
+              .where((t) => t.state == TripState.ongoing)
+              .length;
           return '${l10n.total}: ${Formatters.formatSimple(trips.length)} • ${l10n.ongoing}: ${Formatters.formatSimple(ongoing)}';
         },
         orElse: () => null,
@@ -201,10 +209,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen> {
         final userId = ref.read(authStateProvider).asData?.value.user?.id ?? 0;
         if (userId != 0) {
           await cache.delete(
-            DispatcherCacheKeys.trips(
-              userId: userId,
-              filters: _tripFilters,
-            ),
+            DispatcherCacheKeys.trips(userId: userId, filters: _tripFilters),
           );
         }
         ref.invalidate(dispatcherTripsProvider(_tripFilters));
@@ -271,19 +276,22 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen> {
             icon: Icons.schedule_rounded,
             label: l10n.planned,
             value: Formatters.formatSimple(
-                trips.where((t) => t.state == TripState.planned).length),
+              trips.where((t) => t.state == TripState.planned).length,
+            ),
           ),
           DispatcherHeaderStat(
             icon: Icons.play_circle_rounded,
             label: l10n.ongoing,
             value: Formatters.formatSimple(
-                trips.where((t) => t.state == TripState.ongoing).length),
+              trips.where((t) => t.state == TripState.ongoing).length,
+            ),
           ),
           DispatcherHeaderStat(
             icon: Icons.check_circle_rounded,
             label: l10n.completed,
             value: Formatters.formatSimple(
-                trips.where((t) => t.state == TripState.done).length),
+              trips.where((t) => t.state == TripState.done).length,
+            ),
           ),
         ],
         orElse: () => [],
@@ -352,168 +360,178 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen> {
 
   Widget _buildTripCard(Trip trip, int index) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          context.go('${RoutePaths.dispatcherHome}/trips/${trip.id}');
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              // Prefetch trip data before navigation
+              prefetchTripDetail(ref, trip.id);
+              // Navigate after a small delay to allow prefetch to start
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (mounted) {
+                  context.go('${RoutePaths.dispatcherHome}/trips/${trip.id}');
+                }
+              });
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: trip.tripType == TripType.pickup
-                          ? AppColors.primary.withValues(alpha: 0.1)
-                          : AppColors.success.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      trip.tripType == TripType.pickup
-                          ? Icons.arrow_circle_up_rounded
-                          : Icons.arrow_circle_down_rounded,
-                      color: trip.tripType == TripType.pickup
-                          ? AppColors.primary
-                          : AppColors.success,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          trip.name,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Cairo',
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: trip.tripType == TripType.pickup
+                              ? AppColors.primary.withValues(alpha: 0.1)
+                              : AppColors.success.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        const SizedBox(height: 4),
-                        Row(
+                        child: Icon(
+                          trip.tripType == TripType.pickup
+                              ? Icons.arrow_circle_up_rounded
+                              : Icons.arrow_circle_down_rounded,
+                          color: trip.tripType == TripType.pickup
+                              ? AppColors.primary
+                              : AppColors.success,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
-                              Icons.calendar_today_rounded,
-                              size: 14,
-                              color: AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                Formatters.date(trip.date, pattern: 'd MMM'),
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary,
-                                  fontFamily: 'Cairo',
-                                ),
+                            Text(
+                              trip.name,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Cairo',
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(width: 12),
-                            const Icon(
-                              Icons.access_time_rounded,
-                              size: 14,
-                              color: AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                trip.plannedStartTime != null
-                                    ? Formatters.time(trip.plannedStartTime,
-                                        use24Hour: true)
-                                    : '--:--',
-                                style: const TextStyle(
-                                  fontSize: 13,
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.calendar_today_rounded,
+                                  size: 14,
                                   color: AppColors.textSecondary,
-                                  fontFamily: 'Cairo',
                                 ),
-                              ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    Formatters.date(
+                                      trip.date,
+                                      pattern: 'd MMM',
+                                    ),
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary,
+                                      fontFamily: 'Cairo',
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Icon(
+                                  Icons.access_time_rounded,
+                                  size: 14,
+                                  color: AppColors.textSecondary,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    trip.plannedStartTime != null
+                                        ? Formatters.time(
+                                            trip.plannedStartTime,
+                                            use24Hour: true,
+                                          )
+                                        : '--:--',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary,
+                                      fontFamily: 'Cairo',
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    flex: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
                       ),
-                      decoration: BoxDecoration(
-                        color: trip.state.color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        trip.state.getLocalizedLabel(context),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: trip.state.color,
-                          fontFamily: 'Cairo',
+                      const SizedBox(width: 8),
+                      Flexible(
+                        flex: 0,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: trip.state.color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            trip.state.getLocalizedLabel(context),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: trip.state.color,
+                              fontFamily: 'Cairo',
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildInfoChip(
+                        Icons.person_rounded,
+                        trip.driverName ?? 'بدون سائق',
+                        AppColors.primary,
+                      ),
+                      if (trip.companionName != null)
+                        _buildInfoChip(
+                          Icons.person_add_alt_rounded,
+                          trip.companionName!,
+                          AppColors.info,
+                        ),
+                      _buildInfoChip(
+                        Icons.directions_bus_rounded,
+                        trip.vehicleName ?? 'بدون مركبة',
+                        AppColors.warning,
+                      ),
+                      _buildInfoChip(
+                        Icons.people_rounded,
+                        Formatters.formatSimple(trip.totalPassengers),
+                        AppColors.success,
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              const Divider(height: 1),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildInfoChip(
-                    Icons.person_rounded,
-                    trip.driverName ?? 'بدون سائق',
-                    AppColors.primary,
-                  ),
-                  if (trip.companionName != null)
-                    _buildInfoChip(
-                      Icons.person_add_alt_rounded,
-                      trip.companionName!,
-                      AppColors.info,
-                    ),
-                  _buildInfoChip(
-                    Icons.directions_bus_rounded,
-                    trip.vehicleName ?? 'بدون مركبة',
-                    AppColors.warning,
-                  ),
-                  _buildInfoChip(
-                    Icons.people_rounded,
-                    Formatters.formatSimple(trip.totalPassengers),
-                    AppColors.success,
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
-    ).animate().fadeIn(duration: 300.ms, delay: (index * 50).ms).slideX(
-          begin: 0.05,
-          end: 0,
-          duration: 300.ms,
-          delay: (index * 50).ms,
-        );
+        )
+        .animate()
+        .fadeIn(duration: 300.ms, delay: (index * 50).ms)
+        .slideX(begin: 0.05, end: 0, duration: 300.ms, delay: (index * 50).ms);
   }
 
   Widget _buildInfoChip(IconData icon, String label, Color color) {
@@ -532,11 +550,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen> {
           Flexible(
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 11,
-                color: color,
-                fontFamily: 'Cairo',
-              ),
+              style: TextStyle(fontSize: 11, color: color, fontFamily: 'Cairo'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -551,12 +565,7 @@ class _DispatcherTripsScreenState extends ConsumerState<DispatcherTripsScreen> {
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 600;
         return ListView.builder(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            16,
-            16,
-            isMobile ? 96 : 16,
-          ),
+          padding: EdgeInsets.fromLTRB(16, 16, 16, isMobile ? 96 : 16),
           itemCount: 5,
           itemBuilder: (context, index) {
             return const ShimmerCard(height: 140);

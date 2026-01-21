@@ -6,11 +6,15 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/utils/responsive_utils.dart';
+import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/enums/enums.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../trips/presentation/providers/trip_providers.dart';
+import '../../../trips/presentation/providers/trip_providers.dart'
+    show TripFilters, TripDashboardStats;
 import '../providers/dispatcher_cached_providers.dart';
+import '../providers/dispatcher_initial_load_provider.dart';
+import '../widgets/initial_load_widget.dart';
 
 // Common widgets
 import 'home/widgets/common/performance_insights.dart';
@@ -47,13 +51,46 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
   TripState? _selectedTripFilter;
   final TextEditingController _searchController = TextEditingController();
 
+  // 🎯 Initial Load State
+  bool _initialLoadTriggered = false;
+
+  // حفظ تاريخ اليوم لتجنب إعادة الحساب المتكررة
+  late final DateTime _today;
+
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _today = DateTime(now.year, now.month, now.day);
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
+
+    // 🚀 بدء التحميل الأولي للمنصات التي تحتاجه
+    _triggerInitialLoad();
+  }
+
+  void _triggerInitialLoad() {
+    if (_initialLoadTriggered) return;
+    _initialLoadTriggered = true;
+
+    // تأخير حسب المنصة
+    Future.delayed(
+      Duration(milliseconds: PlatformUtils.initialLoadDelayMs),
+      () {
+        if (!mounted) return;
+
+        // التحقق من المنصة والحالة
+        if (PlatformUtils.needsInitialDataLoad) {
+          final loadState = ref.read(dispatcherInitialLoadProvider);
+          if (!loadState.isLoading && !loadState.isComplete) {
+            ref.read(dispatcherInitialLoadProvider.notifier).startInitialLoad();
+          }
+        }
+      },
+    );
   }
 
   @override
@@ -67,18 +104,26 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final user = authState.asData?.value.user;
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final statsAsync = ref.watch(dispatcherDashboardStatsProvider(today));
+
+    // 🎯 مراقبة حالة التحميل الأولي
+    final initialLoadState = ref.watch(dispatcherInitialLoadProvider);
+
+    // عدم جلب dashboard stats أثناء التحميل الأولي لتجنب الاستدعاءات المتكررة
+    final shouldLoadStats = !PlatformUtils.needsInitialDataLoad ||
+        !initialLoadState.isLoading ||
+        initialLoadState.isComplete;
+
+    final statsAsync = shouldLoadStats
+        ? ref.watch(dispatcherDashboardStatsProvider(_today))
+        : const AsyncValue<TripDashboardStats>.loading();
 
     // Listen for authentication errors and handle them
     ref.listen<AsyncValue<TripDashboardStats>>(
-      dispatcherDashboardStatsProvider(today),
+      dispatcherDashboardStatsProvider(_today),
       (previous, next) {
         next.whenOrNull(
           error: (error, stackTrace) {
             if (_isAuthenticationError(error)) {
-              // Handle authentication error immediately
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 _handleAuthenticationError();
               });
@@ -90,9 +135,23 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
 
     return Scaffold(
       backgroundColor: AppColors.dispatcherBackground,
-      body: context.isDesktop && !context.isTablet
-          ? _buildDesktopLayout(user, statsAsync, today)
-          : _buildMobileLayout(user, statsAsync, today),
+      body: Stack(
+        children: [
+          // المحتوى الرئيسي
+          context.isDesktop && !context.isTablet
+              ? _buildDesktopLayout(user, statsAsync, _today)
+              : _buildMobileLayout(user, statsAsync, _today),
+
+          // 🎯 Overlay التحميل الأولي للمنصات التي تحتاجه
+          if (PlatformUtils.needsInitialDataLoad && initialLoadState.isLoading)
+            DispatcherInitialLoadWidget(
+              asOverlay: true,
+              onLoadComplete: () {
+                // لا حاجة لتحديث البيانات - الـ provider سيتحقق تلقائياً من الكاش
+              },
+            ),
+        ],
+      ),
     );
   }
 
@@ -103,7 +162,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
     DateTime today,
   ) {
     return RefreshIndicator(
-      onRefresh: () => _refreshData(today),
+      onRefresh: () => _refreshData(_today),
       color: AppColors.dispatcherPrimary,
       backgroundColor: Colors.white,
       child: Row(
@@ -113,7 +172,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
             child: CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
-                // Hero Header (returns SliverAppBar, so no SliverToBoxAdapter needed)
+                // Hero Header
                 DispatcherHeroHeader(
                   user: user,
                   statsAsync: statsAsync,
@@ -141,7 +200,7 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
                       const SliverToBoxAdapter(child: SizedBox.shrink()),
                 ),
 
-                // Role Switcher (Placeholder - implement based on your needs)
+                // Role Switcher
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -149,22 +208,17 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
                       child: RoleSwitcher(
                         isDispatcherMode: true,
                         onRoleChanged: (isDispatcher) {
-                          // Handle role change
+                          // يتم التعامل مع التبديل داخل الـ widget
                         },
                       ),
                     ),
                   ),
                 ),
 
-                // Performance Insights
+                // Performance Insights - استخدام الـ TripDashboardStats مباشرة
                 statsAsync.maybeWhen(
                   data: (stats) => SliverToBoxAdapter(
-                    child: PerformanceInsights(
-                      totalTrips: stats.totalTripsToday,
-                      completedTrips: stats.completedTrips,
-                      activeTrips: stats.ongoingTrips,
-                      delayedTrips: 0, // TODO: Add delayed trips tracking
-                    ),
+                    child: PerformanceInsights(stats: stats),
                   ),
                   orElse: () =>
                       const SliverToBoxAdapter(child: SizedBox.shrink()),
@@ -178,33 +232,17 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
                   data: (stats) => SliverToBoxAdapter(
                     child: StatisticsDashboard(stats: stats, today: today),
                   ),
-                  loading: () => const SliverToBoxAdapter(
-                    child: Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: CircularProgressIndicator(),
-                      ),
-                    ),
+                  loading: () => SliverToBoxAdapter(
+                    child: _buildLoadingState(),
                   ),
-                  error: (error, _) {
-                    if (_isAuthenticationError(error)) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _handleAuthenticationError();
-                      });
-                      return const SliverToBoxAdapter(child: SizedBox.shrink());
-                    }
-                    return SliverToBoxAdapter(
-                      child: Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32.0),
-                          child: Text(
-                            'Error: ${error.toString()}',
-                            style: const TextStyle(color: AppColors.error),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+                  error: (error, _) => SliverToBoxAdapter(
+                    child: _buildErrorState(error, today),
+                  ),
+                ),
+
+                // Bottom Spacing
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 32),
                 ),
               ],
             ),
@@ -245,13 +283,13 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
     DateTime today,
   ) {
     return RefreshIndicator(
-      onRefresh: () => _refreshData(today),
+      onRefresh: () => _refreshData(_today),
       color: AppColors.dispatcherPrimary,
       backgroundColor: Colors.white,
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // Hero Header (returns SliverAppBar, so no SliverToBoxAdapter needed)
+          // Hero Header
           DispatcherHeroHeader(
             user: user,
             statsAsync: statsAsync,
@@ -285,22 +323,17 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
                 child: RoleSwitcher(
                   isDispatcherMode: true,
                   onRoleChanged: (isDispatcher) {
-                    // Handle role change
+                    // يتم التعامل مع التبديل داخل الـ widget
                   },
                 ),
               ),
             ),
           ),
 
-          // Performance Insights
+          // Performance Insights - استخدام الـ TripDashboardStats مباشرة
           statsAsync.maybeWhen(
             data: (stats) => SliverToBoxAdapter(
-              child: PerformanceInsights(
-                totalTrips: stats.totalTripsToday,
-                completedTrips: stats.completedTrips,
-                activeTrips: stats.ongoingTrips,
-                delayedTrips: 0, // TODO: Add delayed trips tracking
-              ),
+              child: PerformanceInsights(stats: stats),
             ),
             orElse: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
           ),
@@ -313,35 +346,125 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
             data: (stats) => SliverToBoxAdapter(
               child: StatisticsDashboard(stats: stats, today: today),
             ),
-            loading: () => const SliverToBoxAdapter(
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32.0),
-                  child: CircularProgressIndicator(),
+            loading: () => SliverToBoxAdapter(
+              child: _buildLoadingState(),
+            ),
+            error: (error, _) => SliverToBoxAdapter(
+              child: _buildErrorState(error, today),
+            ),
+          ),
+
+          // Bottom Spacing
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 32),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 🔄 Loading State Widget
+  Widget _buildLoadingState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 48,
+              height: 48,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  AppColors.dispatcherPrimary.withValues(alpha: 0.8),
                 ),
               ),
             ),
-            error: (error, _) {
-              if (_isAuthenticationError(error)) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _handleAuthenticationError();
-                });
-                return const SliverToBoxAdapter(child: SizedBox.shrink());
-              }
-              return SliverToBoxAdapter(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32.0),
-                    child: Text(
-                      'Error: ${error.toString()}',
-                      style: const TextStyle(color: AppColors.error),
-                    ),
-                  ),
+            const SizedBox(height: 16),
+            const Text(
+              'جاري تحميل البيانات...',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                fontFamily: 'Cairo',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// ❌ Error State Widget
+  Widget _buildErrorState(Object error, DateTime today) {
+    if (_isAuthenticationError(error)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleAuthenticationError();
+      });
+      return const SizedBox.shrink();
+    }
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.errorLight.withValues(alpha: 0.3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline_rounded,
+                size: 48,
+                color: AppColors.error.withValues(alpha: 0.8),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'حدث خطأ في تحميل البيانات',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.error,
+                fontFamily: 'Cairo',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'تحقق من اتصالك بالإنترنت وحاول مرة أخرى',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary.withValues(alpha: 0.8),
+                fontFamily: 'Cairo',
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () => _refreshData(today),
+              icon: const Icon(Icons.refresh_rounded, size: 20),
+              label: const Text(
+                'إعادة المحاولة',
+                style: TextStyle(fontFamily: 'Cairo'),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.dispatcherPrimary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
                 ),
-              );
-            },
-          ),
-        ],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -366,13 +489,11 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
     if (!mounted) return;
 
     try {
-      // Logout first to clear session
       await ref.read(authStateProvider.notifier).logout();
     } catch (e) {
       // Continue even if logout fails
     }
 
-    // Always redirect to login
     if (mounted) {
       context.go(RoutePaths.login);
     }
@@ -380,19 +501,43 @@ class _DispatcherHomeScreenState extends ConsumerState<DispatcherHomeScreen>
 
   /// Refresh data
   Future<void> _refreshData(DateTime today) async {
-    HapticFeedback.lightImpact();
+    // Haptic feedback للمنصات التي تدعمه
+    if (PlatformUtils.supportsHapticFeedback) {
+      HapticFeedback.lightImpact();
+    }
+
     final cache = ref.read(dispatcherCacheDataSourceProvider);
     final userId = ref.read(authStateProvider).asData?.value.user?.id ?? 0;
+
     if (userId != 0) {
+      // مسح بيانات الـ dashboard stats من الكاش
       await cache.delete(
         DispatcherCacheKeys.dashboardStats(userId: userId, date: today),
       );
     }
+
+    // تحديث الـ providers
     ref.invalidate(dispatcherDashboardStatsProvider(today));
+
+    // تحديث بيانات الرحلات
     final todayFilters = TripFilters(
       fromDate: today,
       toDate: DateTime(today.year, today.month, today.day, 23, 59, 59),
     );
     ref.invalidate(dispatcherTripsProvider(todayFilters));
+
+    // تحديث بيانات المركبات والسائقين
+    ref.invalidate(dispatcherVehiclesProvider);
+    ref.invalidate(driversProvider);
+
+    // إذا كانت المنصة تدعم التحميل الأولي وكان مكتملاً، نحدث البيانات المحفوظة
+    if (PlatformUtils.needsInitialDataLoad) {
+      final loadState = ref.read(dispatcherInitialLoadProvider);
+      if (loadState.isComplete && !loadState.hasError) {
+        ref
+            .read(dispatcherInitialLoadProvider.notifier)
+            .startInitialLoad(forceRefresh: true);
+      }
+    }
   }
 }

@@ -71,18 +71,33 @@ class DispatcherAppBar extends StatelessWidget implements PreferredSizeWidget {
                       tablet: 20.0,
                       desktop: 22.0,
                     ),
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        offset: const Offset(0, 1),
+                        blurRadius: 2,
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle!,
                   style: AppTypography.caption.copyWith(
-                    color: Colors.white.withValues(alpha: 0.85),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
                     fontSize: context.responsive(
                       mobile: 11.0,
                       tablet: 12.0,
                       desktop: 13.0,
                     ),
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        offset: const Offset(0, 1),
+                        blurRadius: 2,
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -97,6 +112,13 @@ class DispatcherAppBar extends StatelessWidget implements PreferredSizeWidget {
                   tablet: 20.0,
                   desktop: 22.0,
                 ),
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    offset: const Offset(0, 1),
+                    blurRadius: 2,
+                  ),
+                ],
               ),
             ),
       actions: actions.map((action) {

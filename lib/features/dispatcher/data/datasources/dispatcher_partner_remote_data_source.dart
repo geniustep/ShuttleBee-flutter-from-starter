@@ -66,6 +66,50 @@ class DispatcherPartnerRemoteDataSource {
     return DispatcherPassengerProfile.fromOdoo(result.first);
   }
 
+  /// Fetch multiple passengers by their IDs in a single request
+  /// Returns a map of passengerId -> DispatcherPassengerProfile
+  Future<Map<int, DispatcherPassengerProfile>> getPassengersByIds(
+    List<int> passengerIds,
+  ) async {
+    if (passengerIds.isEmpty) return {};
+
+    final result = await _client.searchRead(
+      model: _partnerModel,
+      domain: [
+        ['id', 'in', passengerIds],
+      ],
+      fields: _passengerFields,
+      limit: passengerIds.length,
+      offset: 0,
+    );
+
+    final profiles = <int, DispatcherPassengerProfile>{};
+    for (final record in result) {
+      final profile = DispatcherPassengerProfile.fromOdoo(record);
+      profiles[profile.id] = profile;
+    }
+    return profiles;
+  }
+
+  /// Fetch ALL shuttle passengers with their coordinates
+  /// Used for pre-loading data for offline map view
+  Future<List<DispatcherPassengerProfile>> getAllPassengersWithCoordinates() async {
+    final result = await _client.searchRead(
+      model: _partnerModel,
+      domain: [
+        ['is_shuttle_passenger', '=', true],
+        ['active', '=', true],
+      ],
+      fields: _passengerFields,
+      limit: 1000, // Reasonable limit
+      offset: 0,
+    );
+
+    return result
+        .map((record) => DispatcherPassengerProfile.fromOdoo(record))
+        .toList();
+  }
+
   Future<void> updatePassenger({
     required int passengerId,
     String? name,

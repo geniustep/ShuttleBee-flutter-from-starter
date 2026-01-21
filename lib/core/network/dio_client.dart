@@ -85,18 +85,26 @@ class DioClient {
           final req = error.requestOptions;
           final status = error.response?.statusCode;
           final uri = req.uri;
-          _logger.e(
-            'DIO Error: ${req.method} $uri (status: $status) - ${error.message}',
-            error: error.error,
-            stackTrace: error.stackTrace,
-          );
+          
+          // Skip logging 404 errors for REST API endpoints that have RPC fallback
+          // These are expected when REST API is not available and we fallback to RPC
+          final isRestApiEndpoint = uri.path.contains('/api/v1/shuttle/');
+          final is404Error = status == 404;
+          
+          if (!(isRestApiEndpoint && is404Error)) {
+            _logger.e(
+              'DIO Error: ${req.method} $uri (status: $status) - ${error.message}',
+              error: error.error,
+              stackTrace: error.stackTrace,
+            );
 
-          // Extra diagnostic details (avoid noisy logs in production).
-          if (EnvConfig.debugMode) {
-            try {
-              _logger.d('DIO Response data: ${error.response?.data}');
-            } catch (_) {
-              // ignore
+            // Extra diagnostic details (avoid noisy logs in production).
+            if (EnvConfig.debugMode) {
+              try {
+                _logger.d('DIO Response data: ${error.response?.data}');
+              } catch (_) {
+                // ignore
+              }
             }
           }
           return handler.next(error);

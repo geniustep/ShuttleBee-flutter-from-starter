@@ -32,6 +32,8 @@ class RoutePaths {
   static const String dispatcherMonitor = '/dispatcher/monitor';
   static const String dispatcherVehicles = '/dispatcher/vehicles';
   static const String dispatcherCreateVehicle = '/dispatcher/vehicles/create';
+  static const String dispatcherVehicleDetail = '/dispatcher/vehicles/:vehicleId';
+  static const String dispatcherEditVehicle = '/dispatcher/vehicles/:vehicleId/edit';
   static const String dispatcherGroups = '/dispatcher/groups';
   static const String dispatcherCreateGroup = '/dispatcher/groups/create';
   static const String dispatcherGroupDetail = '/dispatcher/groups/:groupId';
@@ -49,9 +51,19 @@ class RoutePaths {
       '/dispatcher/passengers/p/:passengerId';
   static const String dispatcherEditPassenger =
       '/dispatcher/passengers/p/:passengerId/edit';
-  static const String dispatcherHolidays = '/dispatcher/holidays';
+  static const String dispatcherHolidays = '/dispatcher/settings/holidays';
   static const String dispatcherHolidayDetail =
-      '/dispatcher/holidays/:holidayId';
+      '/dispatcher/settings/holidays/:holidayId';
+  static const String dispatcherAttendants = '/dispatcher/attendants';
+  static const String dispatcherCreateAttendant = '/dispatcher/attendants/create';
+  static const String dispatcherAttendantDetail = '/dispatcher/attendants/:attendantId';
+  static const String dispatcherEditAttendant = '/dispatcher/attendants/:attendantId/edit';
+  static const String dispatcherDrivers = '/dispatcher/drivers';
+  static const String dispatcherCreateDriver = '/dispatcher/drivers/create';
+  static const String dispatcherDriverDetail = '/dispatcher/drivers/:driverId';
+  static const String dispatcherEditDriver = '/dispatcher/drivers/:driverId/edit';
+  static const String dispatcherSettings = '/dispatcher/settings';
+  static const String dispatcherStops = '/dispatcher/settings/stops';
 
   // === Passenger Routes ===
   static const String passengerTripTracking = '/passenger/track/:tripId';
@@ -111,6 +123,8 @@ class RouteNames {
   static const String dispatcherMonitor = 'dispatcherMonitor';
   static const String dispatcherVehicles = 'dispatcherVehicles';
   static const String dispatcherCreateVehicle = 'dispatcherCreateVehicle';
+  static const String dispatcherVehicleDetail = 'dispatcherVehicleDetail';
+  static const String dispatcherEditVehicle = 'dispatcherEditVehicle';
   static const String dispatcherGroups = 'dispatcherGroups';
   static const String dispatcherCreateGroup = 'dispatcherCreateGroup';
   static const String dispatcherGroupDetail = 'dispatcherGroupDetail';
@@ -125,6 +139,16 @@ class RouteNames {
   static const String dispatcherEditPassenger = 'dispatcherEditPassenger';
   static const String dispatcherHolidays = 'dispatcherHolidays';
   static const String dispatcherHolidayDetail = 'dispatcherHolidayDetail';
+  static const String dispatcherAttendants = 'dispatcherAttendants';
+  static const String dispatcherCreateAttendant = 'dispatcherCreateAttendant';
+  static const String dispatcherAttendantDetail = 'dispatcherAttendantDetail';
+  static const String dispatcherEditAttendant = 'dispatcherEditAttendant';
+  static const String dispatcherDrivers = 'dispatcherDrivers';
+  static const String dispatcherCreateDriver = 'dispatcherCreateDriver';
+  static const String dispatcherDriverDetail = 'dispatcherDriverDetail';
+  static const String dispatcherEditDriver = 'dispatcherEditDriver';
+  static const String dispatcherSettings = 'dispatcherSettings';
+  static const String dispatcherStops = 'dispatcherStops';
 
   // Passenger
   static const String passengerTripTracking = 'passengerTripTracking';

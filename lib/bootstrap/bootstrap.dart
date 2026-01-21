@@ -9,6 +9,7 @@ import 'package:bridgecore_flutter/bridgecore_flutter.dart';
 
 import '../app.dart';
 import '../core/config/env_config.dart';
+import '../core/services/map_tile_cache_service.dart';
 import '../core/storage/prefs_service.dart';
 import '../core/storage/secure_storage_service.dart';
 
@@ -98,6 +99,11 @@ Future<void> bootstrap() async {
     enableLogging: EnvConfig.debugMode,
   );
   logger.d('✅ BridgeCore initialized successfully');
+
+  // Initialize Map Tile Caching (FMTC) for offline maps
+  logger.d('🗺️ Initializing Map Tile Cache (FMTC)...');
+  await MapTileCacheService.initialize();
+  logger.d('✅ FMTC initialized successfully');
 
   // Initialize Local Storage (platform-specific)
   // Note: Full initialization happens via storageInitializationProvider

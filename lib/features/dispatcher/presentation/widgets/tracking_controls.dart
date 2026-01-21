@@ -1,26 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/platform_utils.dart';
 import '../bloc/tracking_monitor_cubit.dart';
 
-/// Tracking Controls Widget
+/// 🎛️ Tracking Controls Widget - ويدجت أدوات التحكم
 ///
-/// Floating controls for map interactions:
-/// - Zoom in/out
-/// - Fit all vehicles
-/// - Refresh connection
-/// - Toggle traffic
-/// - My location
+/// أدوات تحكم عائمة للتفاعل مع الخريطة:
+/// - تكبير/تصغير
+/// - احتواء جميع المركبات
+/// - تحديث الاتصال
+/// - تبديل حركة المرور
+/// - موقعي
 class TrackingControls extends StatefulWidget {
   final TrackingMonitorCubit cubit;
   final VoidCallback onRefresh;
   final bool isRefreshing;
 
   const TrackingControls({
-    Key? key,
+    super.key,
     required this.cubit,
     required this.onRefresh,
     this.isRefreshing = false,
-  }) : super(key: key);
+  });
 
   @override
   State<TrackingControls> createState() => _TrackingControlsState();
@@ -52,33 +55,54 @@ class _TrackingControlsState extends State<TrackingControls>
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Map controls',
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildControlButton(
-            context,
-            icon: Icons.center_focus_strong,
-            tooltip: 'Fit all vehicles',
-            onPressed: () => widget.cubit.fitAllVehicles(),
-          ),
-          const SizedBox(height: 8),
-          _buildControlButton(
-            context,
-            icon: Icons.refresh,
-            tooltip: 'Refresh connection',
-            onPressed: widget.onRefresh,
-            isLoading: widget.isRefreshing,
-          ),
-          const SizedBox(height: 8),
-          _buildControlButton(
-            context,
-            icon: Icons.clear_all,
-            tooltip: 'Clear offline vehicles',
-            onPressed: () => widget.cubit.clearOfflineVehicles(),
-          ),
-        ],
+      label: 'أدوات التحكم في الخريطة',
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildControlButton(
+              context,
+              icon: Icons.center_focus_strong_rounded,
+              tooltip: 'إظهار جميع المركبات',
+              onPressed: () => widget.cubit.fitAllVehicles(),
+            ),
+            _buildDivider(),
+            _buildControlButton(
+              context,
+              icon: Icons.refresh_rounded,
+              tooltip: 'تحديث الاتصال',
+              onPressed: widget.onRefresh,
+              isLoading: widget.isRefreshing,
+            ),
+            _buildDivider(),
+            _buildControlButton(
+              context,
+              icon: Icons.delete_sweep_rounded,
+              tooltip: 'مسح المركبات غير المتصلة',
+              onPressed: () => widget.cubit.clearOfflineVehicles(),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Container(
+      height: 1,
+      width: 32,
+      color: AppColors.border.withValues(alpha: 0.5),
     );
   }
 
@@ -92,11 +116,12 @@ class _TrackingControlsState extends State<TrackingControls>
     return ScaleTransition(
       scale: _scaleAnimation,
       child: Material(
-        elevation: 4,
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.white,
+        color: Colors.transparent,
         child: InkWell(
           onTap: isLoading ? null : () {
+            if (PlatformUtils.supportsHapticFeedback) {
+              HapticFeedback.lightImpact();
+            }
             _animationController.forward().then((_) {
               _animationController.reverse();
             });
@@ -109,21 +134,29 @@ class _TrackingControlsState extends State<TrackingControls>
             alignment: Alignment.center,
             child: Tooltip(
               message: tooltip,
+              textStyle: const TextStyle(
+                fontFamily: 'Cairo',
+                color: Colors.white,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.dispatcherPrimaryDark,
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: isLoading
                   ? SizedBox(
-                      width: 24,
-                      height: 24,
+                      width: 22,
+                      height: 22,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          Theme.of(context).primaryColor,
+                          AppColors.dispatcherPrimary,
                         ),
                       ),
                     )
                   : Icon(
                       icon,
-                      color: Theme.of(context).primaryColor,
-                      size: 24,
+                      color: AppColors.dispatcherPrimary,
+                      size: 22,
                       semanticLabel: tooltip,
                     ),
             ),

@@ -91,6 +91,8 @@ class _DesktopSidebar extends StatelessWidget {
       l10n.groups,
       l10n.passengers,
       l10n.vehicles,
+      l10n.attendants,
+      l10n.drivers,
     ];
 
     // نفس الأيقونات من DispatcherShellScreen (Desktop)
@@ -101,6 +103,8 @@ class _DesktopSidebar extends StatelessWidget {
       Icons.groups,
       Icons.people,
       Icons.directions_bus,
+      Icons.person_add_alt,
+      Icons.person_rounded,
     ];
 
     const selectedIcons = <IconData>[
@@ -110,10 +114,12 @@ class _DesktopSidebar extends StatelessWidget {
       Icons.groups_rounded,
       Icons.people_rounded,
       Icons.directions_bus_rounded,
+      Icons.person_add_alt_rounded,
+      Icons.person_rounded,
     ];
 
     // Branch paths (من DispatcherShellScreen)
-    // Desktop order: Home=0, Monitor=1, Trips=2, Groups=3, Passengers=4, Vehicles=5
+    // Desktop order: Home=0, Monitor=1, Trips=2, Groups=3, Passengers=4, Vehicles=5, Attendants=6, Drivers=7
     const branchPaths = [
       RoutePaths.dispatcherHome, // 0 - Home
       RoutePaths.dispatcherMonitor, // 1 - Monitor
@@ -121,6 +127,8 @@ class _DesktopSidebar extends StatelessWidget {
       RoutePaths.dispatcherGroups, // 3 - Groups
       RoutePaths.dispatcherPassengers, // 4 - Passengers
       RoutePaths.dispatcherVehicles, // 5 - Vehicles
+      RoutePaths.dispatcherAttendants, // 6 - Attendants
+      RoutePaths.dispatcherDrivers, // 7 - Drivers
     ];
 
     return Row(
@@ -240,13 +248,15 @@ class _DesktopSidebar extends StatelessWidget {
   }
 
   int _getSelectedIndexFromPath(String path) {
-    // Desktop order: Home=0, Monitor=1, Trips=2, Groups=3, Passengers=4, Vehicles=5
+    // Desktop order: Home=0, Monitor=1, Trips=2, Groups=3, Passengers=4, Vehicles=5, Attendants=6, Drivers=7
     // ترتيب الفحص مهم - يجب أن نفحص المسارات الأكثر تحديداً أولاً
     if (path.contains('/monitor')) return 1;
     if (path.contains('/trips')) return 2;
     if (path.contains('/groups')) return 3;
     if (path.contains('/passengers')) return 4;
     if (path.contains('/vehicles')) return 5;
+    if (path.contains('/attendants')) return 6;
+    if (path.contains('/drivers')) return 7;
     // Default to Home for /dispatcher and paths that don't match above
     if (path == RoutePaths.dispatcherHome ||
         path == '/dispatcher' ||
@@ -256,6 +266,7 @@ class _DesktopSidebar extends StatelessWidget {
             !path.contains('/groups') &&
             !path.contains('/vehicles') &&
             !path.contains('/passengers') &&
+            !path.contains('/attendants') &&
             !path.contains('/holidays'))) {
       return 0; // Home
     }
